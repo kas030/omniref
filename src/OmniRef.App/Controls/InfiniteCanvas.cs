@@ -14,11 +14,19 @@ namespace OmniRef.App.Controls;
 
 public sealed class InfiniteCanvas : Canvas
 {
+    private const double BaseGridStep = 32;
+
     public static readonly DependencyProperty WorkspaceProperty = DependencyProperty.Register(
         nameof(Workspace),
         typeof(WorkspaceViewModel),
         typeof(InfiniteCanvas),
         new FrameworkPropertyMetadata(null, OnWorkspaceChanged));
+
+    public static readonly DependencyProperty ShowGridProperty = DependencyProperty.Register(
+        nameof(ShowGrid),
+        typeof(bool),
+        typeof(InfiniteCanvas),
+        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
 
     private readonly SpatialHashIndex<BoardItemViewModel> _index = new(512);
     private readonly HashSet<BoardItemViewModel> _subscribedItems = [];
@@ -63,6 +71,12 @@ public sealed class InfiniteCanvas : Canvas
     {
         get => (WorkspaceViewModel?)GetValue(WorkspaceProperty);
         set => SetValue(WorkspaceProperty, value);
+    }
+
+    public bool ShowGrid
+    {
+        get => (bool)GetValue(ShowGridProperty);
+        set => SetValue(ShowGridProperty, value);
     }
 
     public WorldPoint ViewportCenter => ScreenToWorld(new Point(ActualWidth / 2, ActualHeight / 2));
@@ -258,15 +272,13 @@ public sealed class InfiniteCanvas : Canvas
 
     private void DrawGrid(DrawingContext drawingContext)
     {
-        if (_zoom < 0.2 || ActualWidth <= 0 || ActualHeight <= 0)
+        if (!ShowGrid || _zoom < 0.2 || ActualWidth <= 0 || ActualHeight <= 0)
         {
             return;
         }
 
         var brush = TryFindResource("CanvasGridBrush") as Brush ?? Brushes.DimGray;
-        var pen = new Pen(brush, 1);
-        pen.Freeze();
-        var step = 64d;
+        var step = BaseGridStep;
         while (step * _zoom < 28)
         {
             step *= 2;
@@ -275,15 +287,15 @@ public sealed class InfiniteCanvas : Canvas
         var visible = VisibleWorldRect();
         var startX = Math.Floor(visible.Left / step) * step;
         var startY = Math.Floor(visible.Top / step) * step;
-        for (var worldX = startX; worldX <= visible.Right; worldX += step)
+        var firstPoint = WorldToScreen(new WorldPoint(startX, startY));
+        var screenStep = step * _zoom;
+        const double radius = 1;
+        for (var x = firstPoint.X; x <= ActualWidth; x += screenStep)
         {
-            var x = WorldToScreen(new WorldPoint(worldX, 0)).X;
-            drawingContext.DrawLine(pen, new Point(x, 0), new Point(x, ActualHeight));
-        }
-        for (var worldY = startY; worldY <= visible.Bottom; worldY += step)
-        {
-            var y = WorldToScreen(new WorldPoint(0, worldY)).Y;
-            drawingContext.DrawLine(pen, new Point(0, y), new Point(ActualWidth, y));
+            for (var y = firstPoint.Y; y <= ActualHeight; y += screenStep)
+            {
+                drawingContext.DrawEllipse(brush, null, new Point(x, y), radius, radius);
+            }
         }
     }
 

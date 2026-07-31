@@ -117,6 +117,11 @@
                             Content="{Binding Localization[SidebarShort]}"
                             Click="ToggleSidebar_Click"
                             ToolTip="{Binding Localization[Sidebar]}" />
+                    <ToggleButton Style="{StaticResource ToolbarToggleButton}"
+                                  Content="{Binding Localization[GridShort]}"
+                                  IsChecked="{Binding ShowCanvasGrid, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                                  Click="ToggleGrid_Click"
+                                  ToolTip="{Binding Localization[Grid]}" />
                     <Separator />
                     <Button Style="{StaticResource ToolbarButton}"
                             Content="{Binding Localization[OpenWorkspace]}"
@@ -326,6 +331,7 @@
                     <ContentControl.ContentTemplate>
                         <DataTemplate>
                             <controls:InfiniteCanvas Workspace="{Binding}"
+                                                     ShowGrid="{Binding ShowCanvasGrid, RelativeSource={RelativeSource AncestorType=Window}}"
                                                      PasteRequested="Canvas_PasteRequested"
                                                      CopyRequested="Canvas_CopyRequested"
                                                      ExternalDrop="Canvas_ExternalDrop" />

@@ -4,7 +4,6 @@
     <Color x:Key="SurfaceColor">#FFFFFFFF</Color>
     <Color x:Key="SurfaceRaisedColor">#FFF0F2F5</Color>
     <Color x:Key="CanvasBackgroundColor">#FFE9EBEF</Color>
-    <Color x:Key="CanvasGridColor">#305D6470</Color>
     <Color x:Key="BorderColor">#FFD8DCE3</Color>
     <Color x:Key="TextPrimaryColor">#FF1D2026</Color>
     <Color x:Key="TextSecondaryColor">#FF646C79</Color>
@@ -15,7 +14,7 @@
     <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}" />
     <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="{StaticResource SurfaceRaisedColor}" />
     <SolidColorBrush x:Key="CanvasBackgroundBrush" Color="{StaticResource CanvasBackgroundColor}" />
-    <SolidColorBrush x:Key="CanvasGridBrush" Color="{StaticResource CanvasGridColor}" />
+    <SolidColorBrush x:Key="CanvasGridBrush" Color="{StaticResource BorderColor}" />
     <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}" />
     <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}" />
     <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}" />

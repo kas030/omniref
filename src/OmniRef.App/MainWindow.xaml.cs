@@ -26,6 +26,12 @@ public partial class MainWindow : Window
 {
     private const string ClipboardFormat = "OmniRef.Items.v1";
 
+    public static readonly DependencyProperty ShowCanvasGridProperty = DependencyProperty.Register(
+        nameof(ShowCanvasGrid),
+        typeof(bool),
+        typeof(MainWindow),
+        new PropertyMetadata(false));
+
     private readonly MainWindowViewModel _viewModel;
     private readonly AppSettings _settings;
     private readonly AppSettingsStore _settingsStore;
@@ -68,6 +74,7 @@ public partial class MainWindow : Window
 
         RestoreWindowState();
         Topmost = settings.AlwaysOnTop;
+        ShowCanvasGrid = settings.ShowCanvasGrid;
         Loaded += OnLoaded;
         Closing += OnClosing;
         Activated += OnActivated;
@@ -452,6 +459,18 @@ public partial class MainWindow : Window
 
     private void ToggleSidebar_Click(object sender, RoutedEventArgs eventArgs) =>
         _viewModel.SidebarVisible = !_viewModel.SidebarVisible;
+
+    public bool ShowCanvasGrid
+    {
+        get => (bool)GetValue(ShowCanvasGridProperty);
+        set => SetValue(ShowCanvasGridProperty, value);
+    }
+
+    private void ToggleGrid_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        _settings.ShowCanvasGrid = ShowCanvasGrid;
+        SaveSettings(cleanExit: false);
+    }
 
     private void AlwaysOnTop_Click(object sender, RoutedEventArgs eventArgs)
     {
