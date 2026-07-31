@@ -97,11 +97,6 @@
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Border" Property="Opacity" Value="0.68" />
                         </Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Border"
-                                    Property="BorderBrush"
-                                    Value="{DynamicResource AccentBrush}" />
-                        </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Border" Property="Opacity" Value="0.38" />
                         </Trigger>
@@ -148,11 +143,6 @@
                             <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentBrush}" />
                             <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                             <Setter Property="Foreground" Value="White" />
-                        </Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Border"
-                                    Property="BorderBrush"
-                                    Value="{DynamicResource AccentBrush}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Border" Property="Opacity" Value="0.38" />
