@@ -159,8 +159,7 @@
                                   Click="ToggleGridSnap_Click"
                                   ToolTip="{Binding Localization[GridSnap]}"
                                   AutomationProperties.Name="{Binding Localization[GridSnap]}">
-                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
-                                          Icon="TargetArrow" />
+                        <Path Style="{StaticResource ToolbarMagnetIcon}" />
                     </ToggleButton>
                     <Separator />
                     <Button Style="{StaticResource ToolbarButton}"
