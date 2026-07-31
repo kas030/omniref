@@ -18,5 +18,6 @@
     <ProjectReference Include="..\OmniRef.Core\OmniRef.Core.csproj" />
     <ProjectReference Include="..\OmniRef.Infrastructure.Windows\OmniRef.Infrastructure.Windows.csproj" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="FluentIcons.Wpf" />
   </ItemGroup>
 </Project>

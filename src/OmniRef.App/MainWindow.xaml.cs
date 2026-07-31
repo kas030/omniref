@@ -457,9 +457,6 @@ public partial class MainWindow : Window
     private void Paste_Click(object sender, RoutedEventArgs eventArgs) =>
         PasteFromClipboard(CurrentCanvasCenter());
 
-    private void ToggleSidebar_Click(object sender, RoutedEventArgs eventArgs) =>
-        _viewModel.SidebarVisible = !_viewModel.SidebarVisible;
-
     public bool ShowCanvasGrid
     {
         get => (bool)GetValue(ShowCanvasGridProperty);

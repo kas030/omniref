@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:controls="clr-namespace:OmniRef.App.Controls"
         xmlns:converters="clr-namespace:OmniRef.App.Converters"
+        xmlns:icons="clr-namespace:FluentIcons.Wpf;assembly=FluentIcons.Wpf"
         mc:Ignorable="d"
         Title="OmniRef"
         Width="1280"
@@ -41,10 +42,13 @@
 
                 <Button Grid.Column="0"
                         Style="{StaticResource ToolbarButton}"
-                        Margin="7,5,3,5"
-                        Content="+"
+                        Margin="7,3,3,3"
                         Click="New_Click"
-                        ToolTip="{Binding Localization[NewWorkspace]}" />
+                        ToolTip="{Binding Localization[NewWorkspace]}"
+                        AutomationProperties.Name="{Binding Localization[NewWorkspace]}">
+                    <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                      Icon="Add" />
+                </Button>
 
                 <ListBox Grid.Column="1"
                          ItemsSource="{Binding Workspaces}"
@@ -72,36 +76,57 @@
                                            MaxWidth="190"
                                            TextTrimming="CharacterEllipsis"
                                            Margin="8,0,5,0" />
-                                <Button Content="×"
-                                        Padding="5,0"
+                                <Button Style="{StaticResource ToolbarButton}"
+                                        MinWidth="24"
+                                        MinHeight="24"
+                                        Padding="5"
                                         Margin="1,0"
-                                        Background="Transparent"
-                                        BorderThickness="0"
                                         Tag="{Binding}"
                                         Click="CloseTab_Click"
-                                        ToolTip="{Binding DataContext.Localization[CloseTab], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                        ToolTip="{Binding DataContext.Localization[CloseTab], RelativeSource={RelativeSource AncestorType=Window}}"
+                                        AutomationProperties.Name="{Binding DataContext.Localization[CloseTab], RelativeSource={RelativeSource AncestorType=Window}}">
+                                    <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                                      Width="16"
+                                                      Height="16"
+                                                      FontSize="16"
+                                                      IconSize="Size16"
+                                                      Icon="Dismiss" />
+                                </Button>
                             </StackPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="2,3,7,3">
+                    <ToggleButton Style="{StaticResource ToolbarToggleButton}"
+                                  IsChecked="{Binding Topmost, RelativeSource={RelativeSource AncestorType=Window}, Mode=OneWay}"
+                                  Click="AlwaysOnTop_Click"
+                                  ToolTip="{Binding Localization[AlwaysOnTop]}"
+                                  AutomationProperties.Name="{Binding Localization[AlwaysOnTop]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="Pin" />
+                    </ToggleButton>
                     <Button Style="{StaticResource ToolbarButton}"
-                            Content="{Binding Localization[TopShort]}"
-                            Click="AlwaysOnTop_Click"
-                            ToolTip="{Binding Localization[AlwaysOnTop]}" />
-                    <Button Style="{StaticResource ToolbarButton}"
-                            Content="{Binding Localization[ThemeShort]}"
                             Click="Theme_Click"
-                            ToolTip="{Binding Localization[Theme]}" />
+                            ToolTip="{Binding Localization[Theme]}"
+                            AutomationProperties.Name="{Binding Localization[Theme]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="WeatherMoon" />
+                    </Button>
                     <Button Style="{StaticResource ToolbarButton}"
-                            Content="{Binding Localization[Language]}"
                             Click="Language_Click"
-                            ToolTip="{Binding Localization[Language]}" />
+                            ToolTip="{Binding Localization[SwitchLanguage]}"
+                            AutomationProperties.Name="{Binding Localization[SwitchLanguage]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="Globe" />
+                    </Button>
                     <Button Style="{StaticResource ToolbarButton}"
-                            Content="{Binding Localization[Exit]}"
                             Click="Exit_Click"
-                            ToolTip="{Binding Localization[Exit]}" />
+                            ToolTip="{Binding Localization[Exit]}"
+                            AutomationProperties.Name="{Binding Localization[Exit]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="SignOut" />
+                    </Button>
                 </StackPanel>
             </Grid>
         </Border>
@@ -113,57 +138,109 @@
             <ScrollViewer HorizontalScrollBarVisibility="Auto"
                           VerticalScrollBarVisibility="Disabled">
                 <StackPanel Orientation="Horizontal" Margin="6,3">
-                    <Button Style="{StaticResource ToolbarButton}"
-                            Content="{Binding Localization[SidebarShort]}"
-                            Click="ToggleSidebar_Click"
-                            ToolTip="{Binding Localization[Sidebar]}" />
                     <ToggleButton Style="{StaticResource ToolbarToggleButton}"
-                                  Content="{Binding Localization[GridShort]}"
+                                  IsChecked="{Binding SidebarVisible, Mode=TwoWay}"
+                                  ToolTip="{Binding Localization[Sidebar]}"
+                                  AutomationProperties.Name="{Binding Localization[Sidebar]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="PanelLeft" />
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource ToolbarToggleButton}"
                                   IsChecked="{Binding ShowCanvasGrid, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
                                   Click="ToggleGrid_Click"
-                                  ToolTip="{Binding Localization[Grid]}" />
+                                  ToolTip="{Binding Localization[Grid]}"
+                                  AutomationProperties.Name="{Binding Localization[Grid]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="GridDots" />
+                    </ToggleButton>
                     <Separator />
                     <Button Style="{StaticResource ToolbarButton}"
-                            Content="{Binding Localization[OpenWorkspace]}"
-                            Click="Open_Click" />
+                            Click="Open_Click"
+                            ToolTip="{Binding Localization[OpenWorkspace]}"
+                            AutomationProperties.Name="{Binding Localization[OpenWorkspace]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="FolderOpen" />
+                    </Button>
                     <Button Style="{StaticResource ToolbarButton}"
-                            Content="{Binding Localization[Save]}"
-                            Click="Save_Click" />
+                            Click="Save_Click"
+                            ToolTip="{Binding Localization[Save]}"
+                            AutomationProperties.Name="{Binding Localization[Save]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="Save" />
+                    </Button>
                     <Button Style="{StaticResource ToolbarButton}"
-                            Content="{Binding Localization[SaveAs]}"
-                            Click="SaveAs_Click" />
+                            Click="SaveAs_Click"
+                            ToolTip="{Binding Localization[SaveAs]}"
+                            AutomationProperties.Name="{Binding Localization[SaveAs]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="SaveEdit" />
+                    </Button>
                     <Separator />
                     <Button Style="{StaticResource ToolbarButton}"
-                            Content="{Binding Localization[AddFiles]}"
-                            Click="AddFiles_Click" />
+                            Click="AddFiles_Click"
+                            ToolTip="{Binding Localization[AddFiles]}"
+                            AutomationProperties.Name="{Binding Localization[AddFiles]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="DocumentAdd" />
+                    </Button>
                     <Button Style="{StaticResource ToolbarButton}"
-                            Content="{Binding Localization[AddFolder]}"
-                            Click="AddFolder_Click" />
+                            Click="AddFolder_Click"
+                            ToolTip="{Binding Localization[AddFolder]}"
+                            AutomationProperties.Name="{Binding Localization[AddFolder]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="FolderAdd" />
+                    </Button>
                     <Button Style="{StaticResource ToolbarButton}"
-                            Content="{Binding Localization[AddText]}"
-                            Click="AddText_Click" />
+                            Click="AddText_Click"
+                            ToolTip="{Binding Localization[AddText]}"
+                            AutomationProperties.Name="{Binding Localization[AddText]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="Text" />
+                    </Button>
                     <Button Style="{StaticResource ToolbarButton}"
-                            Content="{Binding Localization[AddFrame]}"
-                            Click="AddFrame_Click" />
+                            Click="AddFrame_Click"
+                            ToolTip="{Binding Localization[AddFrame]}"
+                            AutomationProperties.Name="{Binding Localization[AddFrame]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="SquareHint" />
+                    </Button>
                     <Separator />
                     <Button Style="{StaticResource ToolbarButton}"
-                            Content="↶"
                             Click="Undo_Click"
-                            ToolTip="{Binding Localization[Undo]}" />
+                            ToolTip="{Binding Localization[Undo]}"
+                            AutomationProperties.Name="{Binding Localization[Undo]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="ArrowUndo" />
+                    </Button>
                     <Button Style="{StaticResource ToolbarButton}"
-                            Content="↷"
                             Click="Redo_Click"
-                            ToolTip="{Binding Localization[Redo]}" />
+                            ToolTip="{Binding Localization[Redo]}"
+                            AutomationProperties.Name="{Binding Localization[Redo]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="ArrowRedo" />
+                    </Button>
                     <Button Style="{StaticResource ToolbarButton}"
-                            Content="{Binding Localization[Paste]}"
-                            Click="Paste_Click" />
+                            Click="Paste_Click"
+                            ToolTip="{Binding Localization[Paste]}"
+                            AutomationProperties.Name="{Binding Localization[Paste]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="ClipboardPaste" />
+                    </Button>
                     <Button Style="{StaticResource ToolbarButton}"
                             Foreground="{DynamicResource DangerBrush}"
-                            Content="{Binding Localization[Delete]}"
-                            Click="Delete_Click" />
+                            Click="Delete_Click"
+                            ToolTip="{Binding Localization[Delete]}"
+                            AutomationProperties.Name="{Binding Localization[Delete]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="Delete" />
+                    </Button>
                     <Button Style="{StaticResource ToolbarButton}"
-                            Content="{Binding Localization[Arrange]}"
-                            Click="Arrange_Click" />
+                            Click="Arrange_Click"
+                            ToolTip="{Binding Localization[Arrange]}"
+                            AutomationProperties.Name="{Binding Localization[Arrange]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="AlignLeft" />
+                    </Button>
                 </StackPanel>
             </ScrollViewer>
         </Border>
@@ -290,18 +367,30 @@
                                             <TextBox Text="{Binding TextBackground, UpdateSourceTrigger=LostFocus}"
                                                      Margin="0,0,0,8" />
                                             <WrapPanel>
-                                                <Button Content="←"
+                                                <Button Style="{StaticResource ToolbarButton}"
                                                         Tag="Left"
                                                         Click="TextAlignment_Click"
-                                                        ToolTip="{Binding DataContext.Localization[TextAlignLeft], RelativeSource={RelativeSource AncestorType=Window}}" />
-                                                <Button Content="↔"
+                                                        ToolTip="{Binding DataContext.Localization[TextAlignLeft], RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        AutomationProperties.Name="{Binding DataContext.Localization[TextAlignLeft], RelativeSource={RelativeSource AncestorType=Window}}">
+                                                    <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                                                      Icon="TextAlignLeft" />
+                                                </Button>
+                                                <Button Style="{StaticResource ToolbarButton}"
                                                         Tag="Center"
                                                         Click="TextAlignment_Click"
-                                                        ToolTip="{Binding DataContext.Localization[TextAlignCenter], RelativeSource={RelativeSource AncestorType=Window}}" />
-                                                <Button Content="→"
+                                                        ToolTip="{Binding DataContext.Localization[TextAlignCenter], RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        AutomationProperties.Name="{Binding DataContext.Localization[TextAlignCenter], RelativeSource={RelativeSource AncestorType=Window}}">
+                                                    <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                                                      Icon="TextAlignCenter" />
+                                                </Button>
+                                                <Button Style="{StaticResource ToolbarButton}"
                                                         Tag="Right"
                                                         Click="TextAlignment_Click"
-                                                        ToolTip="{Binding DataContext.Localization[TextAlignRight], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                        ToolTip="{Binding DataContext.Localization[TextAlignRight], RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        AutomationProperties.Name="{Binding DataContext.Localization[TextAlignRight], RelativeSource={RelativeSource AncestorType=Window}}">
+                                                    <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                                                      Icon="TextAlignRight" />
+                                                </Button>
                                             </WrapPanel>
                                         </StackPanel>
                                         <WrapPanel>
@@ -412,13 +501,21 @@
                         Click="ResetZoom_Click"
                         ToolTip="{Binding Localization[ZoomReset]}" />
                 <Button Grid.Column="2"
+                        Style="{StaticResource ToolbarButton}"
+                        MinWidth="28"
+                        MinHeight="24"
                         Padding="8,1"
                         Margin="2"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Content="⋯"
                         Click="Compact_Click"
-                        ToolTip="{Binding Localization[Compact]}" />
+                        ToolTip="{Binding Localization[Compact]}"
+                        AutomationProperties.Name="{Binding Localization[Compact]}">
+                    <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                      Width="16"
+                                      Height="16"
+                                      FontSize="16"
+                                      IconSize="Size16"
+                                      Icon="Storage" />
+                </Button>
             </Grid>
         </Border>
     </Grid>
