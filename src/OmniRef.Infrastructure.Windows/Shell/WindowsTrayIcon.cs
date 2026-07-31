@@ -16,7 +16,7 @@ public sealed class WindowsTrayIcon : IDisposable
     private const uint TrackRightButton = 0x0002;
     private const uint TrackReturnCommand = 0x0100;
     private const int CallbackMessage = 0x0400 + 0x4F;
-    private const int LeftButtonDoubleClick = 0x0203;
+    private const int LeftButtonUp = 0x0202;
     private const int RightButtonUp = 0x0205;
     private const int NullMessage = 0x0000;
     private const int GetIconMessage = 0x007F;
@@ -160,7 +160,7 @@ public sealed class WindowsTrayIcon : IDisposable
 
         switch (lParam.ToInt32())
         {
-            case LeftButtonDoubleClick:
+            case LeftButtonUp:
                 handled = true;
                 ShowRequested?.Invoke(this, EventArgs.Empty);
                 break;
