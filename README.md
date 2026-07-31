@@ -1,10 +1,20 @@
-# OmniRef
+<p align="center">
+  <img src="src/OmniRef.App/Assets/AppIcon.svg" width="160" alt="OmniRef 图标">
+</p>
 
-OmniRef 是一个面向 Windows 的轻量本地资料画布。它把常看的图片、文件、文件夹、文本和网址放在同一个无限画布上，像 PureRef 一样随手展开，但不局限于参考图。
+<h1 align="center">OmniRef</h1>
 
-![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-1674CE)
-![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
-![UI](https://img.shields.io/badge/UI-WPF-5C2D91)
+<p align="center">
+  面向 Windows 的轻量本地资料画布
+</p>
+
+OmniRef 把常看的图片、文件、文件夹、文本和网址放在同一个无限画布上，像 PureRef 一样随手展开，但不局限于参考图。
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-1674CE" alt="Windows 10 或 11">
+  <img src="https://img.shields.io/badge/.NET-10.0-512BD4" alt=".NET 10">
+  <img src="https://img.shields.io/badge/UI-WPF-5C2D91" alt="WPF">
+</p>
 
 ## 功能
 
