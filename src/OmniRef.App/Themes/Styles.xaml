@@ -68,6 +68,22 @@
         <Setter Property="SnapsToDevicePixels" Value="True" />
     </Style>
 
+    <Style x:Key="ToolbarThemeIcon"
+           TargetType="{x:Type icons:FluentIcon}"
+           BasedOn="{StaticResource ToolbarIcon}">
+        <Setter Property="Icon" Value="GameControllerButtonA" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding CurrentTheme, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                         Value="Light">
+                <Setter Property="Icon" Value="WeatherSunny" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding CurrentTheme, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                         Value="Dark">
+                <Setter Property="Icon" Value="WeatherMoon" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
     <Style x:Key="ToolbarPathIcon" TargetType="{x:Type Path}">
         <Setter Property="Width" Value="18" />
         <Setter Property="Height" Value="18" />

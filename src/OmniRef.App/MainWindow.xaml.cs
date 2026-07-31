@@ -38,6 +38,12 @@ public partial class MainWindow : Window
         typeof(MainWindow),
         new PropertyMetadata(false));
 
+    public static readonly DependencyProperty CurrentThemeProperty = DependencyProperty.Register(
+        nameof(CurrentTheme),
+        typeof(AppTheme),
+        typeof(MainWindow),
+        new PropertyMetadata(AppTheme.System));
+
     private readonly MainWindowViewModel _viewModel;
     private readonly AppSettings _settings;
     private readonly AppSettingsStore _settingsStore;
@@ -82,6 +88,7 @@ public partial class MainWindow : Window
         Topmost = settings.AlwaysOnTop;
         ShowCanvasGrid = settings.ShowCanvasGrid;
         SnapToGrid = settings.SnapToGrid;
+        CurrentTheme = settings.Theme;
         Loaded += OnLoaded;
         Closing += OnClosing;
         Activated += OnActivated;
@@ -476,6 +483,12 @@ public partial class MainWindow : Window
         set => SetValue(SnapToGridProperty, value);
     }
 
+    public AppTheme CurrentTheme
+    {
+        get => (AppTheme)GetValue(CurrentThemeProperty);
+        set => SetValue(CurrentThemeProperty, value);
+    }
+
     private void ToggleGrid_Click(object sender, RoutedEventArgs eventArgs)
     {
         _settings.ShowCanvasGrid = ShowCanvasGrid;
@@ -497,7 +510,8 @@ public partial class MainWindow : Window
 
     private void Theme_Click(object sender, RoutedEventArgs eventArgs)
     {
-        _settings.Theme = _themeManager.Cycle();
+        CurrentTheme = _themeManager.Cycle();
+        _settings.Theme = CurrentTheme;
         SaveSettings(cleanExit: false);
         FindCanvas()?.InvalidateVisual();
     }

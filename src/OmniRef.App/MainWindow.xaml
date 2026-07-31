@@ -111,8 +111,7 @@
                             Click="Theme_Click"
                             ToolTip="{Binding Localization[Theme]}"
                             AutomationProperties.Name="{Binding Localization[Theme]}">
-                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
-                                          Icon="WeatherMoon" />
+                        <icons:FluentIcon Style="{StaticResource ToolbarThemeIcon}" />
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="Language_Click"
