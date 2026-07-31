@@ -15,6 +15,9 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
+    <Resource Include="Assets\AppIcon.ico" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\OmniRef.Core\OmniRef.Core.csproj" />
     <ProjectReference Include="..\OmniRef.Infrastructure.Windows\OmniRef.Infrastructure.Windows.csproj" />
     <PackageReference Include="CommunityToolkit.Mvvm" />

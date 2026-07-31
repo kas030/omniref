@@ -6,14 +6,24 @@
         xmlns:controls="clr-namespace:OmniRef.App.Controls"
         xmlns:converters="clr-namespace:OmniRef.App.Converters"
         xmlns:icons="clr-namespace:FluentIcons.Wpf;assembly=FluentIcons.Wpf"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         mc:Ignorable="d"
         Title="OmniRef"
+        Icon="Assets/AppIcon.ico"
         Width="1280"
         Height="800"
         MinWidth="900"
         MinHeight="600"
+        WindowStyle="None"
         Foreground="{DynamicResource TextPrimaryBrush}"
         WindowStartupLocation="CenterScreen">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0"
+                            CornerRadius="10"
+                            GlassFrameThickness="1"
+                            ResizeBorderThickness="6"
+                            UseAeroCaptionButtons="False" />
+    </shell:WindowChrome.WindowChrome>
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
         <converters:InverseBooleanConverter x:Key="InverseBool" />
@@ -22,7 +32,24 @@
         <converters:NullToVisibilityConverter x:Key="NullToVisibility" />
     </Window.Resources>
 
-    <Grid Background="{DynamicResource WindowBackgroundBrush}">
+    <Border x:Name="WindowFrame"
+            SnapsToDevicePixels="True">
+        <Border.Style>
+            <Style TargetType="{x:Type Border}">
+                <Setter Property="Background" Value="{DynamicResource WindowBackgroundBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="10" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                 Value="Maximized">
+                        <Setter Property="BorderThickness" Value="0" />
+                        <Setter Property="CornerRadius" Value="0" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
+        <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="42" />
             <RowDefinition Height="46" />
@@ -33,17 +60,32 @@
         <Border Grid.Row="0"
                 Background="{DynamicResource SurfaceBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
-                BorderThickness="0,0,0,1">
+                BorderThickness="0,0,0,1"
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
             <Grid>
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <Button Grid.Column="0"
+                <Image Grid.Column="0"
+                       Width="20"
+                       Height="20"
+                       Margin="12,0,5,0"
+                       VerticalAlignment="Center"
+                       Source="Assets/AppIcon.ico"
+                       Stretch="Uniform"
+                       RenderOptions.BitmapScalingMode="HighQuality"
+                       SnapsToDevicePixels="True"
+                       IsHitTestVisible="False"
+                       AutomationProperties.Name="OmniRef" />
+
+                <Button Grid.Column="1"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
                         Style="{StaticResource ToolbarButton}"
-                        Margin="7,3,3,3"
+                        Margin="2,3,3,3"
                         Click="New_Click"
                         ToolTip="{Binding Localization[NewWorkspace]}"
                         AutomationProperties.Name="{Binding Localization[NewWorkspace]}">
@@ -51,7 +93,8 @@
                                       Icon="Add" />
                 </Button>
 
-                <ListBox Grid.Column="1"
+                <ListBox Grid.Column="2"
+                         shell:WindowChrome.IsHitTestVisibleInChrome="True"
                          ItemsSource="{Binding Workspaces}"
                          SelectedItem="{Binding SelectedWorkspace, Mode=TwoWay}"
                          VerticalContentAlignment="Center"
@@ -98,35 +141,54 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="2,3,7,3">
-                    <ToggleButton Style="{StaticResource ToolbarToggleButton}"
-                                  IsChecked="{Binding Topmost, RelativeSource={RelativeSource AncestorType=Window}, Mode=OneWay}"
-                                  Click="AlwaysOnTop_Click"
-                                  ToolTip="{Binding Localization[AlwaysOnTop]}"
-                                  AutomationProperties.Name="{Binding Localization[AlwaysOnTop]}">
-                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
-                                          Icon="Pin" />
-                    </ToggleButton>
-                    <Button Style="{StaticResource ToolbarButton}"
-                            Click="Theme_Click"
-                            ToolTip="{Binding Localization[Theme]}"
-                            AutomationProperties.Name="{Binding Localization[Theme]}">
-                        <icons:FluentIcon Style="{StaticResource ToolbarThemeIcon}" />
+                <StackPanel Grid.Column="3"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                            Orientation="Horizontal">
+                    <Button Style="{StaticResource CaptionButton}"
+                            Click="MinimizeWindow_Click"
+                            ToolTip="{Binding Localization[MinimizeWindow]}"
+                            AutomationProperties.Name="{Binding Localization[MinimizeWindow]}">
+                        <Path Style="{StaticResource CaptionGlyph}"
+                              Data="M 1,8 H 9" />
                     </Button>
-                    <Button Style="{StaticResource ToolbarButton}"
-                            Click="Language_Click"
-                            ToolTip="{Binding Localization[SwitchLanguage]}"
-                            AutomationProperties.Name="{Binding Localization[SwitchLanguage]}">
-                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
-                                          Icon="Globe" />
+                    <Button Style="{StaticResource CaptionButton}"
+                            Click="MaximizeRestoreWindow_Click"
+                            ToolTip="{Binding Localization[MaximizeWindow]}"
+                            AutomationProperties.Name="{Binding Localization[MaximizeWindow]}">
+                        <Grid Width="11" Height="11">
+                            <Path Data="M 1,1 H 10 V 10 H 1 Z">
+                                <Path.Style>
+                                    <Style TargetType="{x:Type Path}" BasedOn="{StaticResource CaptionGlyph}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                         Value="Maximized">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Path.Style>
+                            </Path>
+                            <Path Data="M 3,1 H 10 V 8 H 8 M 1,3 H 8 V 10 H 1 Z">
+                                <Path.Style>
+                                    <Style TargetType="{x:Type Path}" BasedOn="{StaticResource CaptionGlyph}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                         Value="Maximized">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Path.Style>
+                            </Path>
+                        </Grid>
                     </Button>
-                    <Button Style="{StaticResource ToolbarButton}"
-                            Foreground="{DynamicResource DangerBrush}"
-                            Click="Exit_Click"
-                            ToolTip="{Binding Localization[Exit]}"
-                            AutomationProperties.Name="{Binding Localization[Exit]}">
-                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
-                                          Icon="SignOut" />
+                    <Button Style="{StaticResource CaptionCloseButton}"
+                            Click="CloseWindow_Click"
+                            ToolTip="{Binding Localization[CloseWindow]}"
+                            AutomationProperties.Name="{Binding Localization[CloseWindow]}">
+                        <Path Style="{StaticResource CaptionGlyph}"
+                              Data="M 1,1 L 9,9 M 9,1 L 1,9" />
                     </Button>
                 </StackPanel>
             </Grid>
@@ -136,9 +198,15 @@
                 Background="{DynamicResource SurfaceBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,0,0,1">
-            <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                          VerticalScrollBarVisibility="Disabled">
-                <StackPanel Orientation="Horizontal" Margin="6,3">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ScrollViewer Grid.Column="0"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Disabled">
+                    <StackPanel Orientation="Horizontal" Margin="6,3">
                     <ToggleButton Style="{StaticResource ToolbarToggleButton}"
                                   IsChecked="{Binding SidebarVisible, Mode=TwoWay}"
                                   ToolTip="{Binding Localization[Sidebar]}"
@@ -249,8 +317,43 @@
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
                                           Icon="AlignLeft" />
                     </Button>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            Margin="4,3,7,3">
+                    <ToggleButton Style="{StaticResource ToolbarToggleButton}"
+                                  IsChecked="{Binding Topmost, RelativeSource={RelativeSource AncestorType=Window}, Mode=OneWay}"
+                                  Click="AlwaysOnTop_Click"
+                                  ToolTip="{Binding Localization[AlwaysOnTop]}"
+                                  AutomationProperties.Name="{Binding Localization[AlwaysOnTop]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="Pin" />
+                    </ToggleButton>
+                    <Button Style="{StaticResource ToolbarButton}"
+                            Click="Theme_Click"
+                            ToolTip="{Binding Localization[Theme]}"
+                            AutomationProperties.Name="{Binding Localization[Theme]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarThemeIcon}" />
+                    </Button>
+                    <Button Style="{StaticResource ToolbarButton}"
+                            Click="Language_Click"
+                            ToolTip="{Binding Localization[SwitchLanguage]}"
+                            AutomationProperties.Name="{Binding Localization[SwitchLanguage]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="Globe" />
+                    </Button>
+                    <Button Style="{StaticResource ToolbarButton}"
+                            Foreground="{DynamicResource DangerBrush}"
+                            Click="Exit_Click"
+                            ToolTip="{Binding Localization[Exit]}"
+                            AutomationProperties.Name="{Binding Localization[Exit]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="SignOut" />
+                    </Button>
                 </StackPanel>
-            </ScrollViewer>
+            </Grid>
         </Border>
 
         <Grid Grid.Row="2">
@@ -527,5 +630,6 @@
                 </Button>
             </Grid>
         </Border>
-    </Grid>
+        </Grid>
+    </Border>
 </Window>

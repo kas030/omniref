@@ -221,6 +221,39 @@ public partial class MainWindow : Window
 
     private void OnActivated(object? sender, EventArgs eventArgs) => _viewModel.RefreshReferences();
 
+    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs eventArgs)
+    {
+        if (eventArgs.ClickCount == 2)
+        {
+            MaximizeRestoreWindow_Click(sender, eventArgs);
+            eventArgs.Handled = true;
+            return;
+        }
+
+        if (eventArgs.ButtonState == MouseButtonState.Pressed)
+        {
+            DragMove();
+        }
+    }
+
+    private void MinimizeWindow_Click(object sender, RoutedEventArgs eventArgs) =>
+        SystemCommands.MinimizeWindow(this);
+
+    private void MaximizeRestoreWindow_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        if (WindowState == WindowState.Maximized)
+        {
+            SystemCommands.RestoreWindow(this);
+        }
+        else
+        {
+            SystemCommands.MaximizeWindow(this);
+        }
+    }
+
+    private void CloseWindow_Click(object sender, RoutedEventArgs eventArgs) =>
+        SystemCommands.CloseWindow(this);
+
     private void OnSessionEnding(object sender, SessionEndingCancelEventArgs eventArgs)
     {
         _allowClose = true;
