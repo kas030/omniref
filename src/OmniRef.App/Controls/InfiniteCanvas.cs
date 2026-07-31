@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Threading;
 using OmniRef.App.ViewModels;
@@ -15,6 +16,7 @@ namespace OmniRef.App.Controls;
 public sealed class InfiniteCanvas : Canvas
 {
     private const double BaseGridStep = 32;
+    private static readonly FontFamily CardTextFontFamily = new("Segoe UI Variable Text, Segoe UI");
 
     public static readonly DependencyProperty WorkspaceProperty = DependencyProperty.Register(
         nameof(Workspace),
@@ -121,14 +123,24 @@ public sealed class InfiniteCanvas : Canvas
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            FontSize = Math.Clamp(text.FontSize * _zoom, 10, 42),
+            FontSize = GetTextFontSize(text),
+            FontFamily = CardTextFontFamily,
+            FontStyle = FontStyles.Normal,
+            FontWeight = FontWeights.Normal,
+            FontStretch = FontStretches.Normal,
+            Language = XmlLanguage.GetLanguage(CultureInfo.CurrentUICulture.IetfLanguageTag),
+            FlowDirection = FlowDirection.LeftToRight,
             Foreground = ParseBrush(text.Foreground, Brushes.White),
-            Background = ParseBrush(text.Background, Brushes.Transparent),
-            BorderBrush = (Brush)FindResource("AccentBrush"),
-            BorderThickness = new Thickness(2),
-            Padding = new Thickness(10),
+            Background = Brushes.Transparent,
+            BorderBrush = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Padding = GetTextEditorPadding(),
+            VerticalContentAlignment = VerticalAlignment.Top,
+            TextAlignment = GetTextAlignment(text),
+            FocusVisualStyle = null,
             Tag = item.Id
         };
+        TextOptions.SetTextFormattingMode(_textEditor, TextFormattingMode.Ideal);
         _textEditor.KeyDown += OnEditorKeyDown;
         _textEditor.LostKeyboardFocus += OnEditorLostKeyboardFocus;
         AutomationProperties.SetName(_textEditor, "OmniRef text editor");
@@ -353,7 +365,7 @@ public sealed class InfiniteCanvas : Canvas
             case FolderContent:
                 DrawFileCard(context, item, inner, isFolder: true);
                 break;
-            case TextContent text:
+            case TextContent text when !ReferenceEquals(item, _editingItem):
                 DrawTextCard(context, item, inner, text);
                 break;
             case UrlContent url:
@@ -491,15 +503,10 @@ public sealed class InfiniteCanvas : Canvas
             context,
             text.Text,
             inner,
-            Math.Clamp(text.FontSize * _zoom, 6, 52),
+            GetTextFontSize(text),
             ParseBrush(text.Foreground, Brushes.White),
             FontWeights.Normal,
-            text.Alignment switch
-            {
-                TextHorizontalAlignment.Center => TextAlignment.Center,
-                TextHorizontalAlignment.Right => TextAlignment.Right,
-                _ => TextAlignment.Left
-            });
+            GetTextAlignment(text));
     }
 
     private void DrawUrlCard(DrawingContext context, BoardItemViewModel item, Rect inner, UrlContent url)
@@ -591,7 +598,7 @@ public sealed class InfiniteCanvas : Canvas
             text,
             CultureInfo.CurrentUICulture,
             FlowDirection.LeftToRight,
-            new Typeface(new FontFamily("Segoe UI Variable Text, Segoe UI"), FontStyles.Normal, fontWeight, FontStretches.Normal),
+            new Typeface(CardTextFontFamily, FontStyles.Normal, fontWeight, FontStretches.Normal),
             fontSize,
             brush,
             VisualTreeHelper.GetDpi(this).PixelsPerDip)
@@ -1032,9 +1039,26 @@ public sealed class InfiniteCanvas : Canvas
         _textEditor.Height = Math.Max(60, rect.Height);
         if (_editingItem.Model.Content is TextContent text)
         {
-            _textEditor.FontSize = Math.Clamp(text.FontSize * _zoom, 10, 42);
+            _textEditor.FontSize = GetTextFontSize(text);
+            _textEditor.Padding = GetTextEditorPadding();
         }
     }
+
+    private double GetTextFontSize(TextContent text) => Math.Clamp(text.FontSize * _zoom, 6, 52);
+
+    private Thickness GetTextEditorPadding()
+    {
+        var horizontal = Math.Clamp(12 * _zoom, 5, 16);
+        var vertical = Math.Clamp(10 * _zoom, 5, 14);
+        return new Thickness(horizontal, vertical, horizontal, vertical);
+    }
+
+    private static TextAlignment GetTextAlignment(TextContent text) => text.Alignment switch
+    {
+        TextHorizontalAlignment.Center => TextAlignment.Center,
+        TextHorizontalAlignment.Right => TextAlignment.Right,
+        _ => TextAlignment.Left
+    };
 
     private void OnDragOver(object sender, DragEventArgs eventArgs)
     {
