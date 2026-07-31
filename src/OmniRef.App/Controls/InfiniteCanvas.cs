@@ -303,40 +303,18 @@ public sealed class InfiniteCanvas : Canvas
 
         var brush = TryFindResource("CanvasGridBrush") as Brush ?? Brushes.DimGray;
         var step = GridMath.GetVisualStep(_zoom);
-        var hasMinorGrid = step < GridMath.MajorStep;
-        var minorBrush = brush;
-        var snapBrush = brush;
-        if (hasMinorGrid)
-        {
-            minorBrush = brush.CloneCurrentValue();
-            minorBrush.Opacity *= 0.48;
-            minorBrush.Freeze();
-            snapBrush = brush.CloneCurrentValue();
-            snapBrush.Opacity *= 0.78;
-            snapBrush.Freeze();
-        }
-
         var visible = VisibleWorldRect();
         var startX = Math.Floor(visible.Left / step) * step;
         var startY = Math.Floor(visible.Top / step) * step;
         var firstPoint = WorldToScreen(new WorldPoint(startX, startY));
         var screenStep = step * _zoom;
-        var worldX = startX;
-        for (var x = firstPoint.X; x <= ActualWidth; x += screenStep, worldX += step)
+        const double radius = 1.2;
+        for (var x = firstPoint.X; x <= ActualWidth; x += screenStep)
         {
-            var worldY = startY;
-            for (var y = firstPoint.Y; y <= ActualHeight; y += screenStep, worldY += step)
+            for (var y = firstPoint.Y; y <= ActualHeight; y += screenStep)
             {
-                var isMajor = hasMinorGrid &&
-                              IsGridMultiple(worldX, GridMath.MajorStep) &&
-                              IsGridMultiple(worldY, GridMath.MajorStep);
-                var isSnapPoint = hasMinorGrid &&
-                                  IsGridMultiple(worldX, GridMath.SnapStep) &&
-                                  IsGridMultiple(worldY, GridMath.SnapStep);
-                var pointBrush = isMajor ? brush : isSnapPoint ? snapBrush : minorBrush;
-                var radius = isMajor ? 1.7 : isSnapPoint ? 1.35 : 1.05;
                 drawingContext.DrawEllipse(
-                    pointBrush,
+                    brush,
                     null,
                     new Point(x, y),
                     radius,
@@ -344,9 +322,6 @@ public sealed class InfiniteCanvas : Canvas
             }
         }
     }
-
-    private static bool IsGridMultiple(double value, double step) =>
-        Math.Abs(value - GridMath.Snap(value, step)) < 0.001;
 
     private void DrawItem(DrawingContext context, BoardItemViewModel item)
     {
