@@ -629,9 +629,17 @@ public sealed class InfiniteCanvas : Canvas
 
     private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs eventArgs)
     {
-        if (Workspace is null || _textEditor?.IsKeyboardFocusWithin == true)
+        if (Workspace is null)
         {
             return;
+        }
+        if (_textEditor?.IsKeyboardFocusWithin == true)
+        {
+            if (_textEditor.IsMouseOver)
+            {
+                return;
+            }
+            CommitTextEditor(save: true);
         }
         TakeKeyboardFocus();
         _mouseDownScreen = eventArgs.GetPosition(this);
