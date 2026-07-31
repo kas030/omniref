@@ -1,0 +1,101 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(5.12 18.08) scale(0.96)">
+    <g mask="url(#backOutsideFront)">
+      <g filter="url(#backInnerShadow)">
+        <rect x="63.9749" y="-5.02369" width="200" height="200" rx="30"
+              transform="rotate(10.6538 63.9749 -5.02369)"
+              fill="url(#backGradient)" fill-opacity="0.63" />
+      </g>
+    </g>
+    <g clip-path="url(#frontClip)" filter="url(#backdropBlur)">
+      <rect x="63.9749" y="-5.02369" width="200" height="200" rx="30"
+            transform="rotate(10.6538 63.9749 -5.02369)"
+            fill="url(#backGradient)" fill-opacity="0.63" />
+    </g>
+    <g filter="url(#frontInnerShadow)" data-figma-bg-blur-radius="30">
+      <rect y="28.9763" width="200" height="200" rx="30"
+            fill="url(#frontGradient)" fill-opacity="0.45" />
+      <rect x="0.5" y="29.4763" width="199" height="199" rx="29.5"
+            stroke="url(#frontBorder)" />
+    </g>
+    <g filter="url(#ringShadow)">
+      <circle cx="99.5" cy="128.476" r="47"
+              stroke="url(#ringGradient)" stroke-width="21" />
+    </g>
+  </g>
+  <defs>
+    <filter id="backInnerShadow" x="32.0237" y="0" width="223.48" height="223.48"
+            filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix" />
+      <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+      <feColorMatrix in="SourceAlpha" type="matrix"
+                     values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+                     result="hardAlpha" />
+      <feGaussianBlur stdDeviation="10" />
+      <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
+      <feColorMatrix type="matrix"
+                     values="0 0 0 0 0.0369358 0 0 0 0 0.18649 0 0 0 0 0.677885 0 0 0 0.25 0" />
+      <feBlend mode="normal" in2="shape" result="innerShadow" />
+    </filter>
+    <filter id="frontInnerShadow" x="-30" y="-1.02369" width="260" height="260"
+            filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix" />
+      <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+      <feColorMatrix in="SourceAlpha" type="matrix"
+                     values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+                     result="hardAlpha" />
+      <feOffset dy="-5" />
+      <feGaussianBlur stdDeviation="9" />
+      <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
+      <feColorMatrix type="matrix"
+                     values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.31 0" />
+      <feBlend mode="normal" in2="shape" result="innerShadow" />
+    </filter>
+    <filter id="ringShadow" x="30" y="62.9763" width="139" height="139"
+            filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix" />
+      <feColorMatrix in="SourceAlpha" type="matrix"
+                     values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+                     result="hardAlpha" />
+      <feOffset dy="4" />
+      <feGaussianBlur stdDeviation="6" />
+      <feComposite in2="hardAlpha" operator="out" />
+      <feColorMatrix type="matrix"
+                     values="0 0 0 0 0.0643079 0 0 0 0 0.115326 0 0 0 0 0.501602 0 0 0 0.25 0" />
+      <feBlend mode="normal" in2="BackgroundImageFix" result="dropShadow" />
+      <feBlend mode="normal" in="SourceGraphic" in2="dropShadow" result="shape" />
+    </filter>
+    <filter id="backdropBlur" x="-30" y="-30" width="320" height="320"
+            filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="15" />
+    </filter>
+    <clipPath id="frontClip">
+      <rect y="28.9763" width="200" height="200" rx="30" />
+    </clipPath>
+    <mask id="backOutsideFront" x="-40" y="-40" width="340" height="340"
+          maskUnits="userSpaceOnUse">
+      <rect x="-40" y="-40" width="340" height="340" fill="white" />
+      <rect y="28.9763" width="200" height="200" rx="30" fill="black" />
+    </mask>
+    <linearGradient id="backGradient" x1="163.975" y1="-5.02369" x2="163.975" y2="194.976"
+                    gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2437D5" />
+      <stop offset="1" stop-color="#6D7CFF" />
+    </linearGradient>
+    <linearGradient id="frontGradient" x1="100" y1="28.9763" x2="100" y2="228.976"
+                    gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F9CDE0" />
+      <stop offset="1" stop-color="#98CCFF" />
+    </linearGradient>
+    <linearGradient id="frontBorder" x1="100" y1="28.9763" x2="100" y2="228.976"
+                    gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity="0" />
+      <stop offset="1" stop-color="white" />
+    </linearGradient>
+    <linearGradient id="ringGradient" x1="99.5" y1="70.9763" x2="99.5" y2="185.976"
+                    gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" />
+      <stop offset="1" stop-color="white" stop-opacity="0.65" />
+    </linearGradient>
+  </defs>
+</svg>

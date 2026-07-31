@@ -19,6 +19,10 @@ public sealed class WindowsTrayIcon : IDisposable
     private const int LeftButtonDoubleClick = 0x0203;
     private const int RightButtonUp = 0x0205;
     private const int NullMessage = 0x0000;
+    private const int GetIconMessage = 0x007F;
+    private const int SmallIcon = 0;
+    private const int BigIcon = 1;
+    private const int SmallIcon2 = 2;
     private const uint ShowCommand = 1;
     private const uint HideCommand = 2;
     private const uint ExitCommand = 3;
@@ -59,7 +63,7 @@ public sealed class WindowsTrayIcon : IDisposable
             Id = 1,
             Flags = NotifyMessage | NotifyIcon | NotifyTip,
             CallbackMessage = CallbackMessage,
-            IconHandle = LoadIcon(IntPtr.Zero, new IntPtr(ApplicationIcon)),
+            IconHandle = GetWindowIcon(windowHandle),
             ToolTip = toolTip.Length <= 127 ? toolTip : toolTip[..127],
             Info = string.Empty,
             InfoTitle = string.Empty
@@ -75,6 +79,42 @@ public sealed class WindowsTrayIcon : IDisposable
             _source.RemoveHook(WindowProc);
             throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not add the tray icon.");
         }
+    }
+
+    private static IntPtr GetWindowIcon(IntPtr windowHandle)
+    {
+        var iconHandle = SendMessage(
+            windowHandle,
+            GetIconMessage,
+            new IntPtr(SmallIcon2),
+            IntPtr.Zero);
+        if (iconHandle == IntPtr.Zero)
+        {
+            iconHandle = SendMessage(
+                windowHandle,
+                GetIconMessage,
+                new IntPtr(SmallIcon),
+                IntPtr.Zero);
+        }
+        if (iconHandle == IntPtr.Zero)
+        {
+            iconHandle = SendMessage(
+                windowHandle,
+                GetIconMessage,
+                new IntPtr(BigIcon),
+                IntPtr.Zero);
+        }
+
+        if (iconHandle != IntPtr.Zero)
+        {
+            return iconHandle;
+        }
+
+        var moduleHandle = GetModuleHandle(null);
+        iconHandle = LoadIcon(moduleHandle, new IntPtr(ApplicationIcon));
+        return iconHandle != IntPtr.Zero
+            ? iconHandle
+            : LoadIcon(IntPtr.Zero, new IntPtr(ApplicationIcon));
     }
 
     public event EventHandler? ShowRequested;
@@ -227,6 +267,16 @@ public sealed class WindowsTrayIcon : IDisposable
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern IntPtr LoadIcon(IntPtr instance, IntPtr iconName);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr GetModuleHandle(string? moduleName);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(
+        IntPtr windowHandle,
+        int message,
+        IntPtr wParam,
+        IntPtr lParam);
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr CreatePopupMenu();
