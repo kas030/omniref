@@ -149,14 +149,21 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         var index = Workspaces.IndexOf(workspace);
+        if (index < 0)
+        {
+            return true;
+        }
+
+        var wasSelected = ReferenceEquals(SelectedWorkspace, workspace);
+        if (wasSelected)
+        {
+            SelectedWorkspace = Workspaces.Count == 1
+                ? null
+                : Workspaces[index < Workspaces.Count - 1 ? index + 1 : index - 1];
+        }
+
         Workspaces.Remove(workspace);
         workspace.Dispose();
-        if (ReferenceEquals(SelectedWorkspace, workspace))
-        {
-            SelectedWorkspace = Workspaces.Count == 0
-                ? null
-                : Workspaces[Math.Clamp(index, 0, Workspaces.Count - 1)];
-        }
         return true;
     }
 

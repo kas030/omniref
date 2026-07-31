@@ -6,6 +6,7 @@
     <RootNamespace>OmniRef.Tests</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\src\OmniRef.App\OmniRef.App.csproj" />
     <ProjectReference Include="..\..\src\OmniRef.Core\OmniRef.Core.csproj" />
     <ProjectReference Include="..\..\src\OmniRef.Infrastructure.Windows\OmniRef.Infrastructure.Windows.csproj" />
     <PackageReference Include="Microsoft.Data.Sqlite" />
