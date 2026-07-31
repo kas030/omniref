@@ -48,6 +48,7 @@ public sealed class InfiniteCanvas : Canvas
     public InfiniteCanvas()
     {
         Focusable = true;
+        FocusVisualStyle = null;
         ClipToBounds = true;
         AllowDrop = true;
         Background = Brushes.Transparent;
