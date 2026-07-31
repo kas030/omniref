@@ -787,7 +787,7 @@ public sealed class InfiniteCanvas : Canvas
 
     private void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs eventArgs)
     {
-        if (_interaction is InteractionMode.Move or InteractionMode.Resize or InteractionMode.SelectBox)
+        if (_interaction is InteractionMode.Pan or InteractionMode.Move or InteractionMode.Resize or InteractionMode.SelectBox)
         {
             CompleteInteraction();
             eventArgs.Handled = true;
