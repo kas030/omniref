@@ -10,25 +10,31 @@ public sealed class AppSettingsStoreTests : IDisposable
         Guid.NewGuid().ToString("N"));
 
     [Fact]
-    public void LoadWithoutSettings_DefaultsCanvasGridToHidden()
+    public void LoadWithoutSettings_DefaultsCanvasGridAndSnappingToOff()
     {
         var store = new AppSettingsStore(_directory);
 
         var settings = store.Load();
 
         Assert.False(settings.ShowCanvasGrid);
+        Assert.False(settings.SnapToGrid);
     }
 
     [Fact]
-    public void SaveAndLoad_PreservesCanvasGridSetting()
+    public void SaveAndLoad_PreservesCanvasGridSettings()
     {
         var store = new AppSettingsStore(_directory);
-        var settings = new AppSettings { ShowCanvasGrid = true };
+        var settings = new AppSettings
+        {
+            ShowCanvasGrid = true,
+            SnapToGrid = true
+        };
 
         store.Save(settings);
         var loaded = store.Load();
 
         Assert.True(loaded.ShowCanvasGrid);
+        Assert.True(loaded.SnapToGrid);
     }
 
     public void Dispose()

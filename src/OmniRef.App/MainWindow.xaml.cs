@@ -32,6 +32,12 @@ public partial class MainWindow : Window
         typeof(MainWindow),
         new PropertyMetadata(false));
 
+    public static readonly DependencyProperty SnapToGridProperty = DependencyProperty.Register(
+        nameof(SnapToGrid),
+        typeof(bool),
+        typeof(MainWindow),
+        new PropertyMetadata(false));
+
     private readonly MainWindowViewModel _viewModel;
     private readonly AppSettings _settings;
     private readonly AppSettingsStore _settingsStore;
@@ -75,6 +81,7 @@ public partial class MainWindow : Window
         RestoreWindowState();
         Topmost = settings.AlwaysOnTop;
         ShowCanvasGrid = settings.ShowCanvasGrid;
+        SnapToGrid = settings.SnapToGrid;
         Loaded += OnLoaded;
         Closing += OnClosing;
         Activated += OnActivated;
@@ -463,9 +470,21 @@ public partial class MainWindow : Window
         set => SetValue(ShowCanvasGridProperty, value);
     }
 
+    public bool SnapToGrid
+    {
+        get => (bool)GetValue(SnapToGridProperty);
+        set => SetValue(SnapToGridProperty, value);
+    }
+
     private void ToggleGrid_Click(object sender, RoutedEventArgs eventArgs)
     {
         _settings.ShowCanvasGrid = ShowCanvasGrid;
+        SaveSettings(cleanExit: false);
+    }
+
+    private void ToggleGridSnap_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        _settings.SnapToGrid = SnapToGrid;
         SaveSettings(cleanExit: false);
     }
 

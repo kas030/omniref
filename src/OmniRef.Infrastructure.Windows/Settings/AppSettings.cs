@@ -17,6 +17,7 @@ public sealed class AppSettings
     public string Language { get; set; } = "auto";
     public bool AlwaysOnTop { get; set; }
     public bool ShowCanvasGrid { get; set; }
+    public bool SnapToGrid { get; set; }
     public bool CloseToTray { get; set; } = true;
     public bool LastExitClean { get; set; } = true;
     public double? WindowLeft { get; set; }

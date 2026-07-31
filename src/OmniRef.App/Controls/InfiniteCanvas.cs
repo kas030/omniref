@@ -15,7 +15,6 @@ namespace OmniRef.App.Controls;
 
 public sealed class InfiniteCanvas : Canvas
 {
-    private const double BaseGridStep = 32;
     private static readonly FontFamily CardTextFontFamily = new("Segoe UI Variable Text, Segoe UI");
 
     public static readonly DependencyProperty WorkspaceProperty = DependencyProperty.Register(
@@ -29,6 +28,12 @@ public sealed class InfiniteCanvas : Canvas
         typeof(bool),
         typeof(InfiniteCanvas),
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyProperty SnapToGridProperty = DependencyProperty.Register(
+        nameof(SnapToGrid),
+        typeof(bool),
+        typeof(InfiniteCanvas),
+        new FrameworkPropertyMetadata(false));
 
     private readonly SpatialHashIndex<BoardItemViewModel> _index = new(512);
     private readonly HashSet<BoardItemViewModel> _subscribedItems = [];
@@ -80,6 +85,12 @@ public sealed class InfiniteCanvas : Canvas
     {
         get => (bool)GetValue(ShowGridProperty);
         set => SetValue(ShowGridProperty, value);
+    }
+
+    public bool SnapToGrid
+    {
+        get => (bool)GetValue(SnapToGridProperty);
+        set => SetValue(SnapToGridProperty, value);
     }
 
     public WorldPoint ViewportCenter => ScreenToWorld(new Point(ActualWidth / 2, ActualHeight / 2));
@@ -285,16 +296,24 @@ public sealed class InfiniteCanvas : Canvas
 
     private void DrawGrid(DrawingContext drawingContext)
     {
-        if (!ShowGrid || _zoom < 0.2 || ActualWidth <= 0 || ActualHeight <= 0)
+        if (!ShowGrid || ActualWidth <= 0 || ActualHeight <= 0)
         {
             return;
         }
 
         var brush = TryFindResource("CanvasGridBrush") as Brush ?? Brushes.DimGray;
-        var step = BaseGridStep;
-        while (step * _zoom < 28)
+        var step = GridMath.GetVisualStep(_zoom);
+        var hasMinorGrid = step < GridMath.MajorStep;
+        var minorBrush = brush;
+        var snapBrush = brush;
+        if (hasMinorGrid)
         {
-            step *= 2;
+            minorBrush = brush.CloneCurrentValue();
+            minorBrush.Opacity *= 0.48;
+            minorBrush.Freeze();
+            snapBrush = brush.CloneCurrentValue();
+            snapBrush.Opacity *= 0.78;
+            snapBrush.Freeze();
         }
 
         var visible = VisibleWorldRect();
@@ -302,15 +321,32 @@ public sealed class InfiniteCanvas : Canvas
         var startY = Math.Floor(visible.Top / step) * step;
         var firstPoint = WorldToScreen(new WorldPoint(startX, startY));
         var screenStep = step * _zoom;
-        const double radius = 1;
-        for (var x = firstPoint.X; x <= ActualWidth; x += screenStep)
+        var worldX = startX;
+        for (var x = firstPoint.X; x <= ActualWidth; x += screenStep, worldX += step)
         {
-            for (var y = firstPoint.Y; y <= ActualHeight; y += screenStep)
+            var worldY = startY;
+            for (var y = firstPoint.Y; y <= ActualHeight; y += screenStep, worldY += step)
             {
-                drawingContext.DrawEllipse(brush, null, new Point(x, y), radius, radius);
+                var isMajor = hasMinorGrid &&
+                              IsGridMultiple(worldX, GridMath.MajorStep) &&
+                              IsGridMultiple(worldY, GridMath.MajorStep);
+                var isSnapPoint = hasMinorGrid &&
+                                  IsGridMultiple(worldX, GridMath.SnapStep) &&
+                                  IsGridMultiple(worldY, GridMath.SnapStep);
+                var pointBrush = isMajor ? brush : isSnapPoint ? snapBrush : minorBrush;
+                var radius = isMajor ? 1.7 : isSnapPoint ? 1.35 : 1.05;
+                drawingContext.DrawEllipse(
+                    pointBrush,
+                    null,
+                    new Point(x, y),
+                    radius,
+                    radius);
             }
         }
     }
+
+    private static bool IsGridMultiple(double value, double step) =>
+        Math.Abs(value - GridMath.Snap(value, step)) < 0.001;
 
     private void DrawItem(DrawingContext context, BoardItemViewModel item)
     {
@@ -742,6 +778,13 @@ public sealed class InfiniteCanvas : Canvas
             case InteractionMode.Move when _layoutBefore is not null:
                 var deltaX = currentWorld.X - _mouseDownWorld.X;
                 var deltaY = currentWorld.Y - _mouseDownWorld.Y;
+                if (IsGridSnappingActive)
+                {
+                    var selectionBounds = WorldRect.Union(_layoutBefore.Values.Select(state => state.Bounds));
+                    var snappedDelta = GridMath.SnapTranslation(selectionBounds, deltaX, deltaY);
+                    deltaX = snappedDelta.X;
+                    deltaY = snappedDelta.Y;
+                }
                 foreach (var item in Workspace.Items)
                 {
                     if (_layoutBefore.TryGetValue(item.Id, out var before))
@@ -755,8 +798,15 @@ public sealed class InfiniteCanvas : Canvas
                 {
                     var minWidth = _resizeItem.Kind == ItemKind.Frame ? 240 : 80;
                     var minHeight = _resizeItem.Kind == ItemKind.Frame ? 160 : 60;
-                    var width = Math.Max(minWidth, initial.Bounds.Width + (currentWorld.X - _mouseDownWorld.X));
-                    var height = Math.Max(minHeight, initial.Bounds.Height + (currentWorld.Y - _mouseDownWorld.Y));
+                    var right = initial.Bounds.Right + (currentWorld.X - _mouseDownWorld.X);
+                    var bottom = initial.Bounds.Bottom + (currentWorld.Y - _mouseDownWorld.Y);
+                    if (IsGridSnappingActive)
+                    {
+                        right = GridMath.Snap(right);
+                        bottom = GridMath.Snap(bottom);
+                    }
+                    var width = Math.Max(minWidth, right - initial.Bounds.X);
+                    var height = Math.Max(minHeight, bottom - initial.Bounds.Y);
                     if (_resizeItem.Kind == ItemKind.Image &&
                         (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
                     {
@@ -784,6 +834,9 @@ public sealed class InfiniteCanvas : Canvas
         }
         eventArgs.Handled = true;
     }
+
+    private bool IsGridSnappingActive =>
+        SnapToGrid && (Keyboard.Modifiers & ModifierKeys.Control) == 0;
 
     private void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs eventArgs)
     {

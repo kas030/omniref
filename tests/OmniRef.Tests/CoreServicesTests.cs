@@ -21,6 +21,43 @@ public sealed class CoreServicesTests
         Assert.Equal(before.Y, after.Y, 8);
     }
 
+    [Theory]
+    [InlineData(0.1, 256)]
+    [InlineData(0.25, 128)]
+    [InlineData(0.5, 64)]
+    [InlineData(1, 32)]
+    [InlineData(2, 16)]
+    [InlineData(4, 8)]
+    [InlineData(8, 4)]
+    public void GridVisualStep_KeepsStableScreenDensity(double zoom, double expectedStep)
+    {
+        var step = GridMath.GetVisualStep(zoom);
+
+        Assert.Equal(expectedStep, step);
+        Assert.InRange(step * zoom, 22, 46);
+    }
+
+    [Theory]
+    [InlineData(11, 8)]
+    [InlineData(12, 16)]
+    [InlineData(-11, -8)]
+    [InlineData(-12, -16)]
+    public void GridSnap_IsSymmetricAcrossOrigin(double value, double expected)
+    {
+        Assert.Equal(expected, GridMath.Snap(value));
+    }
+
+    [Fact]
+    public void GridSnapTranslation_UsesGroupAnchor()
+    {
+        var bounds = new WorldRect(13, -19, 200, 100);
+
+        var delta = GridMath.SnapTranslation(bounds, 10, -10);
+
+        Assert.Equal(11, delta.X);
+        Assert.Equal(-13, delta.Y);
+    }
+
     [Fact]
     public void SpatialIndex_HandlesNegativeCellsAndUpdates()
     {

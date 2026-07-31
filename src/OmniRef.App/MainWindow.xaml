@@ -153,6 +153,14 @@
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
                                           Icon="GridDots" />
                     </ToggleButton>
+                    <ToggleButton Style="{StaticResource ToolbarToggleButton}"
+                                  IsChecked="{Binding SnapToGrid, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                                  Click="ToggleGridSnap_Click"
+                                  ToolTip="{Binding Localization[GridSnap]}"
+                                  AutomationProperties.Name="{Binding Localization[GridSnap]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="TargetArrow" />
+                    </ToggleButton>
                     <Separator />
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="Open_Click"
@@ -421,6 +429,7 @@
                         <DataTemplate>
                             <controls:InfiniteCanvas Workspace="{Binding}"
                                                      ShowGrid="{Binding ShowCanvasGrid, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                     SnapToGrid="{Binding SnapToGrid, RelativeSource={RelativeSource AncestorType=Window}}"
                                                      PasteRequested="Canvas_PasteRequested"
                                                      CopyRequested="Canvas_CopyRequested"
                                                      ExternalDrop="Canvas_ExternalDrop" />
