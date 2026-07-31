@@ -12,6 +12,7 @@
         Height="800"
         MinWidth="900"
         MinHeight="600"
+        Foreground="{DynamicResource TextPrimaryBrush}"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
