@@ -122,6 +122,7 @@
                                           Icon="Globe" />
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}"
+                            Foreground="{DynamicResource DangerBrush}"
                             Click="Exit_Click"
                             ToolTip="{Binding Localization[Exit]}"
                             AutomationProperties.Name="{Binding Localization[Exit]}">
