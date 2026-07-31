@@ -1,0 +1,877 @@
+using System.Collections.Specialized;
+using System.ComponentModel;
+using System.IO;
+using System.Text.Json;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
+using Microsoft.Win32;
+using OmniRef.App.Controls;
+using OmniRef.App.Services;
+using OmniRef.App.ViewModels;
+using OmniRef.Core.Interfaces;
+using OmniRef.Core.Models;
+using OmniRef.Core.Services;
+using OmniRef.Infrastructure.Windows.Diagnostics;
+using OmniRef.Infrastructure.Windows.Settings;
+using OmniRef.Infrastructure.Windows.Shell;
+
+namespace OmniRef.App;
+
+public partial class MainWindow : Window
+{
+    private const string ClipboardFormat = "OmniRef.Items.v1";
+
+    private readonly MainWindowViewModel _viewModel;
+    private readonly AppSettings _settings;
+    private readonly AppSettingsStore _settingsStore;
+    private readonly IWorkspaceStore _workspaceStore;
+    private readonly IHotkeyService _hotkeyService;
+    private readonly PreviewCache _previewCache;
+    private readonly ThemeManager _themeManager;
+    private readonly IClipboardImporter _clipboardImporter;
+    private readonly RollingFileLogger _logger;
+    private readonly JsonSerializerOptions _clipboardJsonOptions = new(JsonSerializerDefaults.General)
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+    private WindowsTrayIcon? _trayIcon;
+    private bool _allowClose;
+    private bool _loaded;
+
+    public MainWindow(
+        MainWindowViewModel viewModel,
+        AppSettings settings,
+        AppSettingsStore settingsStore,
+        IWorkspaceStore workspaceStore,
+        IHotkeyService hotkeyService,
+        PreviewCache previewCache,
+        ThemeManager themeManager,
+        IClipboardImporter clipboardImporter,
+        RollingFileLogger logger)
+    {
+        InitializeComponent();
+        _viewModel = viewModel;
+        _settings = settings;
+        _settingsStore = settingsStore;
+        _workspaceStore = workspaceStore;
+        _hotkeyService = hotkeyService;
+        _previewCache = previewCache;
+        _themeManager = themeManager;
+        _clipboardImporter = clipboardImporter;
+        _logger = logger;
+        DataContext = viewModel;
+
+        RestoreWindowState();
+        Topmost = settings.AlwaysOnTop;
+        Loaded += OnLoaded;
+        Closing += OnClosing;
+        Activated += OnActivated;
+        StateChanged += (_, _) => SaveSettings(cleanExit: false);
+        Application.Current.SessionEnding += OnSessionEnding;
+    }
+
+    public async Task OpenActivationArgumentsAsync(IReadOnlyList<string> arguments)
+    {
+        ShowAndActivate();
+        foreach (var path in arguments.Where(path =>
+                     path.EndsWith(".omniref", StringComparison.OrdinalIgnoreCase) && File.Exists(path)))
+        {
+            try
+            {
+                await _viewModel.OpenAsync(path);
+            }
+            catch (InvalidOperationException exception)
+            {
+                ShowError(exception.Message);
+            }
+        }
+        SaveSettings(cleanExit: false);
+    }
+
+    public async Task RequestExitAsync()
+    {
+        if (_allowClose)
+        {
+            return;
+        }
+
+        var flushFailed = false;
+        try
+        {
+            await _viewModel.FlushAllAsync();
+            flushFailed = _viewModel.Workspaces.Any(
+                workspace => workspace.SaveState == WorkspaceSaveState.Failed);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            _logger.Error("Could not flush workspaces during exit.", exception);
+            flushFailed = true;
+        }
+
+        if (flushFailed)
+        {
+            var result = MessageBox.Show(
+                this,
+                _viewModel.Localization["ConfirmCloseDirty"],
+                "OmniRef",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+            if (result != MessageBoxResult.Yes)
+            {
+                return;
+            }
+        }
+
+        _allowClose = true;
+        try
+        {
+            SaveSettings(cleanExit: !flushFailed);
+        }
+        finally
+        {
+            CleanupShellIntegration();
+            Close();
+            Application.Current.Shutdown();
+        }
+    }
+
+    public void ShowAndActivate()
+    {
+        if (!IsVisible)
+        {
+            Show();
+        }
+        if (WindowState == WindowState.Minimized)
+        {
+            WindowState = WindowState.Normal;
+        }
+        Activate();
+        Topmost = _settings.AlwaysOnTop;
+        Focus();
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs eventArgs)
+    {
+        if (_loaded)
+        {
+            return;
+        }
+        _loaded = true;
+        var handle = new WindowInteropHelper(this).Handle;
+        _hotkeyService.Pressed += OnHotkeyPressed;
+        var registered = _hotkeyService.Register(
+            handle,
+            new HotkeyGesture(
+                Control: true,
+                Alt: true,
+                Shift: false,
+                Windows: false,
+                KeyInterop.VirtualKeyFromKey(Key.Space)));
+        if (!registered)
+        {
+            ShowError(_viewModel.Localization["HotkeyConflict"]);
+        }
+        CreateTrayIcon(handle);
+        _ = Dispatcher.BeginInvoke(
+            DispatcherPriority.ContextIdle,
+            new Action(() => FindCanvas()?.Focus()));
+    }
+
+    private void OnClosing(object? sender, CancelEventArgs eventArgs)
+    {
+        if (_allowClose)
+        {
+            return;
+        }
+        if (_settings.CloseToTray)
+        {
+            eventArgs.Cancel = true;
+            HideToTray();
+            return;
+        }
+        eventArgs.Cancel = true;
+        _ = RequestExitAsync();
+    }
+
+    private void OnActivated(object? sender, EventArgs eventArgs) => _viewModel.RefreshReferences();
+
+    private void OnSessionEnding(object sender, SessionEndingCancelEventArgs eventArgs)
+    {
+        _allowClose = true;
+        var cleanExit = false;
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var flush = _viewModel.FlushAllAsync(timeout.Token);
+            var frame = new DispatcherFrame();
+            _ = flush.ContinueWith(
+                _ => Dispatcher.BeginInvoke(new Action(() => frame.Continue = false)),
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+            Dispatcher.PushFrame(frame);
+            flush.GetAwaiter().GetResult();
+            cleanExit = _viewModel.Workspaces.All(
+                workspace => workspace.SaveState != WorkspaceSaveState.Failed);
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or OperationCanceledException)
+        {
+            _logger.Error("Could not flush workspaces while Windows was ending the session.", exception);
+        }
+        finally
+        {
+            SaveSettings(cleanExit);
+            CleanupShellIntegration();
+        }
+    }
+
+    private void OnHotkeyPressed(object? sender, EventArgs eventArgs)
+    {
+        Dispatcher.Invoke(
+            () =>
+            {
+                if (IsVisible && IsActive)
+                {
+                    HideToTray();
+                }
+                else
+                {
+                    ShowAndActivate();
+                }
+            });
+    }
+
+    private void CreateTrayIcon(IntPtr windowHandle)
+    {
+        _trayIcon = new WindowsTrayIcon(
+            windowHandle,
+            "OmniRef",
+            _viewModel.Localization["Show"],
+            _viewModel.Localization["Hide"],
+            _viewModel.Localization["Exit"]);
+        _trayIcon.ShowRequested += (_, _) => Dispatcher.Invoke(ShowAndActivate);
+        _trayIcon.HideRequested += (_, _) => Dispatcher.Invoke(HideToTray);
+        _trayIcon.ExitRequested += (_, _) => Dispatcher.InvokeAsync(RequestExitAsync);
+    }
+
+    private void RebuildTrayMenu()
+    {
+        if (_trayIcon is null)
+        {
+            return;
+        }
+        _trayIcon.UpdateLabels(
+            _viewModel.Localization["Show"],
+            _viewModel.Localization["Hide"],
+            _viewModel.Localization["Exit"]);
+    }
+
+    private void HideToTray()
+    {
+        SaveSettings(cleanExit: false);
+        Hide();
+        _previewCache.TrimAggressively();
+    }
+
+    private void CleanupShellIntegration()
+    {
+        Application.Current.SessionEnding -= OnSessionEnding;
+        if (_trayIcon is not null)
+        {
+            _trayIcon.Dispose();
+            _trayIcon = null;
+        }
+        _hotkeyService.Unregister();
+    }
+
+    private async void New_Click(object sender, RoutedEventArgs eventArgs) =>
+        await _viewModel.CreateNewAsync(includeWelcomeContent: false);
+
+    private async void CreateWorkspace_Click(object sender, RoutedEventArgs eventArgs) =>
+        await _viewModel.CreateNewAsync(includeWelcomeContent: false);
+
+    private async void Open_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = _viewModel.Localization["OpenDialogTitle"],
+            Filter = "OmniRef workspace (*.omniref)|*.omniref|All files (*.*)|*.*",
+            Multiselect = true,
+            CheckFileExists = true
+        };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+        foreach (var path in dialog.FileNames)
+        {
+            try
+            {
+                await _viewModel.OpenAsync(path);
+            }
+            catch (InvalidOperationException exception)
+            {
+                ShowError(exception.Message);
+            }
+        }
+        SaveSettings(cleanExit: false);
+    }
+
+    private async void Save_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        var workspace = _viewModel.SelectedWorkspace;
+        if (workspace is null)
+        {
+            return;
+        }
+        if (workspace.IsRecovery)
+        {
+            await SaveWorkspaceAsAsync(workspace);
+        }
+        else
+        {
+            await workspace.FlushAsync();
+        }
+        SaveSettings(cleanExit: false);
+    }
+
+    private async void SaveAs_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        if (_viewModel.SelectedWorkspace is { } workspace)
+        {
+            await SaveWorkspaceAsAsync(workspace);
+        }
+    }
+
+    private async Task SaveWorkspaceAsAsync(WorkspaceViewModel workspace)
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = _viewModel.Localization["SaveDialogTitle"],
+            Filter = "OmniRef workspace (*.omniref)|*.omniref",
+            AddExtension = true,
+            DefaultExt = ".omniref",
+            FileName = workspace.IsRecovery ? workspace.Document.Title : Path.GetFileName(workspace.Path),
+            OverwritePrompt = true
+        };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+        try
+        {
+            await workspace.SaveAsAsync(dialog.FileName);
+            SaveSettings(cleanExit: false);
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            _logger.Error("Save As failed.", exception);
+            ShowError(exception.Message);
+        }
+    }
+
+    private void AddFiles_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        var workspace = _viewModel.SelectedWorkspace;
+        if (workspace is null || workspace.IsReadOnly)
+        {
+            return;
+        }
+        var dialog = new OpenFileDialog
+        {
+            Title = _viewModel.Localization["FilesDialogTitle"],
+            Filter = "All files (*.*)|*.*",
+            Multiselect = true,
+            CheckFileExists = true
+        };
+        if (dialog.ShowDialog(this) == true)
+        {
+            workspace.AddPaths(dialog.FileNames, CurrentCanvasCenter());
+        }
+    }
+
+    private void AddFolder_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        var workspace = _viewModel.SelectedWorkspace;
+        if (workspace is null || workspace.IsReadOnly)
+        {
+            return;
+        }
+        var dialog = new OpenFolderDialog
+        {
+            Title = _viewModel.Localization["FolderDialogTitle"],
+            Multiselect = true
+        };
+        if (dialog.ShowDialog(this) == true)
+        {
+            workspace.AddPaths(dialog.FolderNames, CurrentCanvasCenter());
+        }
+    }
+
+    private void AddText_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        var workspace = _viewModel.SelectedWorkspace;
+        var canvas = FindCanvas();
+        if (workspace is null || workspace.IsReadOnly || canvas is null)
+        {
+            return;
+        }
+        var item = workspace.AddText(string.Empty, canvas.ViewportCenter);
+        canvas.BeginTextEdit(item);
+    }
+
+    private void AddFrame_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        var workspace = _viewModel.SelectedWorkspace;
+        if (workspace is null || workspace.IsReadOnly)
+        {
+            return;
+        }
+        workspace.AddFrame(_viewModel.Localization["FrameDefault"], CurrentCanvasCenter());
+    }
+
+    private void Undo_Click(object sender, RoutedEventArgs eventArgs) => _viewModel.SelectedWorkspace?.Undo();
+    private void Redo_Click(object sender, RoutedEventArgs eventArgs) => _viewModel.SelectedWorkspace?.Redo();
+    private void Delete_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        if (_viewModel.SelectedWorkspace is { IsReadOnly: false } workspace)
+        {
+            workspace.RemoveSelected();
+        }
+    }
+
+    private void Paste_Click(object sender, RoutedEventArgs eventArgs) =>
+        PasteFromClipboard(CurrentCanvasCenter());
+
+    private void ToggleSidebar_Click(object sender, RoutedEventArgs eventArgs) =>
+        _viewModel.SidebarVisible = !_viewModel.SidebarVisible;
+
+    private void AlwaysOnTop_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        _settings.AlwaysOnTop = !_settings.AlwaysOnTop;
+        Topmost = _settings.AlwaysOnTop;
+        SaveSettings(cleanExit: false);
+    }
+
+    private void Theme_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        _settings.Theme = _themeManager.Cycle();
+        SaveSettings(cleanExit: false);
+        FindCanvas()?.InvalidateVisual();
+    }
+
+    private void Language_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        _viewModel.Localization.Toggle();
+        _settings.Language = _viewModel.Localization.ConfiguredLanguage;
+        RebuildTrayMenu();
+        SaveSettings(cleanExit: false);
+        FindCanvas()?.InvalidateVisual();
+    }
+
+    private async void Exit_Click(object sender, RoutedEventArgs eventArgs) =>
+        await RequestExitAsync();
+
+    private void Arrange_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        if (sender is not Button button || _viewModel.SelectedWorkspace is not { IsReadOnly: false } workspace)
+        {
+            return;
+        }
+
+        var menu = new ContextMenu { PlacementTarget = button };
+        AddMenuItem(menu, "AlignLeft", () => workspace.AlignSelected(AlignmentKind.Left));
+        AddMenuItem(menu, "AlignCenter", () => workspace.AlignSelected(AlignmentKind.HorizontalCenter));
+        AddMenuItem(menu, "AlignRight", () => workspace.AlignSelected(AlignmentKind.Right));
+        AddMenuItem(menu, "AlignTop", () => workspace.AlignSelected(AlignmentKind.Top));
+        AddMenuItem(menu, "AlignMiddle", () => workspace.AlignSelected(AlignmentKind.VerticalCenter));
+        AddMenuItem(menu, "AlignBottom", () => workspace.AlignSelected(AlignmentKind.Bottom));
+        menu.Items.Add(new Separator());
+        AddMenuItem(menu, "DistributeHorizontal", () => workspace.DistributeSelected(horizontally: true));
+        AddMenuItem(menu, "DistributeVertical", () => workspace.DistributeSelected(horizontally: false));
+        menu.Items.Add(new Separator());
+        AddMenuItem(menu, "BringToFront", () => workspace.MoveSelectionLayer(LayerMove.BringToFront));
+        AddMenuItem(menu, "BringForward", () => workspace.MoveSelectionLayer(LayerMove.BringForward));
+        AddMenuItem(menu, "SendBackward", () => workspace.MoveSelectionLayer(LayerMove.SendBackward));
+        AddMenuItem(menu, "SendToBack", () => workspace.MoveSelectionLayer(LayerMove.SendToBack));
+        menu.IsOpen = true;
+    }
+
+    private void TextAlignment_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        if (_viewModel.SelectedWorkspace is { IsReadOnly: false } &&
+            sender is Button { Tag: string alignment } &&
+            Enum.TryParse<TextHorizontalAlignment>(alignment, out var parsed))
+        {
+            _viewModel.SelectedWorkspace?.SelectedItem?.SetTextAlignment(parsed);
+        }
+    }
+
+    private void AddMenuItem(ContextMenu menu, string localizationKey, Action action)
+    {
+        var item = new MenuItem { Header = _viewModel.Localization[localizationKey] };
+        item.Click += (_, _) => action();
+        menu.Items.Add(item);
+    }
+
+    private async void CloseTab_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        if (sender is not Button { Tag: WorkspaceViewModel workspace })
+        {
+            return;
+        }
+        var closed = await _viewModel.CloseAsync(workspace, force: false);
+        if (!closed)
+        {
+            var result = MessageBox.Show(
+                this,
+                _viewModel.Localization["ConfirmCloseDirty"],
+                "OmniRef",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+            if (result == MessageBoxResult.Yes)
+            {
+                await _viewModel.CloseAsync(workspace, force: true);
+            }
+        }
+        SaveSettings(cleanExit: false);
+        eventArgs.Handled = true;
+    }
+
+    private void SearchResult_Click(object sender, MouseButtonEventArgs eventArgs)
+    {
+        if (sender is ListBox { SelectedItem: BoardItemViewModel item })
+        {
+            _viewModel.SelectedWorkspace?.Focus(item);
+        }
+    }
+
+    private async void Embed_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        try
+        {
+            await (_viewModel.SelectedWorkspace?.EmbedSelectedAsync() ?? Task.FromResult(false));
+        }
+        catch (InvalidOperationException exception)
+        {
+            ShowError(exception.Message);
+        }
+    }
+
+    private async void Export_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        var workspace = _viewModel.SelectedWorkspace;
+        var source = workspace?.SelectedItem is { } item ? SourceOf(item.Model.Content) : null;
+        if (workspace is null || source?.EmbeddedAssetId is null)
+        {
+            return;
+        }
+        var dialog = new SaveFileDialog
+        {
+            Title = _viewModel.Localization["ExportDialogTitle"],
+            FileName = source.OriginalFileName,
+            Filter = "All files (*.*)|*.*",
+            OverwritePrompt = true
+        };
+        if (dialog.ShowDialog(this) == true)
+        {
+            await workspace.ExportSelectedAsync(dialog.FileName);
+        }
+    }
+
+    private void Relink_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        var workspace = _viewModel.SelectedWorkspace;
+        var item = workspace?.SelectedItem;
+        if (workspace is null || item is null || item.Model.Content is not (ImageContent or FileContent or FolderContent))
+        {
+            return;
+        }
+        if (item.Kind == ItemKind.Folder)
+        {
+            var folderDialog = new OpenFolderDialog
+            {
+                Title = _viewModel.Localization["RelinkDialogTitle"],
+                Multiselect = false
+            };
+            if (folderDialog.ShowDialog(this) == true)
+            {
+                workspace.RelinkSelected(folderDialog.FolderName);
+            }
+        }
+        else
+        {
+            var fileDialog = new OpenFileDialog
+            {
+                Title = _viewModel.Localization["RelinkDialogTitle"],
+                Filter = "All files (*.*)|*.*",
+                CheckFileExists = true
+            };
+            if (fileDialog.ShowDialog(this) == true)
+            {
+                workspace.RelinkSelected(fileDialog.FileName);
+            }
+        }
+    }
+
+    private void Reveal_Click(object sender, RoutedEventArgs eventArgs) =>
+        _viewModel.SelectedWorkspace?.RevealSelected();
+
+    private void ResetZoom_Click(object sender, RoutedEventArgs eventArgs) => FindCanvas()?.ResetViewport();
+
+    private async void Compact_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        var workspace = _viewModel.SelectedWorkspace;
+        if (workspace is null || workspace.IsReadOnly)
+        {
+            return;
+        }
+        await workspace.FlushAsync();
+        await _workspaceStore.CompactAsync(workspace.Path);
+    }
+
+    private async void RetrySave_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        if (_viewModel.SelectedWorkspace is { } workspace)
+        {
+            await workspace.FlushAsync();
+        }
+    }
+
+    private async void RetrySaveAs_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        if (_viewModel.SelectedWorkspace is { } workspace)
+        {
+            await SaveWorkspaceAsAsync(workspace);
+        }
+    }
+
+    private void Canvas_PasteRequested(object sender, CanvasPasteEventArgs eventArgs) =>
+        PasteFromClipboard(eventArgs.Position);
+
+    private void Canvas_CopyRequested(object sender, EventArgs eventArgs) => CopySelectionToClipboard();
+
+    private void Canvas_ExternalDrop(object sender, CanvasDropEventArgs eventArgs)
+    {
+        var workspace = _viewModel.SelectedWorkspace;
+        if (workspace is null)
+        {
+            return;
+        }
+        if (eventArgs.Files.Count > 0)
+        {
+            workspace.AddPaths(eventArgs.Files, eventArgs.Position);
+            return;
+        }
+        var text = eventArgs.Text?.Trim();
+        if (text is null or "")
+        {
+            return;
+        }
+        if (Uri.TryCreate(text, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            workspace.AddUrl(uri.AbsoluteUri, eventArgs.Position);
+        }
+        else
+        {
+            workspace.AddText(text, eventArgs.Position);
+        }
+    }
+
+    private void CopySelectionToClipboard()
+    {
+        var selected = _viewModel.SelectedWorkspace?.SelectedItems;
+        if (selected is null || selected.Count == 0)
+        {
+            return;
+        }
+        try
+        {
+            var models = selected.Select(item => item.Model.DeepClone()).ToList();
+            var data = new DataObject();
+            data.SetData(ClipboardFormat, JsonSerializer.Serialize(models, _clipboardJsonOptions));
+            if (models.Count == 1)
+            {
+                var text = models[0].Content switch
+                {
+                    TextContent content => content.Text,
+                    UrlContent content => content.Url,
+                    ImageContent content => content.Source.AbsolutePath,
+                    FileContent content => content.Source.AbsolutePath,
+                    FolderContent content => content.Source.AbsolutePath,
+                    _ => models[0].Title
+                };
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    data.SetText(text);
+                }
+            }
+
+            var paths = models
+                .Select(model => SourceOf(model.Content))
+                .Where(source => source?.Mode == AssetMode.ExternalReference && source.AbsolutePath is not null)
+                .Select(source => source!.AbsolutePath!)
+                .Where(PathResolver.Exists)
+                .ToList();
+            if (paths.Count == models.Count)
+            {
+                var collection = new StringCollection();
+                collection.AddRange(paths.ToArray());
+                data.SetFileDropList(collection);
+            }
+            Clipboard.SetDataObject(data, copy: true);
+        }
+        catch (Exception exception) when (exception is System.Runtime.InteropServices.COMException or JsonException)
+        {
+            _logger.Warning($"Clipboard copy failed: {exception.Message}");
+        }
+    }
+
+    private async void PasteFromClipboard(WorldPoint position)
+    {
+        var workspace = _viewModel.SelectedWorkspace;
+        if (workspace is null || workspace.IsReadOnly)
+        {
+            return;
+        }
+        try
+        {
+            if (Clipboard.ContainsData(ClipboardFormat) &&
+                Clipboard.GetData(ClipboardFormat) is string json)
+            {
+                var items = JsonSerializer.Deserialize<List<BoardItem>>(json, _clipboardJsonOptions);
+                if (items is { Count: > 0 })
+                {
+                    workspace.AddClonedItems(items, position);
+                    return;
+                }
+            }
+
+            IReadOnlyList<string> paths = Clipboard.ContainsFileDropList()
+                ? Clipboard.GetFileDropList().Cast<string>().ToList()
+                : [];
+            byte[]? pngBytes = null;
+            if (paths.Count == 0 && Clipboard.ContainsImage() && Clipboard.GetImage() is BitmapSource bitmap)
+            {
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                using var stream = new MemoryStream();
+                encoder.Save(stream);
+                pngBytes = stream.ToArray();
+            }
+            var text = Clipboard.ContainsText() ? Clipboard.GetText() : null;
+            var result = _clipboardImporter.Classify(new ClipboardSnapshot(paths, pngBytes, text));
+            switch (result.Kind)
+            {
+                case ClipboardImportKind.Files:
+                    workspace.AddPaths(result.FilePaths, position);
+                    break;
+                case ClipboardImportKind.Image when result.PngBytes is not null:
+                    await workspace.AddEmbeddedImageAsync(result.PngBytes, position);
+                    break;
+                case ClipboardImportKind.Url when result.Text is not null:
+                    workspace.AddUrl(result.Text, position);
+                    break;
+                case ClipboardImportKind.Text when result.Text is not null:
+                    workspace.AddText(result.Text, position);
+                    break;
+            }
+        }
+        catch (Exception exception) when (
+            exception is System.Runtime.InteropServices.COMException or IOException or JsonException)
+        {
+            _logger.Warning($"Clipboard paste failed: {exception.Message}");
+        }
+    }
+
+    private void RestoreWindowState()
+    {
+        if (_settings.WindowLeft is { } left &&
+            _settings.WindowTop is { } top &&
+            double.IsFinite(left) &&
+            double.IsFinite(top))
+        {
+            Left = left;
+            Top = top;
+            WindowStartupLocation = WindowStartupLocation.Manual;
+        }
+        Width = Math.Max(MinWidth, _settings.WindowWidth);
+        Height = Math.Max(MinHeight, _settings.WindowHeight);
+        if (_settings.WindowMaximized)
+        {
+            WindowState = WindowState.Maximized;
+        }
+    }
+
+    private void SaveSettings(bool cleanExit)
+    {
+        try
+        {
+            var bounds = RestoreBounds;
+            _settings.WindowLeft = bounds.Left;
+            _settings.WindowTop = bounds.Top;
+            _settings.WindowWidth = bounds.Width;
+            _settings.WindowHeight = bounds.Height;
+            _settings.WindowMaximized = WindowState == WindowState.Maximized;
+            _settings.LastExitClean = cleanExit;
+            _settings.OpenWorkspacePaths = _viewModel.Workspaces.Select(workspace => workspace.Path).ToList();
+            _settings.ActiveWorkspaceIndex = Math.Max(0, _viewModel.Workspaces.IndexOf(_viewModel.SelectedWorkspace!));
+            foreach (var path in _viewModel.Workspaces
+                         .Where(workspace => !workspace.IsRecovery)
+                         .Select(workspace => workspace.Path)
+                         .Reverse())
+            {
+                _settings.RecentWorkspacePaths.RemoveAll(
+                    existing => string.Equals(existing, path, StringComparison.OrdinalIgnoreCase));
+                _settings.RecentWorkspacePaths.Insert(0, path);
+            }
+            _settings.RecentWorkspacePaths = _settings.RecentWorkspacePaths.Take(20).ToList();
+            _settingsStore.Save(_settings);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            _logger.Warning($"Could not save application settings: {exception.Message}");
+        }
+    }
+
+    private WorldPoint CurrentCanvasCenter() => FindCanvas()?.ViewportCenter ?? new WorldPoint(0, 0);
+
+    private InfiniteCanvas? FindCanvas() => FindVisualChild<InfiniteCanvas>(CanvasHost);
+
+    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, index);
+            if (child is T result)
+            {
+                return result;
+            }
+            var descendant = FindVisualChild<T>(child);
+            if (descendant is not null)
+            {
+                return descendant;
+            }
+        }
+        return null;
+    }
+
+    private static SourceDescriptor? SourceOf(ItemContent content) => content switch
+    {
+        ImageContent image => image.Source,
+        FileContent file => file.Source,
+        FolderContent folder => folder.Source,
+        _ => null
+    };
+
+    private void ShowError(string message) =>
+        MessageBox.Show(this, message, "OmniRef", MessageBoxButton.OK, MessageBoxImage.Warning);
+}

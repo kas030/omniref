@@ -1,0 +1,16 @@
+bin/
+obj/
+.vs/
+.idea/
+TestResults/
+artifacts/
+publish/
+.dotnet-home/
+.nuget/
+*.user
+*.suo
+*.nupkg
+*.snupkg
+*.omniref-journal
+*.omniref-wal
+*.omniref-shm

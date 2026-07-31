@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>OmniRef.App</RootNamespace>
+    <AssemblyName>OmniRef</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishSingleFile>false</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OmniRef.Core\OmniRef.Core.csproj" />
+    <ProjectReference Include="..\OmniRef.Infrastructure.Windows\OmniRef.Infrastructure.Windows.csproj" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+  </ItemGroup>
+</Project>
