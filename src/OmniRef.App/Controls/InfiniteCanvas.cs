@@ -842,26 +842,29 @@ public sealed class InfiniteCanvas : Canvas
                         right = GridMath.Snap(right);
                         bottom = GridMath.Snap(bottom);
                     }
-                    var width = Math.Max(minWidth, right - initial.Bounds.X);
-                    var height = Math.Max(minHeight, bottom - initial.Bounds.Y);
+                    var requestedSize = new WorldSize(
+                        right - initial.Bounds.X,
+                        bottom - initial.Bounds.Y);
+                    WorldSize size;
                     if (_resizeItem.Kind == ItemKind.Image &&
                         (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
                     {
-                        var ratio = initial.Bounds.Width / Math.Max(1, initial.Bounds.Height);
-                        if (Math.Abs(width - initial.Bounds.Width) >= Math.Abs(height - initial.Bounds.Height))
-                        {
-                            height = width / ratio;
-                        }
-                        else
-                        {
-                            width = height * ratio;
-                        }
+                        size = ResizeMath.ConstrainToAspectRatio(
+                            new WorldSize(initial.Bounds.Width, initial.Bounds.Height),
+                            requestedSize,
+                            new WorldSize(minWidth, minHeight));
+                    }
+                    else
+                    {
+                        size = new WorldSize(
+                            Math.Max(minWidth, requestedSize.Width),
+                            Math.Max(minHeight, requestedSize.Height));
                     }
                     _resizeItem.UpdateBounds(new(
                         initial.Bounds.X,
                         initial.Bounds.Y,
-                        width,
-                        height));
+                        size.Width,
+                        size.Height));
                 }
                 break;
             case InteractionMode.SelectBox:

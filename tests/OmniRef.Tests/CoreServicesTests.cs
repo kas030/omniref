@@ -59,6 +59,38 @@ public sealed class CoreServicesTests
     }
 
     [Fact]
+    public void AspectRatioResize_ChangesContinuouslyAcrossDiagonalDrag()
+    {
+        var initial = new WorldSize(300, 220);
+        var minimum = new WorldSize(80, 60);
+
+        var beforeBoundary = ResizeMath.ConstrainToAspectRatio(
+            initial,
+            new WorldSize(400, 319.9),
+            minimum);
+        var afterBoundary = ResizeMath.ConstrainToAspectRatio(
+            initial,
+            new WorldSize(400, 320.1),
+            minimum);
+
+        Assert.InRange(Math.Abs(afterBoundary.Width - beforeBoundary.Width), 0, 0.1);
+        Assert.InRange(Math.Abs(afterBoundary.Height - beforeBoundary.Height), 0, 0.1);
+        Assert.Equal(initial.Width / initial.Height, beforeBoundary.Width / beforeBoundary.Height, 10);
+        Assert.Equal(initial.Width / initial.Height, afterBoundary.Width / afterBoundary.Height, 10);
+    }
+
+    [Fact]
+    public void AspectRatioResize_UsesSingleScaleForBothMinimumDimensions()
+    {
+        var size = ResizeMath.ConstrainToAspectRatio(
+            new WorldSize(400, 100),
+            new WorldSize(10, 10),
+            new WorldSize(80, 60));
+
+        Assert.Equal(new WorldSize(240, 60), size);
+    }
+
+    [Fact]
     public void SpatialIndex_HandlesNegativeCellsAndUpdates()
     {
         var index = new SpatialHashIndex<Guid>(128);
