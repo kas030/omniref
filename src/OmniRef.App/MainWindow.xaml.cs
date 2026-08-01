@@ -445,6 +445,9 @@ public partial class MainWindow : Window
         {
             var handle = new WindowInteropHelper(this).Handle;
             WindowsWindowAnimation.DisableSystemWindowTransitions(handle);
+            WindowsWindowAnimation.SetRoundedCorners(
+                handle,
+                enabled: WindowState != WindowState.Maximized);
             if (WindowState == WindowState.Maximized)
             {
                 WindowsWindowBounds.TryFitWindowToWorkArea(handle);

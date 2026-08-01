@@ -8,6 +8,7 @@ public static class WindowsWindowAnimation
     private const long CaptionStyle = 0x00C00000L;
     private const uint RefreshFrameFlags = 0x00000037;
     private const int WindowCornerPreferenceAttribute = 33;
+    private const int DoNotRoundWindowCornerPreference = 1;
     private const int RoundWindowCornerPreference = 2;
 
     public static void EnableSystemWindowTransitions(IntPtr windowHandle)
@@ -43,12 +44,7 @@ public static class WindowsWindowAnimation
         SetWindowRgn(windowHandle, IntPtr.Zero, redraw: true);
         var margins = new DwmMargins(1);
         DwmExtendFrameIntoClientArea(windowHandle, ref margins);
-        var cornerPreference = RoundWindowCornerPreference;
-        DwmSetWindowAttribute(
-            windowHandle,
-            WindowCornerPreferenceAttribute,
-            ref cornerPreference,
-            sizeof(int));
+        SetRoundedCorners(windowHandle, enabled: true);
         SetWindowPos(
             windowHandle,
             IntPtr.Zero,
@@ -57,6 +53,18 @@ public static class WindowsWindowAnimation
             0,
             0,
             RefreshFrameFlags);
+    }
+
+    public static void SetRoundedCorners(IntPtr windowHandle, bool enabled)
+    {
+        var cornerPreference = enabled
+            ? RoundWindowCornerPreference
+            : DoNotRoundWindowCornerPreference;
+        DwmSetWindowAttribute(
+            windowHandle,
+            WindowCornerPreferenceAttribute,
+            ref cornerPreference,
+            sizeof(int));
     }
 
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
