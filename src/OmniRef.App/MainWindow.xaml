@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:controls="clr-namespace:OmniRef.App.Controls"
         xmlns:converters="clr-namespace:OmniRef.App.Converters"
+        xmlns:dd="urn:gong-wpf-dragdrop"
         xmlns:icons="clr-namespace:FluentIcons.Wpf;assembly=FluentIcons.Wpf"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         mc:Ignorable="d"
@@ -122,7 +123,8 @@
                 <Grid x:Name="WorkspaceTabsHost"
                       Grid.Column="2"
                       SizeChanged="WorkspaceTabsHost_SizeChanged">
-                    <Border Panel.ZIndex="1"
+                    <Border x:Name="WorkspaceTabsScrollLeftOverlay"
+                            Panel.ZIndex="1"
                             Width="32"
                             Height="36"
                             HorizontalAlignment="Left"
@@ -163,10 +165,7 @@
                              ScrollViewer.VerticalScrollBarVisibility="Disabled"
                              ScrollViewer.CanContentScroll="False"
                              PreviewMouseWheel="WorkspaceTabs_PreviewMouseWheel"
-                             PreviewMouseLeftButtonDown="WorkspaceTabs_PreviewMouseLeftButtonDown"
-                             PreviewMouseMove="WorkspaceTabs_PreviewMouseMove"
-                             PreviewMouseLeftButtonUp="WorkspaceTabs_PreviewMouseLeftButtonUp"
-                             LostMouseCapture="WorkspaceTabs_LostMouseCapture">
+                             PreviewMouseLeftButtonDown="WorkspaceTabs_PreviewMouseLeftButtonDown">
                     <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Orientation="Horizontal" />
@@ -227,6 +226,7 @@
                                            TextTrimming="CharacterEllipsis"
                                            Margin="8,0,5,0" />
                                 <Button Grid.Column="1"
+                                        dd:DragDrop.DragSourceIgnore="True"
                                         Style="{StaticResource ToolbarButton}"
                                         MinWidth="24"
                                         MinHeight="24"
@@ -247,7 +247,8 @@
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                     </ListBox>
-                    <Border Panel.ZIndex="1"
+                    <Border x:Name="WorkspaceTabsScrollRightOverlay"
+                            Panel.ZIndex="1"
                             Width="32"
                             Height="36"
                             HorizontalAlignment="Right"

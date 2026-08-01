@@ -47,6 +47,15 @@ public static class SmoothScrollBehavior
             .ScrollBy(horizontalDelta, verticalDelta);
     }
 
+    public static void Stop(ScrollViewer scrollViewer)
+    {
+        ArgumentNullException.ThrowIfNull(scrollViewer);
+        if (States.TryGetValue(scrollViewer, out var state))
+        {
+            state.Stop();
+        }
+    }
+
     private static void OnIsEnabledChanged(
         DependencyObject dependencyObject,
         DependencyPropertyChangedEventArgs eventArgs)

@@ -22,5 +22,6 @@
     <ProjectReference Include="..\OmniRef.Infrastructure.Windows\OmniRef.Infrastructure.Windows.csproj" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="FluentIcons.Wpf" />
+    <PackageReference Include="gong-wpf-dragdrop" />
   </ItemGroup>
 </Project>
