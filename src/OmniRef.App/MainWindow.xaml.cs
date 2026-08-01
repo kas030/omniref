@@ -69,6 +69,13 @@ public partial class MainWindow : Window
         typeof(MainWindow),
         new PropertyMetadata(WorkspaceTabPreferredWidth));
 
+    public static readonly DependencyProperty IsWorkspaceTabPointerOverProperty =
+        DependencyProperty.RegisterAttached(
+            "IsWorkspaceTabPointerOver",
+            typeof(bool),
+            typeof(MainWindow),
+            new PropertyMetadata(false));
+
     private readonly MainWindowViewModel _viewModel;
     private readonly AppSettings _settings;
     private readonly AppSettingsStore _settingsStore;
@@ -97,6 +104,7 @@ public partial class MainWindow : Window
     private TimeSpan? _workspaceTabAutoScrollLastRenderingTime;
     private bool _workspaceTabAutoScrollActive;
     private bool _workspaceTabDragStartAllowed = true;
+    private ListBoxItem? _workspaceTabPointerOverItem;
 
     public MainWindow(
         MainWindowViewModel viewModel,
@@ -181,6 +189,9 @@ public partial class MainWindow : Window
         get => (double)GetValue(WorkspaceTabWidthProperty);
         private set => SetValue(WorkspaceTabWidthProperty, value);
     }
+
+    public static bool GetIsWorkspaceTabPointerOver(DependencyObject element) =>
+        (bool)element.GetValue(IsWorkspaceTabPointerOverProperty);
 
     public async Task OpenActivationArgumentsAsync(IReadOnlyList<string> arguments)
     {
@@ -487,6 +498,7 @@ public partial class MainWindow : Window
 
     private void WorkspaceTabs_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs eventArgs)
     {
+        UpdateWorkspaceTabPointerOver(eventArgs);
         _workspaceTabDragStartAllowed = eventArgs.OriginalSource is not DependencyObject source ||
             FindVisualAncestor<Button>(source) is not { Tag: WorkspaceViewModel };
 
@@ -499,6 +511,31 @@ public partial class MainWindow : Window
 
         SmoothScrollBehavior.Stop(scrollViewer);
         StopWorkspaceTabAutoScroll();
+    }
+
+    private void WorkspaceTabs_PreviewMouseMove(object sender, MouseEventArgs eventArgs) =>
+        UpdateWorkspaceTabPointerOver(eventArgs);
+
+    private void WorkspaceTabs_MouseLeave(object sender, MouseEventArgs eventArgs) =>
+        SetWorkspaceTabPointerOverItem(null);
+
+    private void UpdateWorkspaceTabPointerOver(MouseEventArgs eventArgs)
+    {
+        var position = eventArgs.GetPosition(WorkspaceTabs);
+        var hit = WorkspaceTabs.InputHitTest(position) as DependencyObject;
+        SetWorkspaceTabPointerOverItem(FindVisualAncestor<ListBoxItem>(hit));
+    }
+
+    private void SetWorkspaceTabPointerOverItem(ListBoxItem? item)
+    {
+        if (ReferenceEquals(_workspaceTabPointerOverItem, item))
+        {
+            return;
+        }
+
+        _workspaceTabPointerOverItem?.ClearValue(IsWorkspaceTabPointerOverProperty);
+        _workspaceTabPointerOverItem = item;
+        _workspaceTabPointerOverItem?.SetValue(IsWorkspaceTabPointerOverProperty, true);
     }
 
     private void BeginWorkspaceTabDragOperation()

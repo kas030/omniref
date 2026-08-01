@@ -7,6 +7,7 @@
         xmlns:converters="clr-namespace:OmniRef.App.Converters"
         xmlns:dd="urn:gong-wpf-dragdrop"
         xmlns:icons="clr-namespace:FluentIcons.Wpf;assembly=FluentIcons.Wpf"
+        xmlns:local="clr-namespace:OmniRef.App"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         mc:Ignorable="d"
         Title="OmniRef"
@@ -165,7 +166,9 @@
                              ScrollViewer.VerticalScrollBarVisibility="Disabled"
                              ScrollViewer.CanContentScroll="False"
                              PreviewMouseWheel="WorkspaceTabs_PreviewMouseWheel"
-                             PreviewMouseLeftButtonDown="WorkspaceTabs_PreviewMouseLeftButtonDown">
+                             PreviewMouseLeftButtonDown="WorkspaceTabs_PreviewMouseLeftButtonDown"
+                             PreviewMouseMove="WorkspaceTabs_PreviewMouseMove"
+                             MouseLeave="WorkspaceTabs_MouseLeave">
                     <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Orientation="Horizontal" />
@@ -197,7 +200,8 @@
                                             </Border>
                                         </Border>
                                         <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
+                                            <Trigger Property="local:MainWindow.IsWorkspaceTabPointerOver"
+                                                     Value="True">
                                                 <Setter TargetName="Root"
                                                         Property="Background"
                                                         Value="{DynamicResource WorkspaceTabHoverBrush}" />
