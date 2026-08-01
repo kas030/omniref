@@ -1071,7 +1071,7 @@ public partial class MainWindow : Window
         {
             return;
         }
-        if (workspace.IsRecovery)
+        if (workspace.IsRecovery || workspace.IsBackingFileMissing)
         {
             await SaveWorkspaceAsAsync(workspace);
         }
@@ -1465,6 +1465,10 @@ public partial class MainWindow : Window
             return;
         }
         await workspace.FlushAsync();
+        if (workspace.IsBackingFileMissing)
+        {
+            return;
+        }
         await _workspaceStore.CompactAsync(workspace.Path);
     }
 
@@ -1472,6 +1476,11 @@ public partial class MainWindow : Window
     {
         if (_viewModel.SelectedWorkspace is { } workspace)
         {
+            if (workspace.IsBackingFileMissing &&
+                !await workspace.TryReconnectBackingFileAsync())
+            {
+                return;
+            }
             await workspace.FlushAsync();
         }
     }

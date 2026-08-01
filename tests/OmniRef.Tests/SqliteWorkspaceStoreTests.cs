@@ -104,6 +104,46 @@ public sealed class SqliteWorkspaceStoreTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task FileLease_PreventsWorkspaceDeletionUntilReleased()
+    {
+        var path = Path.Combine(_directory, "leased.omniref");
+        using var store = new SqliteWorkspaceStore();
+        await store.SaveAsync(path, CreateDocument());
+
+        using (var lease = store.AcquireFileLease(path))
+        {
+            Assert.True(lease.IsCurrent);
+            var updated = CreateDocument();
+            updated.Title = "Saved while leased";
+            await store.SaveAsync(path, updated);
+            await store.CompactAsync(path);
+            Assert.Equal("Saved while leased", (await store.OpenAsync(path)).Document.Title);
+            Assert.Throws<IOException>(() => File.Delete(path));
+            Assert.True(File.Exists(path));
+        }
+
+        File.Delete(path);
+        Assert.False(File.Exists(path));
+    }
+
+    [Fact]
+    public async Task FileLease_ReportsFalseWhenUnderlyingHandleWasForciblyClosed()
+    {
+        var path = Path.Combine(_directory, "invalid-handle.omniref");
+        using var store = new SqliteWorkspaceStore();
+        await store.SaveAsync(path, CreateDocument());
+        using var lease = store.AcquireFileLease(path);
+        var streamField = lease.GetType().GetField(
+            "_stream",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        var stream = Assert.IsType<FileStream>(streamField?.GetValue(lease));
+
+        stream.Dispose();
+
+        Assert.False(lease.IsCurrent);
+    }
+
+    [Fact]
     public async Task FutureSchema_OpensReadOnlyAndCannotBeOverwritten()
     {
         var path = Path.Combine(_directory, "future.omniref");

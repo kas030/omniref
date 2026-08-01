@@ -43,6 +43,7 @@ public enum LayerMove
 public sealed class WorkspaceViewModel : ObservableObject, IDisposable
 {
     private readonly IWorkspaceStore _store;
+    private IWorkspaceFileLease _fileLease;
     private readonly IPlatformShell _shell;
     private readonly PreviewCache _previewCache;
     private readonly RollingFileLogger _logger;
@@ -67,6 +68,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         bool isRecovery,
         WorkspaceOpenMode openMode,
         IWorkspaceStore store,
+        IWorkspaceFileLease fileLease,
         IPlatformShell shell,
         PreviewCache previewCache,
         RollingFileLogger logger,
@@ -78,6 +80,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         IsRecovery = isRecovery;
         OpenMode = openMode;
         _store = store;
+        _fileLease = fileLease;
         _shell = shell;
         _previewCache = previewCache;
         _logger = logger;
@@ -108,6 +111,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     public bool IsRecovery { get; private set; }
     public WorkspaceOpenMode OpenMode { get; }
     public bool IsReadOnly => OpenMode == WorkspaceOpenMode.ReadOnly;
+    public bool IsBackingFileMissing { get; private set; }
     public string Path => _path;
     public bool IsDirty => _changeVersion != _savedVersion;
     public bool CanUndo => _history.CanUndo;
@@ -851,22 +855,35 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     public async Task SaveAsAsync(string destinationPath, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
+        if (!RefreshBackingFileState() && Items.Any(item =>
+                SourceOf(item.Model.Content)?.Mode == AssetMode.EmbeddedCopy))
+        {
+            SaveError = _localization["WorkspaceFileMissingEmbedded"];
+            throw new InvalidOperationException(SaveError);
+        }
         var previousPath = _path;
         var wasRecovery = IsRecovery;
         var destinationFullPath = System.IO.Path.GetFullPath(destinationPath);
         UpdateRelativePaths(destinationFullPath);
         var snapshot = BuildSnapshot();
+        snapshot.Title = System.IO.Path.GetFileNameWithoutExtension(destinationFullPath);
         SaveState = WorkspaceSaveState.Saving;
         await _store.SaveAsAsync(_path, destinationFullPath, snapshot, cancellationToken).ConfigureAwait(true);
+        var nextFileLease = _store.AcquireFileLease(destinationFullPath);
+        var previousFileLease = _fileLease;
+        _fileLease = nextFileLease;
         _path = destinationFullPath;
         IsRecovery = false;
-        Document.Title = System.IO.Path.GetFileNameWithoutExtension(destinationFullPath);
+        IsBackingFileMissing = false;
+        Document.Title = snapshot.Title;
         _savedVersion = _changeVersion;
         SaveState = WorkspaceSaveState.Saved;
         SaveError = null;
         OnPropertyChanged(nameof(Path));
         OnPropertyChanged(nameof(IsRecovery));
+        OnPropertyChanged(nameof(IsBackingFileMissing));
         OnPropertyChanged(nameof(DisplayTitle));
+        previousFileLease.Dispose();
         if (wasRecovery && !string.Equals(previousPath, destinationFullPath, StringComparison.OrdinalIgnoreCase))
         {
             TryDeleteRecoveryFile(previousPath);
@@ -876,7 +893,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     public async Task FlushAsync(CancellationToken cancellationToken = default)
     {
         _saveTimer.Stop();
-        if (!IsDirty || IsReadOnly)
+        if (!RefreshBackingFileState() || !IsDirty || IsReadOnly)
         {
             return;
         }
@@ -900,6 +917,74 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         VisualInvalidated?.Invoke(this, EventArgs.Empty);
     }
 
+    public bool RefreshBackingFileState()
+    {
+        if (!IsBackingFileMissing && _fileLease.IsCurrent)
+        {
+            return true;
+        }
+
+        IsBackingFileMissing = true;
+        _saveTimer.Stop();
+        SaveState = WorkspaceSaveState.Failed;
+        SaveError = _localization["WorkspaceFileMissing"];
+        OnPropertyChanged(nameof(IsBackingFileMissing));
+        return false;
+    }
+
+    public async Task<bool> TryReconnectBackingFileAsync(CancellationToken cancellationToken = default)
+    {
+        if (!IsBackingFileMissing)
+        {
+            return true;
+        }
+
+        try
+        {
+            var nextFileLease = _store.AcquireFileLease(_path);
+            WorkspaceOpenResult opened;
+            try
+            {
+                opened = await _store.OpenAsync(_path, cancellationToken).ConfigureAwait(true);
+            }
+            catch
+            {
+                nextFileLease.Dispose();
+                throw;
+            }
+            if (opened.Document.Id != Document.Id || opened.Mode != OpenMode)
+            {
+                nextFileLease.Dispose();
+                SaveError = _localization["WorkspaceFileReplaced"];
+                return false;
+            }
+
+            var previousFileLease = _fileLease;
+            _fileLease = nextFileLease;
+            previousFileLease.Dispose();
+            IsBackingFileMissing = false;
+            SaveError = null;
+            SaveState = IsReadOnly
+                ? WorkspaceSaveState.ReadOnly
+                : IsDirty
+                    ? WorkspaceSaveState.Unsaved
+                    : WorkspaceSaveState.Saved;
+            OnPropertyChanged(nameof(IsBackingFileMissing));
+            if (IsDirty && !IsReadOnly)
+            {
+                RestartSaveTimer();
+            }
+            return true;
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or InvalidDataException or
+                Microsoft.Data.Sqlite.SqliteException or FormatException)
+        {
+            SaveError = _localization["WorkspaceFileMissing"];
+            return false;
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -916,6 +1001,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         _localization.PropertyChanged -= OnLocalizationChanged;
         _saveGate.Dispose();
         _lifetime.Dispose();
+        _fileLease.Dispose();
     }
 
     private void AddModelsWithUndo(IReadOnlyCollection<BoardItem> models, string description)
@@ -997,8 +1083,14 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     private void OnItemVisualChanged(object? sender, EventArgs eventArgs) =>
         VisualInvalidated?.Invoke(this, EventArgs.Empty);
 
-    private void OnLocalizationChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs eventArgs) =>
+    private void OnLocalizationChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs eventArgs)
+    {
         OnPropertyChanged(nameof(SaveStatusText));
+        if (IsBackingFileMissing)
+        {
+            SaveError = _localization["WorkspaceFileMissing"];
+        }
+    }
 
     private void SelectIds(IReadOnlySet<Guid> ids)
     {
@@ -1108,10 +1200,12 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
             return;
         }
         _changeVersion++;
-        SaveState = WorkspaceSaveState.Unsaved;
+        SaveState = IsBackingFileMissing
+            ? WorkspaceSaveState.Failed
+            : WorkspaceSaveState.Unsaved;
         OnPropertyChanged(nameof(IsDirty));
         OnPropertyChanged(nameof(DisplayTitle));
-        if (_interactionDepth == 0)
+        if (_interactionDepth == 0 && !IsBackingFileMissing)
         {
             RestartSaveTimer();
         }
@@ -1137,7 +1231,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
 
     private async Task SaveNowAsync(CancellationToken cancellationToken)
     {
-        if (IsReadOnly || !IsDirty)
+        if (IsReadOnly || !IsDirty || !RefreshBackingFileState())
         {
             return;
         }

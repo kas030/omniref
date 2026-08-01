@@ -21,6 +21,13 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
     };
     private bool _disposed;
 
+    public IWorkspaceFileLease AcquireFileLease(string path)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        return new WorkspaceFileLease(path);
+    }
+
     public async Task<WorkspaceOpenResult> OpenAsync(
         string path,
         CancellationToken cancellationToken = default)

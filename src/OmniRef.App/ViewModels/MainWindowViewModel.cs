@@ -98,7 +98,12 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         await _store.SaveAsync(path, document, cancellationToken).ConfigureAwait(true);
-        var workspace = CreateWorkspace(document, path, isRecovery: true, WorkspaceOpenMode.ReadWrite);
+        var workspace = CreateWorkspace(
+            document,
+            path,
+            isRecovery: true,
+            WorkspaceOpenMode.ReadWrite,
+            _store.AcquireFileLease(path));
         Workspaces.Add(workspace);
         SelectedWorkspace = workspace;
         return workspace;
@@ -119,14 +124,23 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
         try
         {
-            var result = await _store.OpenAsync(fullPath, cancellationToken).ConfigureAwait(true);
-            var isRecovery = fullPath.StartsWith(
-                System.IO.Path.GetFullPath(_settingsStore.RecoveryDirectory),
-                StringComparison.OrdinalIgnoreCase);
-            var workspace = CreateWorkspace(result.Document, fullPath, isRecovery, result.Mode);
-            Workspaces.Add(workspace);
-            SelectedWorkspace = workspace;
-            return workspace;
+            var fileLease = _store.AcquireFileLease(fullPath);
+            try
+            {
+                var result = await _store.OpenAsync(fullPath, cancellationToken).ConfigureAwait(true);
+                var isRecovery = fullPath.StartsWith(
+                    System.IO.Path.GetFullPath(_settingsStore.RecoveryDirectory),
+                    StringComparison.OrdinalIgnoreCase);
+                var workspace = CreateWorkspace(result.Document, fullPath, isRecovery, result.Mode, fileLease);
+                Workspaces.Add(workspace);
+                SelectedWorkspace = workspace;
+                return workspace;
+            }
+            catch
+            {
+                fileLease.Dispose();
+                throw;
+            }
         }
         catch (Exception exception) when (
             exception is IOException or UnauthorizedAccessException or InvalidDataException or
@@ -179,6 +193,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     {
         foreach (var workspace in Workspaces)
         {
+            workspace.RefreshBackingFileState();
             workspace.RefreshMissingSources();
         }
     }
@@ -201,13 +216,15 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         WorkspaceDocument document,
         string path,
         bool isRecovery,
-        WorkspaceOpenMode mode) =>
+        WorkspaceOpenMode mode,
+        IWorkspaceFileLease fileLease) =>
         new(
             document,
             path,
             isRecovery,
             mode,
             _store,
+            fileLease,
             _shell,
             _previewCache,
             _logger,
