@@ -541,10 +541,13 @@
             <Border Grid.Column="0"
                     Panel.ZIndex="1"
                     Width="286"
+                    Margin="0,-1,0,0"
+                    UseLayoutRounding="True"
+                    SnapsToDevicePixels="True"
                     Padding="12"
                     Background="{DynamicResource SurfaceBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
-                    BorderThickness="0,0,1,0"
+                    BorderThickness="0,1,1,0"
                     Visibility="{Binding SidebarVisible, Converter={StaticResource BoolToVisibility}}">
                 <Grid>
                     <Grid.RowDefinitions>
