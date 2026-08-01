@@ -96,18 +96,49 @@
                                       Icon="Add" />
                 </Button>
 
-                <ListBox x:Name="WorkspaceTabs"
-                         Grid.Column="2"
-                         shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                         ItemsSource="{Binding Workspaces}"
-                         SelectedItem="{Binding SelectedWorkspace, Mode=TwoWay}"
-                         VerticalContentAlignment="Center"
-                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                         ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                         PreviewMouseLeftButtonDown="WorkspaceTabs_PreviewMouseLeftButtonDown"
-                         PreviewMouseMove="WorkspaceTabs_PreviewMouseMove"
-                         PreviewMouseLeftButtonUp="WorkspaceTabs_PreviewMouseLeftButtonUp"
-                         LostMouseCapture="WorkspaceTabs_LostMouseCapture">
+                <Grid x:Name="WorkspaceTabsHost"
+                      Grid.Column="2"
+                      SizeChanged="WorkspaceTabsHost_SizeChanged">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <RepeatButton x:Name="WorkspaceTabsScrollLeftButton"
+                                  Grid.Column="0"
+                                  Panel.ZIndex="1"
+                                  Style="{StaticResource ToolbarScrollButton}"
+                                  Width="24"
+                                  Height="32"
+                                  Margin="1,4"
+                                  Visibility="Collapsed"
+                                  Click="WorkspaceTabsScrollLeft_Click"
+                                  ToolTip="{Binding Localization[ScrollTabsLeft]}"
+                                  AutomationProperties.Name="{Binding Localization[ScrollTabsLeft]}">
+                        <Path Width="6"
+                              Height="10"
+                              Data="M 7,1 L 1,7 L 7,13"
+                              Stretch="Fill"
+                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RepeatButton}}}"
+                              StrokeThickness="1.5"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round" />
+                    </RepeatButton>
+                    <ListBox x:Name="WorkspaceTabs"
+                             Grid.Column="1"
+                             shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                             ItemsSource="{Binding Workspaces}"
+                             SelectedItem="{Binding SelectedWorkspace, Mode=TwoWay}"
+                             SelectionChanged="WorkspaceTabs_SelectionChanged"
+                             VerticalContentAlignment="Center"
+                             ScrollViewer.HorizontalScrollBarVisibility="Hidden"
+                             ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                             PreviewMouseWheel="WorkspaceTabs_PreviewMouseWheel"
+                             PreviewMouseLeftButtonDown="WorkspaceTabs_PreviewMouseLeftButtonDown"
+                             PreviewMouseMove="WorkspaceTabs_PreviewMouseMove"
+                             PreviewMouseLeftButtonUp="WorkspaceTabs_PreviewMouseLeftButtonUp"
+                             LostMouseCapture="WorkspaceTabs_LostMouseCapture">
                     <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Orientation="Horizontal" />
@@ -117,6 +148,8 @@
                         <Style TargetType="{x:Type ListBoxItem}">
                             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
                             <Setter Property="Background" Value="{DynamicResource WorkspaceTabInactiveBrush}" />
+                            <Setter Property="Width"
+                                    Value="{Binding WorkspaceTabWidth, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
                             <Setter Property="Padding" Value="4,2" />
                             <Setter Property="Margin" Value="2,4" />
                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -150,13 +183,18 @@
                     </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="{Binding DisplayTitle}"
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding DisplayTitle}"
                                            VerticalAlignment="Center"
-                                           MaxWidth="190"
                                            TextTrimming="CharacterEllipsis"
                                            Margin="8,0,5,0" />
-                                <Button Style="{StaticResource ToolbarButton}"
+                                <Button Grid.Column="1"
+                                        Style="{StaticResource ToolbarButton}"
                                         MinWidth="24"
                                         MinHeight="24"
                                         Padding="5"
@@ -172,10 +210,32 @@
                                                       IconSize="Size16"
                                                       Icon="Dismiss" />
                                 </Button>
-                            </StackPanel>
+                            </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
-                </ListBox>
+                    </ListBox>
+                    <RepeatButton x:Name="WorkspaceTabsScrollRightButton"
+                                  Grid.Column="2"
+                                  Panel.ZIndex="1"
+                                  Style="{StaticResource ToolbarScrollButton}"
+                                  Width="24"
+                                  Height="32"
+                                  Margin="1,4"
+                                  Visibility="Collapsed"
+                                  Click="WorkspaceTabsScrollRight_Click"
+                                  ToolTip="{Binding Localization[ScrollTabsRight]}"
+                                  AutomationProperties.Name="{Binding Localization[ScrollTabsRight]}">
+                        <Path Width="6"
+                              Height="10"
+                              Data="M 1,1 L 7,7 L 1,13"
+                              Stretch="Fill"
+                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RepeatButton}}}"
+                              StrokeThickness="1.5"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round" />
+                    </RepeatButton>
+                </Grid>
 
                 <StackPanel Grid.Column="3"
                             shell:WindowChrome.IsHitTestVisibleInChrome="True"

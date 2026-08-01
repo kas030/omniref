@@ -27,6 +27,9 @@ public partial class MainWindow : Window
 {
     private const string ClipboardFormat = "OmniRef.Items.v1";
     private const int GetMinMaxInfoMessage = 0x0024;
+    private const double WorkspaceTabPreferredWidth = 180;
+    private const double WorkspaceTabMinimumWidth = 104;
+    private const double WorkspaceTabHorizontalMargin = 4;
     private const double WorkspaceTabReorderEdgeInsetRatio = 0.25;
 
     public static readonly DependencyProperty ShowCanvasGridProperty = DependencyProperty.Register(
@@ -46,6 +49,12 @@ public partial class MainWindow : Window
         typeof(AppTheme),
         typeof(MainWindow),
         new PropertyMetadata(AppTheme.System));
+
+    public static readonly DependencyProperty WorkspaceTabWidthProperty = DependencyProperty.Register(
+        nameof(WorkspaceTabWidth),
+        typeof(double),
+        typeof(MainWindow),
+        new PropertyMetadata(WorkspaceTabPreferredWidth));
 
     private readonly MainWindowViewModel _viewModel;
     private readonly AppSettings _settings;
@@ -93,6 +102,10 @@ public partial class MainWindow : Window
         _clipboardImporter = clipboardImporter;
         _logger = logger;
         DataContext = viewModel;
+        WorkspaceTabs.AddHandler(
+            ScrollViewer.ScrollChangedEvent,
+            new ScrollChangedEventHandler(WorkspaceTabs_ScrollChanged));
+        _viewModel.Workspaces.CollectionChanged += Workspaces_CollectionChanged;
 
         RestoreWindowState();
         Topmost = settings.AlwaysOnTop;
@@ -105,6 +118,12 @@ public partial class MainWindow : Window
         Activated += OnActivated;
         StateChanged += (_, _) => SaveSettings(cleanExit: false);
         Application.Current.SessionEnding += OnSessionEnding;
+    }
+
+    public double WorkspaceTabWidth
+    {
+        get => (double)GetValue(WorkspaceTabWidthProperty);
+        private set => SetValue(WorkspaceTabWidthProperty, value);
     }
 
     public async Task OpenActivationArgumentsAsync(IReadOnlyList<string> arguments)
@@ -209,6 +228,7 @@ public partial class MainWindow : Window
             ShowError(_viewModel.Localization["HotkeyConflict"]);
         }
         CreateTrayIcon(handle);
+        UpdateWorkspaceTabLayout();
         _ = Dispatcher.BeginInvoke(
             DispatcherPriority.ContextIdle,
             new Action(() => FindCanvas()?.Focus()));
@@ -315,6 +335,116 @@ public partial class MainWindow : Window
         _workspaceTabOrderChanged = false;
         tabs.SelectedItem = workspace;
         eventArgs.Handled = true;
+    }
+
+    private void Workspaces_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs eventArgs) =>
+        _ = Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(UpdateWorkspaceTabLayout));
+
+    private void WorkspaceTabsHost_SizeChanged(object sender, SizeChangedEventArgs eventArgs) =>
+        UpdateWorkspaceTabLayout();
+
+    private void WorkspaceTabsScrollLeft_Click(object sender, RoutedEventArgs eventArgs) =>
+        ScrollWorkspaceTabsBy(-(WorkspaceTabWidth + WorkspaceTabHorizontalMargin));
+
+    private void WorkspaceTabsScrollRight_Click(object sender, RoutedEventArgs eventArgs) =>
+        ScrollWorkspaceTabsBy(WorkspaceTabWidth + WorkspaceTabHorizontalMargin);
+
+    private void WorkspaceTabs_PreviewMouseWheel(object sender, MouseWheelEventArgs eventArgs)
+    {
+        var scrollViewer = FindVisualDescendant<ScrollViewer>(WorkspaceTabs);
+        if (scrollViewer is null || scrollViewer.ScrollableWidth <= 0 || eventArgs.Delta == 0)
+        {
+            return;
+        }
+
+        ScrollWorkspaceTabsBy(eventArgs.Delta * -0.4);
+        eventArgs.Handled = true;
+    }
+
+    private void WorkspaceTabs_ScrollChanged(object sender, ScrollChangedEventArgs eventArgs) =>
+        UpdateWorkspaceTabScrollButtons();
+
+    private void WorkspaceTabs_SelectionChanged(object sender, SelectionChangedEventArgs eventArgs)
+    {
+        if (WorkspaceTabs.SelectedItem is not WorkspaceViewModel workspace)
+        {
+            return;
+        }
+
+        WorkspaceTabs.ScrollIntoView(workspace);
+        _ = Dispatcher.BeginInvoke(
+            DispatcherPriority.Loaded,
+            new Action(UpdateWorkspaceTabScrollButtons));
+    }
+
+    private void UpdateWorkspaceTabLayout()
+    {
+        var workspaceCount = _viewModel.Workspaces.Count;
+        var availableWidth = WorkspaceTabsHost.ActualWidth;
+        if (workspaceCount == 0 || availableWidth <= 0)
+        {
+            WorkspaceTabsScrollLeftButton.Visibility = Visibility.Collapsed;
+            WorkspaceTabsScrollRightButton.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var availableTabWidth = (availableWidth / workspaceCount) - WorkspaceTabHorizontalMargin;
+        if (availableTabWidth >= WorkspaceTabPreferredWidth)
+        {
+            WorkspaceTabWidth = WorkspaceTabPreferredWidth;
+            HideWorkspaceTabScrollButtons();
+            return;
+        }
+
+        if (availableTabWidth >= WorkspaceTabMinimumWidth)
+        {
+            WorkspaceTabWidth = Math.Floor(availableTabWidth);
+            HideWorkspaceTabScrollButtons();
+            return;
+        }
+
+        WorkspaceTabWidth = WorkspaceTabMinimumWidth;
+        _ = Dispatcher.BeginInvoke(
+            DispatcherPriority.Loaded,
+            new Action(UpdateWorkspaceTabScrollButtons));
+    }
+
+    private void HideWorkspaceTabScrollButtons()
+    {
+        WorkspaceTabsScrollLeftButton.Visibility = Visibility.Collapsed;
+        WorkspaceTabsScrollRightButton.Visibility = Visibility.Collapsed;
+        FindVisualDescendant<ScrollViewer>(WorkspaceTabs)?.ScrollToLeftEnd();
+    }
+
+    private void ScrollWorkspaceTabsBy(double offset)
+    {
+        var scrollViewer = FindVisualDescendant<ScrollViewer>(WorkspaceTabs);
+        if (scrollViewer is null)
+        {
+            return;
+        }
+
+        scrollViewer.ScrollToHorizontalOffset(
+            Math.Clamp(scrollViewer.HorizontalOffset + offset, 0, scrollViewer.ScrollableWidth));
+    }
+
+    private void UpdateWorkspaceTabScrollButtons()
+    {
+        var scrollViewer = FindVisualDescendant<ScrollViewer>(WorkspaceTabs);
+        if (scrollViewer is null || scrollViewer.ScrollableWidth <= 0.5)
+        {
+            WorkspaceTabsScrollLeftButton.Visibility = Visibility.Collapsed;
+            WorkspaceTabsScrollRightButton.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        WorkspaceTabsScrollLeftButton.Visibility = scrollViewer.HorizontalOffset > 0.5
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        WorkspaceTabsScrollRightButton.Visibility =
+            scrollViewer.HorizontalOffset < scrollViewer.ScrollableWidth - 0.5
+                ? Visibility.Visible
+                : Visibility.Collapsed;
     }
 
     private void WorkspaceTabs_PreviewMouseMove(object sender, MouseEventArgs eventArgs)
@@ -579,6 +709,26 @@ public partial class MainWindow : Window
             if (current is T match)
             {
                 return match;
+            }
+        }
+
+        return null;
+    }
+
+    private static T? FindVisualDescendant<T>(DependencyObject parent)
+        where T : DependencyObject
+    {
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, index);
+            if (child is T match)
+            {
+                return match;
+            }
+
+            if (FindVisualDescendant<T>(child) is { } descendant)
+            {
+                return descendant;
             }
         }
 
