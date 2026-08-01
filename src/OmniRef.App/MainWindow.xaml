@@ -785,7 +785,9 @@
                         </DataTemplate>
                     </ContentControl.ContentTemplate>
                 </ContentControl>
+            </Grid>
 
+            <Grid Grid.Column="1" Panel.ZIndex="1">
                 <StackPanel HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             MaxWidth="520"
