@@ -9,6 +9,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
+using System.Windows.Shell;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using OmniRef.App.Controls;
@@ -420,13 +421,20 @@ public partial class MainWindow : Window
         var restoredWidth = RestoreBounds.Width;
 
         // Keep this state change local so the active mouse gesture survives for
-        // DragMove. Refresh the native frame explicitly after WindowChrome switches
-        // back from its maximized settings, restoring the border, shadow, and clip.
+        // DragMove. Reattach WindowChrome after it switches back from its maximized
+        // settings because a tray hide/show can leave its DWM frame state stale.
         WindowState = WindowState.Normal;
-        WindowsWindowAnimation.RefreshSystemWindowFrame(
-            new WindowInteropHelper(this).Handle);
+        RefreshWindowChrome();
         Left = (screenPosition.X / dpi.DpiScaleX) - (restoredWidth * horizontalRatio);
         Top = (screenPosition.Y / dpi.DpiScaleY) - mousePosition.Y;
+    }
+
+    private void RefreshWindowChrome()
+    {
+        WindowChrome.SetWindowChrome(this, null);
+        ClearValue(WindowChrome.WindowChromeProperty);
+        WindowsWindowAnimation.RefreshSystemWindowFrame(
+            new WindowInteropHelper(this).Handle);
     }
 
     private void WorkspaceTabs_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs eventArgs)

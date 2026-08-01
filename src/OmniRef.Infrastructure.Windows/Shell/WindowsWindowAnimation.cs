@@ -12,6 +12,8 @@ public static class WindowsWindowAnimation
     private const uint AnimateBlend = 0x00080000;
     private const uint VisibilityAnimationMilliseconds = 200;
     private const uint RefreshFrameFlags = 0x00000037;
+    private const int WindowCornerPreferenceAttribute = 33;
+    private const int RoundWindowCornerPreference = 2;
 
     public static void EnableSystemWindowTransitions(IntPtr windowHandle)
     {
@@ -41,7 +43,17 @@ public static class WindowsWindowAnimation
         }
     }
 
-    public static void RefreshSystemWindowFrame(IntPtr windowHandle) =>
+    public static void RefreshSystemWindowFrame(IntPtr windowHandle)
+    {
+        SetWindowRgn(windowHandle, IntPtr.Zero, redraw: true);
+        var margins = new DwmMargins(1);
+        DwmExtendFrameIntoClientArea(windowHandle, ref margins);
+        var cornerPreference = RoundWindowCornerPreference;
+        DwmSetWindowAttribute(
+            windowHandle,
+            WindowCornerPreferenceAttribute,
+            ref cornerPreference,
+            sizeof(int));
         SetWindowPos(
             windowHandle,
             IntPtr.Zero,
@@ -50,6 +62,7 @@ public static class WindowsWindowAnimation
             0,
             0,
             RefreshFrameFlags);
+    }
 
     public static bool TryShow(IntPtr windowHandle) =>
         AreClientAreaAnimationsEnabled() &&
@@ -84,6 +97,13 @@ public static class WindowsWindowAnimation
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowRgn(
+        IntPtr windowHandle,
+        IntPtr regionHandle,
+        [MarshalAs(UnmanagedType.Bool)] bool redraw);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetWindowPos(
         IntPtr windowHandle,
         IntPtr insertAfter,
@@ -92,6 +112,18 @@ public static class WindowsWindowAnimation
         int width,
         int height,
         uint flags);
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmExtendFrameIntoClientArea(
+        IntPtr windowHandle,
+        ref DwmMargins margins);
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(
+        IntPtr windowHandle,
+        int attribute,
+        ref int attributeValue,
+        int attributeSize);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -107,4 +139,13 @@ public static class WindowsWindowAnimation
         uint parameter,
         [MarshalAs(UnmanagedType.Bool)] out bool value,
         uint updateFlags);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly struct DwmMargins(int thickness)
+    {
+        public readonly int Left = thickness;
+        public readonly int Right = thickness;
+        public readonly int Top = thickness;
+        public readonly int Bottom = thickness;
+    }
 }
