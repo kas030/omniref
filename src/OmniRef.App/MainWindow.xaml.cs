@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.Win32;
@@ -62,6 +63,7 @@ public partial class MainWindow : Window
     private HwndSource? _windowSource;
     private bool _allowClose;
     private bool _loaded;
+    private int _themeTransitionVersion;
 
     public MainWindow(
         MainWindowViewModel viewModel,
@@ -637,10 +639,72 @@ public partial class MainWindow : Window
 
     private void Theme_Click(object sender, RoutedEventArgs eventArgs)
     {
+        var previousEffectiveTheme = _themeManager.EffectiveTheme;
+        var previousThemeFrame = CaptureThemeTransitionFrame();
         CurrentTheme = _themeManager.Cycle();
         _settings.Theme = CurrentTheme;
         SaveSettings(cleanExit: false);
         FindCanvas()?.InvalidateVisual();
+        BeginThemeTransition(
+            previousEffectiveTheme == _themeManager.EffectiveTheme ? null : previousThemeFrame);
+    }
+
+    private BitmapSource? CaptureThemeTransitionFrame()
+    {
+        ThemeTransitionOverlay.BeginAnimation(OpacityProperty, null);
+        ThemeTransitionOverlay.Opacity = 0;
+        ThemeTransitionOverlay.Source = null;
+
+        if (WindowContent.ActualWidth <= 0 ||
+            WindowContent.ActualHeight <= 0)
+        {
+            return null;
+        }
+
+        var dpi = VisualTreeHelper.GetDpi(WindowContent);
+        var pixelWidth = Math.Max(1, (int)Math.Ceiling(WindowContent.ActualWidth * dpi.DpiScaleX));
+        var pixelHeight = Math.Max(1, (int)Math.Ceiling(WindowContent.ActualHeight * dpi.DpiScaleY));
+        var frame = new RenderTargetBitmap(
+            pixelWidth,
+            pixelHeight,
+            dpi.PixelsPerInchX,
+            dpi.PixelsPerInchY,
+            PixelFormats.Pbgra32);
+        frame.Render(WindowContent);
+        frame.Freeze();
+        return frame;
+    }
+
+    private void BeginThemeTransition(BitmapSource? previousThemeFrame)
+    {
+        var transitionVersion = ++_themeTransitionVersion;
+        if (previousThemeFrame is null)
+        {
+            return;
+        }
+
+        ThemeTransitionOverlay.Source = previousThemeFrame;
+        ThemeTransitionOverlay.Opacity = 1;
+
+        var animation = new DoubleAnimation(
+            fromValue: 1,
+            toValue: 0,
+            duration: TimeSpan.FromMilliseconds(280))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        animation.Completed += (_, _) =>
+        {
+            if (transitionVersion != _themeTransitionVersion)
+            {
+                return;
+            }
+
+            ThemeTransitionOverlay.BeginAnimation(OpacityProperty, null);
+            ThemeTransitionOverlay.Opacity = 0;
+            ThemeTransitionOverlay.Source = null;
+        };
+        ThemeTransitionOverlay.BeginAnimation(OpacityProperty, animation);
     }
 
     private void Language_Click(object sender, RoutedEventArgs eventArgs)

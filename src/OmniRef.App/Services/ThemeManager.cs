@@ -10,12 +10,15 @@ public sealed class ThemeManager : IDisposable
 
     public AppTheme ConfiguredTheme => _configuredTheme;
 
+    public AppTheme EffectiveTheme { get; private set; }
+
     public void Apply(AppTheme theme)
     {
         _configuredTheme = theme;
         var effectiveTheme = theme == AppTheme.System
             ? IsSystemLightTheme() ? AppTheme.Light : AppTheme.Dark
             : theme;
+        EffectiveTheme = effectiveTheme;
         var source = new Uri(
             effectiveTheme == AppTheme.Light ? "Themes/Light.xaml" : "Themes/Dark.xaml",
             UriKind.Relative);

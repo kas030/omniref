@@ -52,7 +52,7 @@
                 </Style.Triggers>
             </Style>
         </Border.Style>
-        <Grid>
+        <Grid x:Name="WindowContent">
         <Grid.RowDefinitions>
             <RowDefinition Height="42" />
             <RowDefinition Height="46" />
@@ -680,6 +680,14 @@
                 </Button>
             </Grid>
         </Border>
+
+        <Image x:Name="ThemeTransitionOverlay"
+               Grid.RowSpan="4"
+               Panel.ZIndex="1000"
+               IsHitTestVisible="False"
+               Opacity="0"
+               SnapsToDevicePixels="True"
+               Stretch="Fill" />
         </Grid>
     </Border>
 </Window>
