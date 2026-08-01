@@ -413,6 +413,7 @@
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0"
+                    Panel.ZIndex="1"
                     Width="286"
                     Padding="12"
                     Background="{DynamicResource SurfaceBrush}"
@@ -577,7 +578,7 @@
                 </Grid>
             </Border>
 
-            <Grid Grid.Column="1">
+            <Grid Grid.Column="0" Grid.ColumnSpan="2">
                 <ContentControl x:Name="CanvasHost"
                                 Content="{Binding SelectedWorkspace}"
                                 Visibility="{Binding HasWorkspace, Converter={StaticResource BoolToVisibility}}">
