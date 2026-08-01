@@ -354,8 +354,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (ReferenceEquals(
-                FindVisualAncestor<ListBox>(eventArgs.OriginalSource as DependencyObject),
+        var tabItem = FindVisualAncestor<ListBoxItem>(
+            eventArgs.OriginalSource as DependencyObject);
+        if (tabItem is not null &&
+            ReferenceEquals(
+                ItemsControl.ItemsControlFromItemContainer(tabItem),
                 WorkspaceTabs))
         {
             return;
