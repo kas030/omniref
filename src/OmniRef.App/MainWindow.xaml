@@ -476,7 +476,10 @@
                             Margin="0,8"
                             Background="{DynamicResource BorderBrush}" />
 
-                    <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+                    <ScrollViewer Grid.Row="3"
+                                  Margin="0,0,-8,0"
+                                  Padding="0,0,8,0"
+                                  VerticalScrollBarVisibility="Auto">
                         <ContentControl Content="{Binding SelectedWorkspace.SelectedItem}"
                                         Visibility="{Binding SelectedWorkspace.SelectedItem, Converter={StaticResource NullToVisibility}}">
                             <ContentControl.ContentTemplate>
