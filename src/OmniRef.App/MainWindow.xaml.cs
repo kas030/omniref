@@ -419,7 +419,12 @@ public partial class MainWindow : Window
             : 0.5;
         var restoredWidth = RestoreBounds.Width;
 
+        // Keep this state change local so the active mouse gesture survives for
+        // DragMove. Refresh the native frame explicitly after WindowChrome switches
+        // back from its maximized settings, restoring the border, shadow, and clip.
         WindowState = WindowState.Normal;
+        WindowsWindowAnimation.RefreshSystemWindowFrame(
+            new WindowInteropHelper(this).Handle);
         Left = (screenPosition.X / dpi.DpiScaleX) - (restoredWidth * horizontalRatio);
         Top = (screenPosition.Y / dpi.DpiScaleY) - mousePosition.Y;
     }

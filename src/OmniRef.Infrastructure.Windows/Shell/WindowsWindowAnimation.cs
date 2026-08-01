@@ -41,6 +41,16 @@ public static class WindowsWindowAnimation
         }
     }
 
+    public static void RefreshSystemWindowFrame(IntPtr windowHandle) =>
+        SetWindowPos(
+            windowHandle,
+            IntPtr.Zero,
+            0,
+            0,
+            0,
+            0,
+            RefreshFrameFlags);
+
     public static bool TryShow(IntPtr windowHandle) =>
         AreClientAreaAnimationsEnabled() &&
         AnimateWindow(
