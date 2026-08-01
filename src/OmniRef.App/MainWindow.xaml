@@ -813,7 +813,7 @@
                         Margin="14"
                         Padding="12,8"
                         CornerRadius="8"
-                        Background="{DynamicResource DangerBrush}"
+                        Background="{DynamicResource DangerSurfaceBrush}"
                         Visibility="{Binding SelectedWorkspace.SaveError, Converter={StaticResource NonEmptyStringToVisibility}, FallbackValue=Collapsed}">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -827,10 +827,12 @@
                                    Foreground="White"
                                    TextWrapping="Wrap" />
                         <Button Grid.Column="1"
+                                Style="{StaticResource ErrorBannerButton}"
                                 Margin="12,0,4,0"
                                 Content="{Binding Localization[Retry]}"
                                 Click="RetrySave_Click" />
                         <Button Grid.Column="2"
+                                Style="{StaticResource ErrorBannerButton}"
                                 Content="{Binding Localization[SaveAs]}"
                                 Click="RetrySaveAs_Click" />
                     </Grid>
