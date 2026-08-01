@@ -3,6 +3,9 @@
     <Color x:Key="WindowBackgroundColor">#FFF5F6F8</Color>
     <Color x:Key="SurfaceColor">#FFFFFFFF</Color>
     <Color x:Key="SurfaceRaisedColor">#FFF0F2F5</Color>
+    <Color x:Key="WorkspaceTabInactiveColor">#FFF7F8FA</Color>
+    <Color x:Key="WorkspaceTabHoverColor">#FFE9EDF3</Color>
+    <Color x:Key="WorkspaceTabActiveColor">#FFE1E6EE</Color>
     <Color x:Key="CanvasBackgroundColor">#FFE9EBEF</Color>
     <Color x:Key="CanvasGridColor">#FFAAB3C3</Color>
     <Color x:Key="BorderColor">#FFD8DCE3</Color>
@@ -16,6 +19,9 @@
     <SolidColorBrush x:Key="WindowBackgroundBrush" Color="{StaticResource WindowBackgroundColor}" />
     <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}" />
     <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="{StaticResource SurfaceRaisedColor}" />
+    <SolidColorBrush x:Key="WorkspaceTabInactiveBrush" Color="{StaticResource WorkspaceTabInactiveColor}" />
+    <SolidColorBrush x:Key="WorkspaceTabHoverBrush" Color="{StaticResource WorkspaceTabHoverColor}" />
+    <SolidColorBrush x:Key="WorkspaceTabActiveBrush" Color="{StaticResource WorkspaceTabActiveColor}" />
     <SolidColorBrush x:Key="CanvasBackgroundBrush" Color="{StaticResource CanvasBackgroundColor}" />
     <SolidColorBrush x:Key="CanvasGridBrush" Color="{StaticResource CanvasGridColor}" />
     <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}" />

@@ -109,10 +109,38 @@
                         </ItemsPanelTemplate>
                     </ListBox.ItemsPanel>
                     <ListBox.ItemContainerStyle>
-                        <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                        <Style TargetType="{x:Type ListBoxItem}">
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                            <Setter Property="Background" Value="{DynamicResource WorkspaceTabInactiveBrush}" />
                             <Setter Property="Padding" Value="4,2" />
                             <Setter Property="Margin" Value="2,4" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
                             <Setter Property="AutomationProperties.Name" Value="{Binding DisplayTitle}" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                                        <Border x:Name="Root"
+                                                Padding="{TemplateBinding Padding}"
+                                                Background="{TemplateBinding Background}"
+                                                CornerRadius="7">
+                                            <ContentPresenter />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Root"
+                                                        Property="Background"
+                                                        Value="{DynamicResource WorkspaceTabHoverBrush}" />
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="Root"
+                                                        Property="Background"
+                                                        Value="{DynamicResource WorkspaceTabActiveBrush}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
                         </Style>
                     </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
