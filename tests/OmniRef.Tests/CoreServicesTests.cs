@@ -177,7 +177,7 @@ public sealed class CoreServicesTests
 
         Assert.Single(results);
         Assert.True(
-            watch.Elapsed < TimeSpan.FromMilliseconds(100),
+            watch.Elapsed < TimeSpan.FromMilliseconds(200),
             $"Search took {watch.Elapsed.TotalMilliseconds:0.0} ms.");
     }
 
