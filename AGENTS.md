@@ -36,8 +36,8 @@ Keep the dependency direction `Core <- Infrastructure.Windows <- App`. Package v
 - Folders are always external references. Images and ordinary files may be external references or embedded copies.
 - Preserve both absolute and relative reference paths when they can be calculated, and keep missing-reference relinking functional.
 - A single embedded asset is limited to 512 MB. Import and export BLOBs with streaming APIs rather than loading entire files into memory.
-- Treat each `.omniref` file as a self-contained SQLite workspace. Preserve transactions, serialized background writes, `DELETE` journaling, migration backups, and read-only handling for newer schema versions.
-- Schema or payload changes require a versioned migration and integration tests. Never silently overwrite an unsupported or corrupt workspace.
+- Treat each `.omniref` file as a self-contained SQLite workspace. Preserve transactions, serialized background writes, `DELETE` journaling, rejection of older schema versions, and read-only handling for newer schema versions.
+- Schema or payload changes require a schema version bump and integration tests. Do not add compatibility migrations or migration backups without an explicit architectural decision. Never silently overwrite an unsupported or corrupt workspace.
 - Unsaved work and failed writes must remain recoverable in memory or in the recovery area.
 
 ## UI and Performance Rules
