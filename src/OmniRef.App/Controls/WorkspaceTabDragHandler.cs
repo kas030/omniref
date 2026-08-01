@@ -7,17 +7,22 @@ namespace OmniRef.App.Controls;
 
 internal sealed class WorkspaceTabDragHandler : IDragSource
 {
+    private readonly Func<bool> _canStartDrag;
     private readonly Action _dragStarted;
     private readonly Action _dragFinished;
 
-    public WorkspaceTabDragHandler(Action dragStarted, Action dragFinished)
+    public WorkspaceTabDragHandler(
+        Func<bool> canStartDrag,
+        Action dragStarted,
+        Action dragFinished)
     {
+        _canStartDrag = canStartDrag;
         _dragStarted = dragStarted;
         _dragFinished = dragFinished;
     }
 
     public bool CanStartDrag(IDragInfo dragInfo) =>
-        GongDragDrop.DefaultDragHandler.CanStartDrag(dragInfo);
+        _canStartDrag() && GongDragDrop.DefaultDragHandler.CanStartDrag(dragInfo);
 
     public void StartDrag(IDragInfo dragInfo)
     {

@@ -96,6 +96,7 @@ public partial class MainWindow : Window
     private double _workspaceTabAutoScrollTargetVelocity;
     private TimeSpan? _workspaceTabAutoScrollLastRenderingTime;
     private bool _workspaceTabAutoScrollActive;
+    private bool _workspaceTabDragStartAllowed = true;
 
     public MainWindow(
         MainWindowViewModel viewModel,
@@ -124,6 +125,7 @@ public partial class MainWindow : Window
             StopWorkspaceTabAutoScroll,
             () => SaveSettings(cleanExit: false));
         _workspaceTabDragHandler = new WorkspaceTabDragHandler(
+            () => _workspaceTabDragStartAllowed,
             BeginWorkspaceTabDragOperation,
             EndWorkspaceTabDragOperation);
         DataContext = viewModel;
@@ -485,6 +487,9 @@ public partial class MainWindow : Window
 
     private void WorkspaceTabs_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs eventArgs)
     {
+        _workspaceTabDragStartAllowed = eventArgs.OriginalSource is not DependencyObject source ||
+            FindVisualAncestor<Button>(source) is not { Tag: WorkspaceViewModel };
+
         if (sender is not ListBox tabs ||
             eventArgs.ChangedButton != MouseButton.Left ||
             FindVisualDescendant<ScrollViewer>(tabs) is not { } scrollViewer)

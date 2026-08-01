@@ -237,6 +237,7 @@
                                         ToolTip="{Binding DataContext.Localization[CloseTab], RelativeSource={RelativeSource AncestorType=Window}}"
                                         AutomationProperties.Name="{Binding DataContext.Localization[CloseTab], RelativeSource={RelativeSource AncestorType=Window}}">
                                     <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                                      IsHitTestVisible="False"
                                                       Width="16"
                                                       Height="16"
                                                       FontSize="16"
