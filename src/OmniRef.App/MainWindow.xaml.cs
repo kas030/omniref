@@ -83,6 +83,7 @@ public partial class MainWindow : Window
     private double _workspaceTabDragPointerOffsetX;
     private bool _workspaceTabDragActive;
     private bool _workspaceTabOrderChanged;
+    private bool _workspaceTabsOverflow;
 
     public MainWindow(
         MainWindowViewModel viewModel,
@@ -551,6 +552,7 @@ public partial class MainWindow : Window
         var availableWidth = WorkspaceTabsHost.ActualWidth;
         if (workspaceCount == 0 || availableWidth <= 0)
         {
+            _workspaceTabsOverflow = false;
             WorkspaceTabsScrollLeftButton.Visibility = Visibility.Collapsed;
             WorkspaceTabsScrollRightButton.Visibility = Visibility.Collapsed;
             return;
@@ -559,6 +561,7 @@ public partial class MainWindow : Window
         var availableTabWidth = (availableWidth / workspaceCount) - WorkspaceTabHorizontalMargin;
         if (availableTabWidth >= WorkspaceTabPreferredWidth)
         {
+            _workspaceTabsOverflow = false;
             WorkspaceTabWidth = WorkspaceTabPreferredWidth;
             HideWorkspaceTabScrollButtons();
             return;
@@ -566,11 +569,13 @@ public partial class MainWindow : Window
 
         if (availableTabWidth >= WorkspaceTabMinimumWidth)
         {
+            _workspaceTabsOverflow = false;
             WorkspaceTabWidth = Math.Floor(availableTabWidth);
             HideWorkspaceTabScrollButtons();
             return;
         }
 
+        _workspaceTabsOverflow = true;
         WorkspaceTabWidth = WorkspaceTabMinimumWidth;
         _ = Dispatcher.BeginInvoke(
             DispatcherPriority.Loaded,
@@ -598,6 +603,13 @@ public partial class MainWindow : Window
 
     private void UpdateWorkspaceTabScrollButtons()
     {
+        if (!_workspaceTabsOverflow)
+        {
+            WorkspaceTabsScrollLeftButton.Visibility = Visibility.Collapsed;
+            WorkspaceTabsScrollRightButton.Visibility = Visibility.Collapsed;
+            return;
+        }
+
         var scrollViewer = FindVisualDescendant<ScrollViewer>(WorkspaceTabs);
         if (scrollViewer is null || scrollViewer.ScrollableWidth <= 0.5)
         {

@@ -92,6 +92,7 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="80" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
@@ -131,8 +132,9 @@
                                   Panel.ZIndex="1"
                                   Style="{StaticResource ToolbarScrollButton}"
                                   Width="24"
-                                  Height="32"
-                                  Margin="1,4"
+                                  Height="34"
+                                  Margin="1,0,1,2"
+                                  VerticalAlignment="Bottom"
                                   Visibility="Collapsed"
                                   Click="WorkspaceTabsScrollLeft_Click"
                                   ToolTip="{Binding Localization[ScrollTabsLeft]}"
@@ -249,8 +251,9 @@
                                   Panel.ZIndex="1"
                                   Style="{StaticResource ToolbarScrollButton}"
                                   Width="24"
-                                  Height="32"
-                                  Margin="1,4"
+                                  Height="34"
+                                  Margin="1,0,1,2"
+                                  VerticalAlignment="Bottom"
                                   Visibility="Collapsed"
                                   Click="WorkspaceTabsScrollRight_Click"
                                   ToolTip="{Binding Localization[ScrollTabsRight]}"
@@ -267,7 +270,7 @@
                     </RepeatButton>
                 </Grid>
 
-                <StackPanel Grid.Column="3"
+                <StackPanel Grid.Column="4"
                             shell:WindowChrome.IsHitTestVisibleInChrome="True"
                             Orientation="Horizontal">
                     <Button Style="{StaticResource CaptionButton}"
