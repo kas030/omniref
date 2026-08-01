@@ -5,6 +5,7 @@ namespace OmniRef.Infrastructure.Windows.Shell;
 public static class WindowsWindowBounds
 {
     private const uint MonitorDefaultToNearest = 0x00000002;
+    private const uint KeepZOrderAndActivation = 0x00000014;
 
     public static bool TryApplyWindowBounds(
         IntPtr windowHandle,
@@ -38,6 +39,34 @@ public static class WindowsWindowBounds
         minMaxInfo.MinTrackSize.Y = (int)Math.Ceiling(minimumHeight * dpiScale);
         Marshal.StructureToPtr(minMaxInfo, minMaxInfoAddress, fDeleteOld: false);
         return true;
+    }
+
+    public static bool TryFitWindowToWorkArea(IntPtr windowHandle)
+    {
+        var monitorHandle = MonitorFromWindow(windowHandle, MonitorDefaultToNearest);
+        if (monitorHandle == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        var monitorInfo = new MonitorInfo
+        {
+            Size = Marshal.SizeOf<MonitorInfo>()
+        };
+        if (!GetMonitorInfo(monitorHandle, ref monitorInfo))
+        {
+            return false;
+        }
+
+        var workArea = monitorInfo.WorkArea;
+        return SetWindowPos(
+            windowHandle,
+            IntPtr.Zero,
+            workArea.Left,
+            workArea.Top,
+            workArea.Right - workArea.Left,
+            workArea.Bottom - workArea.Top,
+            KeepZOrderAndActivation);
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -84,4 +113,15 @@ public static class WindowsWindowBounds
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr windowHandle);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowPos(
+        IntPtr windowHandle,
+        IntPtr insertAfter,
+        int x,
+        int y,
+        int width,
+        int height,
+        uint flags);
 }

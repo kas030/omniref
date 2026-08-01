@@ -199,11 +199,14 @@ public partial class MainWindow : Window
     {
         if (!IsVisible)
         {
+            var handle = new WindowInteropHelper(this).EnsureHandle();
+            WindowsWindowAnimation.TryShow(handle);
             Show();
         }
         if (WindowState == WindowState.Minimized)
         {
-            WindowState = WindowState.Normal;
+            EnableSystemWindowTransitions();
+            SystemCommands.RestoreWindow(this);
         }
         Activate();
         Topmost = _settings.AlwaysOnTop;
@@ -392,7 +395,19 @@ public partial class MainWindow : Window
     }
 
     private void OnWindowStateChanged(object? sender, EventArgs eventArgs)
-        => SaveSettings(cleanExit: false);
+    {
+        if (WindowState != WindowState.Minimized)
+        {
+            var handle = new WindowInteropHelper(this).Handle;
+            WindowsWindowAnimation.DisableSystemWindowTransitions(handle);
+            if (WindowState == WindowState.Maximized)
+            {
+                WindowsWindowBounds.TryFitWindowToWorkArea(handle);
+            }
+        }
+
+        SaveSettings(cleanExit: false);
+    }
 
     private void RestoreWindowForDrag(Point mousePosition)
     {
@@ -901,11 +916,15 @@ public partial class MainWindow : Window
         return null;
     }
 
-    private void MinimizeWindow_Click(object sender, RoutedEventArgs eventArgs) =>
+    private void MinimizeWindow_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        EnableSystemWindowTransitions();
         SystemCommands.MinimizeWindow(this);
+    }
 
     private void MaximizeRestoreWindow_Click(object sender, RoutedEventArgs eventArgs)
     {
+        EnableSystemWindowTransitions();
         if (WindowState == WindowState.Maximized)
         {
             SystemCommands.RestoreWindow(this);
@@ -915,6 +934,10 @@ public partial class MainWindow : Window
             SystemCommands.MaximizeWindow(this);
         }
     }
+
+    private void EnableSystemWindowTransitions() =>
+        WindowsWindowAnimation.EnableSystemWindowTransitions(
+            new WindowInteropHelper(this).Handle);
 
     private void CloseWindow_Click(object sender, RoutedEventArgs eventArgs) =>
         SystemCommands.CloseWindow(this);
@@ -1034,6 +1057,11 @@ public partial class MainWindow : Window
     private void HideToTray()
     {
         SaveSettings(cleanExit: false);
+        if (IsVisible)
+        {
+            var handle = new WindowInteropHelper(this).Handle;
+            WindowsWindowAnimation.TryHide(handle);
+        }
         Hide();
         _previewCache.TrimAggressively();
     }
