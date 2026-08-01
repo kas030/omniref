@@ -347,8 +347,8 @@
                                   Click="ToolbarScrollLeft_Click"
                                   ToolTip="{Binding Localization[ScrollToolbarLeft]}"
                                   AutomationProperties.Name="{Binding Localization[ScrollToolbarLeft]}">
-                        <Path Width="8"
-                              Height="14"
+                        <Path Width="6"
+                              Height="10"
                               Data="M 7,1 L 1,7 L 7,13"
                               Stretch="Fill"
                               Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RepeatButton}}}"
@@ -484,8 +484,8 @@
                                   Click="ToolbarScrollRight_Click"
                                   ToolTip="{Binding Localization[ScrollToolbarRight]}"
                                   AutomationProperties.Name="{Binding Localization[ScrollToolbarRight]}">
-                        <Path Width="8"
-                              Height="14"
+                        <Path Width="6"
+                              Height="10"
                               Data="M 1,1 L 7,7 L 1,13"
                               Stretch="Fill"
                               Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RepeatButton}}}"
