@@ -96,13 +96,18 @@
                                       Icon="Add" />
                 </Button>
 
-                <ListBox Grid.Column="2"
+                <ListBox x:Name="WorkspaceTabs"
+                         Grid.Column="2"
                          shell:WindowChrome.IsHitTestVisibleInChrome="True"
                          ItemsSource="{Binding Workspaces}"
                          SelectedItem="{Binding SelectedWorkspace, Mode=TwoWay}"
                          VerticalContentAlignment="Center"
                          ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                         ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                         ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                         PreviewMouseLeftButtonDown="WorkspaceTabs_PreviewMouseLeftButtonDown"
+                         PreviewMouseMove="WorkspaceTabs_PreviewMouseMove"
+                         PreviewMouseLeftButtonUp="WorkspaceTabs_PreviewMouseLeftButtonUp"
+                         LostMouseCapture="WorkspaceTabs_LostMouseCapture">
                     <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Orientation="Horizontal" />

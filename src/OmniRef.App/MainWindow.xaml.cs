@@ -27,6 +27,7 @@ public partial class MainWindow : Window
 {
     private const string ClipboardFormat = "OmniRef.Items.v1";
     private const int GetMinMaxInfoMessage = 0x0024;
+    private const double WorkspaceTabReorderEdgeInsetRatio = 0.25;
 
     public static readonly DependencyProperty ShowCanvasGridProperty = DependencyProperty.Register(
         nameof(ShowCanvasGrid),
@@ -64,6 +65,11 @@ public partial class MainWindow : Window
     private bool _allowClose;
     private bool _loaded;
     private int _themeTransitionVersion;
+    private Point _workspaceTabDragStart;
+    private WorkspaceViewModel? _workspaceTabDragItem;
+    private double _workspaceTabDragPointerOffsetX;
+    private bool _workspaceTabDragActive;
+    private bool _workspaceTabOrderChanged;
 
     public MainWindow(
         MainWindowViewModel viewModel,
@@ -285,6 +291,290 @@ public partial class MainWindow : Window
         WindowState = WindowState.Normal;
         Left = (screenPosition.X / dpi.DpiScaleX) - (restoredWidth * horizontalRatio);
         Top = (screenPosition.Y / dpi.DpiScaleY) - mousePosition.Y;
+    }
+
+    private void WorkspaceTabs_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs eventArgs)
+    {
+        if (sender is not ListBox tabs || eventArgs.ChangedButton != MouseButton.Left)
+        {
+            return;
+        }
+
+        var source = eventArgs.OriginalSource as DependencyObject;
+        var item = FindVisualAncestor<ListBoxItem>(source);
+        if (FindVisualAncestor<Button>(source) is not null ||
+            item?.DataContext is not WorkspaceViewModel workspace)
+        {
+            return;
+        }
+
+        _workspaceTabDragStart = eventArgs.GetPosition(tabs);
+        _workspaceTabDragItem = workspace;
+        _workspaceTabDragPointerOffsetX = eventArgs.GetPosition(item).X;
+        _workspaceTabDragActive = false;
+        _workspaceTabOrderChanged = false;
+        tabs.SelectedItem = workspace;
+        eventArgs.Handled = true;
+    }
+
+    private void WorkspaceTabs_PreviewMouseMove(object sender, MouseEventArgs eventArgs)
+    {
+        if (sender is not ListBox tabs || _workspaceTabDragItem is null)
+        {
+            return;
+        }
+
+        if (eventArgs.LeftButton != MouseButtonState.Pressed)
+        {
+            EndWorkspaceTabDrag(tabs);
+            return;
+        }
+
+        var position = eventArgs.GetPosition(tabs);
+        if (!_workspaceTabDragActive)
+        {
+            var delta = position - _workspaceTabDragStart;
+            if (Math.Abs(delta.X) < SystemParameters.MinimumHorizontalDragDistance &&
+                Math.Abs(delta.Y) < SystemParameters.MinimumVerticalDragDistance)
+            {
+                return;
+            }
+
+            _workspaceTabDragActive = true;
+            tabs.CaptureMouse();
+            if (tabs.ItemContainerGenerator.ContainerFromItem(_workspaceTabDragItem) is ListBoxItem item)
+            {
+                Panel.SetZIndex(item, 1000);
+            }
+        }
+
+        UpdateDraggedWorkspaceTabPosition(tabs, position.X);
+        ReorderWorkspaceTab(tabs, position.X);
+        eventArgs.Handled = true;
+    }
+
+    private void WorkspaceTabs_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs eventArgs)
+    {
+        if (sender is ListBox tabs && _workspaceTabDragItem is not null)
+        {
+            EndWorkspaceTabDrag(tabs);
+            eventArgs.Handled = true;
+        }
+    }
+
+    private void WorkspaceTabs_LostMouseCapture(object sender, MouseEventArgs eventArgs)
+    {
+        if (sender is ListBox tabs && _workspaceTabDragItem is not null)
+        {
+            EndWorkspaceTabDrag(tabs, releaseCapture: false);
+        }
+    }
+
+    private void ReorderWorkspaceTab(ListBox tabs, double pointerX)
+    {
+        if (_workspaceTabDragItem is not { } draggedWorkspace)
+        {
+            return;
+        }
+
+        var currentIndex = _viewModel.Workspaces.IndexOf(draggedWorkspace);
+        var targetIndex = currentIndex;
+        if (currentIndex < 0)
+        {
+            return;
+        }
+
+        var draggedCenterX = pointerX;
+        if (tabs.ItemContainerGenerator.ContainerFromItem(draggedWorkspace) is ListBoxItem draggedItem)
+        {
+            draggedCenterX = pointerX - _workspaceTabDragPointerOffsetX + (draggedItem.ActualWidth / 2);
+        }
+
+        if (currentIndex < _viewModel.Workspaces.Count - 1)
+        {
+            for (var index = currentIndex + 1; index < _viewModel.Workspaces.Count; index++)
+            {
+                if (tabs.ItemContainerGenerator.ContainerFromIndex(index) is ListBoxItem item &&
+                    draggedCenterX > item.TranslatePoint(
+                        new Point(item.ActualWidth * WorkspaceTabReorderEdgeInsetRatio, 0),
+                        tabs).X)
+                {
+                    targetIndex = index;
+                }
+            }
+        }
+
+        if (targetIndex == currentIndex && currentIndex > 0)
+        {
+            for (var index = currentIndex - 1; index >= 0; index--)
+            {
+                if (tabs.ItemContainerGenerator.ContainerFromIndex(index) is ListBoxItem item &&
+                    draggedCenterX < item.TranslatePoint(
+                        new Point(item.ActualWidth * (1 - WorkspaceTabReorderEdgeInsetRatio), 0),
+                        tabs).X)
+                {
+                    targetIndex = index;
+                }
+            }
+        }
+
+        if (targetIndex == currentIndex)
+        {
+            return;
+        }
+
+        var previousPositions = CaptureWorkspaceTabPositions(tabs);
+        _viewModel.Workspaces.Move(currentIndex, targetIndex);
+        tabs.UpdateLayout();
+        AnimateWorkspaceTabReorder(tabs, previousPositions, draggedWorkspace);
+        UpdateDraggedWorkspaceTabPosition(tabs, pointerX);
+        _workspaceTabOrderChanged = true;
+    }
+
+    private void UpdateDraggedWorkspaceTabPosition(ListBox tabs, double pointerX)
+    {
+        if (_workspaceTabDragItem is null ||
+            tabs.ItemContainerGenerator.ContainerFromItem(_workspaceTabDragItem) is not ListBoxItem item)
+        {
+            return;
+        }
+
+        var transform = item.RenderTransform as TranslateTransform ?? new TranslateTransform();
+        transform.BeginAnimation(TranslateTransform.XProperty, null);
+        item.RenderTransform = transform;
+        var layoutX = item.TranslatePoint(default, tabs).X - transform.X;
+        transform.X = pointerX - _workspaceTabDragPointerOffsetX - layoutX;
+    }
+
+    private Dictionary<WorkspaceViewModel, double> CaptureWorkspaceTabPositions(ListBox tabs)
+    {
+        var positions = new Dictionary<WorkspaceViewModel, double>();
+        foreach (var workspace in _viewModel.Workspaces)
+        {
+            if (tabs.ItemContainerGenerator.ContainerFromItem(workspace) is ListBoxItem item)
+            {
+                positions[workspace] = item.TranslatePoint(default, tabs).X;
+            }
+        }
+
+        return positions;
+    }
+
+    private static void AnimateWorkspaceTabReorder(
+        ListBox tabs,
+        IReadOnlyDictionary<WorkspaceViewModel, double> previousPositions,
+        WorkspaceViewModel draggedWorkspace)
+    {
+        foreach (var workspace in previousPositions.Keys)
+        {
+            if (ReferenceEquals(workspace, draggedWorkspace))
+            {
+                continue;
+            }
+
+            if (tabs.ItemContainerGenerator.ContainerFromItem(workspace) is not ListBoxItem item)
+            {
+                continue;
+            }
+
+            var transform = item.RenderTransform as TranslateTransform ?? new TranslateTransform();
+            transform.BeginAnimation(TranslateTransform.XProperty, null);
+            transform.X = 0;
+            item.RenderTransform = transform;
+        }
+
+        foreach (var (workspace, previousX) in previousPositions)
+        {
+            if (ReferenceEquals(workspace, draggedWorkspace))
+            {
+                continue;
+            }
+
+            if (tabs.ItemContainerGenerator.ContainerFromItem(workspace) is not ListBoxItem item ||
+                item.RenderTransform is not TranslateTransform transform)
+            {
+                continue;
+            }
+
+            var currentX = item.TranslatePoint(default, tabs).X;
+            var offset = previousX - currentX;
+            if (Math.Abs(offset) < 0.5)
+            {
+                continue;
+            }
+
+            var animation = new DoubleAnimation(offset, 0, TimeSpan.FromMilliseconds(160))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                FillBehavior = FillBehavior.Stop
+            };
+            transform.BeginAnimation(TranslateTransform.XProperty, animation, HandoffBehavior.SnapshotAndReplace);
+        }
+    }
+
+    private void EndWorkspaceTabDrag(ListBox tabs, bool releaseCapture = true)
+    {
+        var orderChanged = _workspaceTabOrderChanged;
+        var draggedWorkspace = _workspaceTabDragItem;
+        _workspaceTabDragItem = null;
+        _workspaceTabDragActive = false;
+        _workspaceTabOrderChanged = false;
+
+        if (releaseCapture && tabs.IsMouseCaptured)
+        {
+            tabs.ReleaseMouseCapture();
+        }
+
+        if (draggedWorkspace is not null &&
+            tabs.ItemContainerGenerator.ContainerFromItem(draggedWorkspace) is ListBoxItem item)
+        {
+            AnimateDraggedWorkspaceTabIntoPlace(item);
+        }
+
+        if (orderChanged)
+        {
+            SaveSettings(cleanExit: false);
+        }
+    }
+
+    private static void AnimateDraggedWorkspaceTabIntoPlace(ListBoxItem item)
+    {
+        if (item.RenderTransform is not TranslateTransform transform)
+        {
+            Panel.SetZIndex(item, 0);
+            return;
+        }
+
+        transform.BeginAnimation(TranslateTransform.XProperty, null);
+        var offset = transform.X;
+        transform.X = 0;
+        if (Math.Abs(offset) < 0.5)
+        {
+            Panel.SetZIndex(item, 0);
+            return;
+        }
+
+        var animation = new DoubleAnimation(offset, 0, TimeSpan.FromMilliseconds(120))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            FillBehavior = FillBehavior.Stop
+        };
+        animation.Completed += (_, _) => Panel.SetZIndex(item, 0);
+        transform.BeginAnimation(TranslateTransform.XProperty, animation, HandoffBehavior.SnapshotAndReplace);
+    }
+
+    private static T? FindVisualAncestor<T>(DependencyObject? source)
+        where T : DependencyObject
+    {
+        for (var current = source; current is not null; current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is T match)
+            {
+                return match;
+            }
+        }
+
+        return null;
     }
 
     private void MinimizeWindow_Click(object sender, RoutedEventArgs eventArgs) =>
