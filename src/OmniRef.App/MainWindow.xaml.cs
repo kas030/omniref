@@ -387,7 +387,8 @@ public partial class MainWindow : Window
         var draggedCenterX = pointerX;
         if (tabs.ItemContainerGenerator.ContainerFromItem(draggedWorkspace) is ListBoxItem draggedItem)
         {
-            draggedCenterX = pointerX - _workspaceTabDragPointerOffsetX + (draggedItem.ActualWidth / 2);
+            draggedCenterX = GetClampedDraggedWorkspaceTabLeft(tabs, draggedItem, pointerX) +
+                (draggedItem.ActualWidth / 2);
         }
 
         if (currentIndex < _viewModel.Workspaces.Count - 1)
@@ -443,7 +444,14 @@ public partial class MainWindow : Window
         transform.BeginAnimation(TranslateTransform.XProperty, null);
         item.RenderTransform = transform;
         var layoutX = item.TranslatePoint(default, tabs).X - transform.X;
-        transform.X = pointerX - _workspaceTabDragPointerOffsetX - layoutX;
+        var draggedLeft = GetClampedDraggedWorkspaceTabLeft(tabs, item, pointerX);
+        transform.X = draggedLeft - layoutX;
+    }
+
+    private double GetClampedDraggedWorkspaceTabLeft(ListBox tabs, ListBoxItem item, double pointerX)
+    {
+        var maximumLeft = Math.Max(0, tabs.ActualWidth - item.ActualWidth);
+        return Math.Clamp(pointerX - _workspaceTabDragPointerOffsetX, 0, maximumLeft);
     }
 
     private Dictionary<WorkspaceViewModel, double> CaptureWorkspaceTabPositions(ListBox tabs)
