@@ -17,13 +17,32 @@
         WindowStyle="None"
         Foreground="{DynamicResource TextPrimaryBrush}"
         WindowStartupLocation="CenterScreen">
-    <shell:WindowChrome.WindowChrome>
-        <shell:WindowChrome CaptionHeight="0"
-                            CornerRadius="10"
-                            GlassFrameThickness="1"
-                            ResizeBorderThickness="6"
-                            UseAeroCaptionButtons="False" />
-    </shell:WindowChrome.WindowChrome>
+    <Window.Style>
+        <Style TargetType="{x:Type Window}">
+            <Setter Property="shell:WindowChrome.WindowChrome">
+                <Setter.Value>
+                    <shell:WindowChrome CaptionHeight="0"
+                                        CornerRadius="10"
+                                        GlassFrameThickness="1"
+                                        ResizeBorderThickness="6"
+                                        UseAeroCaptionButtons="False" />
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="WindowState" Value="Maximized">
+                    <Setter Property="shell:WindowChrome.WindowChrome">
+                        <Setter.Value>
+                            <shell:WindowChrome CaptionHeight="0"
+                                                CornerRadius="0"
+                                                GlassFrameThickness="0"
+                                                ResizeBorderThickness="0"
+                                                UseAeroCaptionButtons="False" />
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Style>
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
         <converters:InverseBooleanConverter x:Key="InverseBool" />
@@ -64,7 +83,10 @@
                 Background="{DynamicResource SurfaceBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,0,0,1"
-                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"
+                MouseMove="TitleBar_MouseMove"
+                MouseLeftButtonUp="TitleBar_MouseLeftButtonUp"
+                LostMouseCapture="TitleBar_LostMouseCapture">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -131,7 +153,10 @@
                              ItemsSource="{Binding Workspaces}"
                              SelectedItem="{Binding SelectedWorkspace, Mode=OneWay}"
                              SelectionChanged="WorkspaceTabs_SelectionChanged"
-                             VerticalContentAlignment="Center"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Padding="0"
+                             VerticalContentAlignment="Stretch"
                              ScrollViewer.HorizontalScrollBarVisibility="Hidden"
                              ScrollViewer.VerticalScrollBarVisibility="Disabled"
                              PreviewMouseWheel="WorkspaceTabs_PreviewMouseWheel"
@@ -146,23 +171,28 @@
                     </ListBox.ItemsPanel>
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="{x:Type ListBoxItem}">
+                            <Setter Property="shell:WindowChrome.IsHitTestVisibleInChrome" Value="True" />
                             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
                             <Setter Property="Background" Value="{DynamicResource WorkspaceTabInactiveBrush}" />
                             <Setter Property="Width"
                                     Value="{Binding WorkspaceTabWidth, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
+                            <Setter Property="Height" Value="42" />
                             <Setter Property="Padding" Value="4,2" />
-                            <Setter Property="Margin" Value="2,4" />
+                            <Setter Property="Margin" Value="2,0" />
                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
                             <Setter Property="AutomationProperties.Name" Value="{Binding DisplayTitle}" />
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="{x:Type ListBoxItem}">
-                                        <Border x:Name="Root"
-                                                Padding="{TemplateBinding Padding}"
-                                                Background="{TemplateBinding Background}"
-                                                CornerRadius="7">
-                                            <ContentPresenter />
+                                        <Border Background="Transparent">
+                                            <Border x:Name="Root"
+                                                    Margin="0,4"
+                                                    Padding="{TemplateBinding Padding}"
+                                                    Background="{TemplateBinding Background}"
+                                                    CornerRadius="7">
+                                                <ContentPresenter />
+                                            </Border>
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">

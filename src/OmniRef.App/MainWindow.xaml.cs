@@ -76,6 +76,8 @@ public partial class MainWindow : Window
     private bool _allowClose;
     private bool _loaded;
     private int _themeTransitionVersion;
+    private Point _titleBarDragStart;
+    private bool _titleBarDragPending;
     private Point _workspaceTabDragStart;
     private WorkspaceViewModel? _workspaceTabDragItem;
     private double _workspaceTabDragPointerOffsetX;
@@ -118,7 +120,7 @@ public partial class MainWindow : Window
         Loaded += OnLoaded;
         Closing += OnClosing;
         Activated += OnActivated;
-        StateChanged += (_, _) => SaveSettings(cleanExit: false);
+        StateChanged += OnWindowStateChanged;
         Application.Current.SessionEnding += OnSessionEnding;
     }
 
@@ -282,27 +284,118 @@ public partial class MainWindow : Window
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs eventArgs)
     {
+        if (eventArgs.ChangedButton != MouseButton.Left)
+        {
+            return;
+        }
+
+        if (TryBeginWorkspaceTabDragFromTitleBar(eventArgs))
+        {
+            eventArgs.Handled = true;
+            return;
+        }
+
         if (eventArgs.ClickCount == 2)
         {
+            EndPendingTitleBarDrag(sender as UIElement);
             MaximizeRestoreWindow_Click(sender, eventArgs);
             eventArgs.Handled = true;
             return;
         }
 
-        if (eventArgs.ButtonState == MouseButtonState.Pressed)
+        if (sender is UIElement titleBar)
         {
-            if (WindowState == WindowState.Maximized)
-            {
-                RestoreWindowForDrag(eventArgs);
-            }
-            DragMove();
+            _titleBarDragStart = eventArgs.GetPosition(this);
+            _titleBarDragPending = true;
+            titleBar.CaptureMouse();
             eventArgs.Handled = true;
         }
     }
 
-    private void RestoreWindowForDrag(MouseButtonEventArgs eventArgs)
+    private bool TryBeginWorkspaceTabDragFromTitleBar(MouseButtonEventArgs eventArgs)
     {
-        var mousePosition = eventArgs.GetPosition(this);
+        if (WindowState != WindowState.Maximized)
+        {
+            return false;
+        }
+
+        var position = eventArgs.GetPosition(WorkspaceTabs);
+        if (FindWorkspaceTabAtX(WorkspaceTabs, position.X) is { } tab)
+        {
+            BeginWorkspaceTabDrag(
+                WorkspaceTabs,
+                tab.Workspace,
+                position,
+                tab.PointerOffsetX);
+            WorkspaceTabs.CaptureMouse();
+            return true;
+        }
+
+        return false;
+    }
+
+    private void TitleBar_MouseMove(object sender, MouseEventArgs eventArgs)
+    {
+        if (!_titleBarDragPending)
+        {
+            return;
+        }
+
+        if (eventArgs.LeftButton != MouseButtonState.Pressed)
+        {
+            EndPendingTitleBarDrag(sender as UIElement);
+            return;
+        }
+
+        var position = eventArgs.GetPosition(this);
+        var delta = position - _titleBarDragStart;
+        if (Math.Abs(delta.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(delta.Y) < SystemParameters.MinimumVerticalDragDistance)
+        {
+            return;
+        }
+
+        _titleBarDragPending = false;
+        if (sender is UIElement titleBar && titleBar.IsMouseCaptured)
+        {
+            titleBar.ReleaseMouseCapture();
+        }
+
+        if (WindowState == WindowState.Maximized)
+        {
+            RestoreWindowForDrag(position);
+        }
+
+        DragMove();
+        eventArgs.Handled = true;
+    }
+
+    private void TitleBar_MouseLeftButtonUp(object sender, MouseButtonEventArgs eventArgs)
+    {
+        if (_titleBarDragPending && eventArgs.ChangedButton == MouseButton.Left)
+        {
+            EndPendingTitleBarDrag(sender as UIElement);
+            eventArgs.Handled = true;
+        }
+    }
+
+    private void TitleBar_LostMouseCapture(object sender, MouseEventArgs eventArgs) =>
+        _titleBarDragPending = false;
+
+    private void EndPendingTitleBarDrag(UIElement? titleBar)
+    {
+        _titleBarDragPending = false;
+        if (titleBar?.IsMouseCaptured == true)
+        {
+            titleBar.ReleaseMouseCapture();
+        }
+    }
+
+    private void OnWindowStateChanged(object? sender, EventArgs eventArgs)
+        => SaveSettings(cleanExit: false);
+
+    private void RestoreWindowForDrag(Point mousePosition)
+    {
         var screenPosition = PointToScreen(mousePosition);
         var dpi = VisualTreeHelper.GetDpi(this);
         var horizontalRatio = ActualWidth > 0
@@ -324,20 +417,66 @@ public partial class MainWindow : Window
 
         var source = eventArgs.OriginalSource as DependencyObject;
         var item = FindVisualAncestor<ListBoxItem>(source);
-        if (FindVisualAncestor<Button>(source) is not null ||
-            item?.DataContext is not WorkspaceViewModel workspace)
+        if (FindVisualAncestor<Button>(source) is not null)
         {
             return;
         }
 
-        _workspaceTabDragStart = eventArgs.GetPosition(tabs);
+        var position = eventArgs.GetPosition(tabs);
+        var tab = item?.DataContext is WorkspaceViewModel workspace
+            ? (Workspace: workspace, PointerOffsetX: eventArgs.GetPosition(item).X)
+            : FindWorkspaceTabAtX(tabs, position.X);
+        if (tab is null)
+        {
+            return;
+        }
+
+        BeginWorkspaceTabDrag(
+            tabs,
+            tab.Value.Workspace,
+            position,
+            tab.Value.PointerOffsetX);
+        eventArgs.Handled = true;
+    }
+
+    private (WorkspaceViewModel Workspace, double PointerOffsetX)? FindWorkspaceTabAtX(
+        ListBox tabs,
+        double pointerX)
+    {
+        var hitSlop = WorkspaceTabHorizontalMargin / 2;
+        foreach (var workspace in _viewModel.Workspaces)
+        {
+            if (tabs.ItemContainerGenerator.ContainerFromItem(workspace) is not ListBoxItem item)
+            {
+                continue;
+            }
+
+            var itemLeft = item.TranslatePoint(default, tabs).X;
+            if (pointerX >= itemLeft - hitSlop &&
+                pointerX <= itemLeft + item.ActualWidth + hitSlop)
+            {
+                return (
+                    workspace,
+                    Math.Clamp(pointerX - itemLeft, 0, item.ActualWidth));
+            }
+        }
+
+        return null;
+    }
+
+    private void BeginWorkspaceTabDrag(
+        ListBox tabs,
+        WorkspaceViewModel workspace,
+        Point dragStart,
+        double pointerOffsetX)
+    {
+        _workspaceTabDragStart = dragStart;
         _workspaceTabDragItem = workspace;
-        _workspaceTabDragPointerOffsetX = eventArgs.GetPosition(item).X;
+        _workspaceTabDragPointerOffsetX = pointerOffsetX;
         _workspaceTabDragActive = false;
         _workspaceTabOrderChanged = false;
         _viewModel.SelectedWorkspace = workspace;
         tabs.SelectedItem = workspace;
-        eventArgs.Handled = true;
     }
 
     private void Workspaces_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs eventArgs) =>
