@@ -510,14 +510,71 @@ public sealed class InfiniteCanvas : Canvas
         Rect inner,
         TextContent text)
     {
-        DrawFormattedText(
+        var foreground = ParseBrush(text.Foreground, Brushes.White);
+        var isOverflowing = DrawFormattedText(
             context,
             text.Text,
             inner,
             GetTextFontSize(text),
-            ParseBrush(text.Foreground, Brushes.White),
+            foreground,
             FontWeights.Normal,
             GetTextAlignment(text));
+        if (isOverflowing)
+        {
+            var background = ParseBrush(
+                text.Background,
+                ParseBrush(item.Model.Style.Background, Brushes.DimGray));
+            DrawTextOverflowIndicator(context, inner, foreground, background);
+        }
+    }
+
+    private void DrawTextOverflowIndicator(
+        DrawingContext context,
+        Rect textRect,
+        Brush foreground,
+        Brush background)
+    {
+        var indicatorHeight = Math.Clamp(24 * _zoom, 15, 28);
+        var fadeHeight = Math.Min(textRect.Height, indicatorHeight * 1.6);
+        var fadeRect = new Rect(
+            textRect.X,
+            textRect.Bottom - fadeHeight,
+            textRect.Width,
+            fadeHeight);
+        if (background is SolidColorBrush solidBackground)
+        {
+            var transparent = solidBackground.Color;
+            transparent.A = 0;
+            var fade = new LinearGradientBrush(
+                transparent,
+                solidBackground.Color,
+                new Point(0, 0),
+                new Point(0, 1));
+            fade.Freeze();
+            context.DrawRectangle(fade, null, fadeRect);
+        }
+
+        var indicatorWidth = Math.Clamp(32 * _zoom, 24, 38);
+        var indicatorRect = new Rect(
+            textRect.Right - indicatorWidth,
+            textRect.Bottom - indicatorHeight,
+            indicatorWidth,
+            indicatorHeight);
+        context.DrawRoundedRectangle(
+            background,
+            new Pen(WithOpacity(foreground, 0.22), 1),
+            indicatorRect,
+            indicatorHeight / 2,
+            indicatorHeight / 2);
+        DrawFormattedText(
+            context,
+            "\u2026",
+            indicatorRect,
+            Math.Clamp(15 * _zoom, 11, 18),
+            foreground,
+            FontWeights.SemiBold,
+            TextAlignment.Center,
+            verticalCenter: true);
     }
 
     private void DrawUrlCard(DrawingContext context, BoardItemViewModel item, Rect inner, UrlContent url)
@@ -590,7 +647,7 @@ public sealed class InfiniteCanvas : Canvas
                 height));
     }
 
-    private void DrawFormattedText(
+    private bool DrawFormattedText(
         DrawingContext context,
         string text,
         Rect rect,
@@ -603,7 +660,7 @@ public sealed class InfiniteCanvas : Canvas
     {
         if (rect.Width <= 0 || rect.Height <= 0 || string.IsNullOrEmpty(text))
         {
-            return;
+            return false;
         }
         var formatted = new FormattedText(
             text,
@@ -615,12 +672,17 @@ public sealed class InfiniteCanvas : Canvas
             VisualTreeHelper.GetDpi(this).PixelsPerDip)
         {
             MaxTextWidth = rect.Width,
-            MaxTextHeight = maxLines > 0 ? Math.Min(rect.Height, fontSize * 1.35 * maxLines) : rect.Height,
             TextAlignment = alignment,
             Trimming = TextTrimming.CharacterEllipsis
         };
+        var availableHeight = maxLines > 0
+            ? Math.Min(rect.Height, fontSize * 1.35 * maxLines)
+            : rect.Height;
+        var isOverflowing = formatted.Height > availableHeight + 0.5;
+        formatted.MaxTextHeight = availableHeight;
         var y = verticalCenter ? rect.Y + Math.Max(0, (rect.Height - formatted.Height) / 2) : rect.Y;
         context.DrawText(formatted, new Point(rect.X, y));
+        return isOverflowing;
     }
 
     private void OnMouseWheel(object sender, MouseWheelEventArgs eventArgs)
