@@ -673,8 +673,8 @@
                                   Padding="0,0,8,0"
                                   controls:SmoothScrollBehavior.IsEnabled="True"
                                   VerticalScrollBarVisibility="Auto">
-                        <ContentControl Content="{Binding SelectedWorkspace.SelectedItem}"
-                                        Visibility="{Binding SelectedWorkspace.SelectedItem, Converter={StaticResource NullToVisibility}}">
+                        <ContentControl Content="{Binding SelectedWorkspace.SelectedItem, FallbackValue={x:Null}}"
+                                        Visibility="{Binding SelectedWorkspace.SelectedItem, Converter={StaticResource NullToVisibility}, FallbackValue=Collapsed}">
                             <ContentControl.ContentTemplate>
                                 <DataTemplate>
                                     <StackPanel>
@@ -812,7 +812,7 @@
                         Padding="12,8"
                         CornerRadius="8"
                         Background="{DynamicResource DangerBrush}"
-                        Visibility="{Binding SelectedWorkspace.SaveError, Converter={StaticResource NonEmptyStringToVisibility}}">
+                        Visibility="{Binding SelectedWorkspace.SaveError, Converter={StaticResource NonEmptyStringToVisibility}, FallbackValue=Collapsed}">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />

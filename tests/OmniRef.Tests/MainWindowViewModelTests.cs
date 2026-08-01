@@ -73,6 +73,19 @@ public sealed class MainWindowViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task CloseOnlyWorkspace_ClearsSelection()
+    {
+        var workspace = await _viewModel.CreateNewAsync(includeWelcomeContent: false);
+
+        var closed = await _viewModel.CloseAsync(workspace, force: false);
+
+        Assert.True(closed);
+        Assert.Null(_viewModel.SelectedWorkspace);
+        Assert.False(_viewModel.HasWorkspace);
+        Assert.Empty(_viewModel.Workspaces);
+    }
+
+    [Fact]
     public async Task CloseBackgroundWorkspace_KeepsSelectedTab()
     {
         var background = await _viewModel.CreateNewAsync(includeWelcomeContent: false);
