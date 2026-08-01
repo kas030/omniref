@@ -31,6 +31,8 @@ public partial class MainWindow : Window
     private const double WorkspaceTabMinimumWidth = 104;
     private const double WorkspaceTabHorizontalMargin = 4;
     private const double WorkspaceTabReorderEdgeInsetRatio = 0.25;
+    private const int WorkspaceTabReorderAnimationMilliseconds = 100;
+    private const int WorkspaceTabSettleAnimationMilliseconds = 80;
 
     public static readonly DependencyProperty ShowCanvasGridProperty = DependencyProperty.Register(
         nameof(ShowCanvasGrid),
@@ -333,6 +335,7 @@ public partial class MainWindow : Window
         _workspaceTabDragPointerOffsetX = eventArgs.GetPosition(item).X;
         _workspaceTabDragActive = false;
         _workspaceTabOrderChanged = false;
+        _viewModel.SelectedWorkspace = workspace;
         tabs.SelectedItem = workspace;
         eventArgs.Handled = true;
     }
@@ -366,11 +369,22 @@ public partial class MainWindow : Window
 
     private void WorkspaceTabs_SelectionChanged(object sender, SelectionChangedEventArgs eventArgs)
     {
+        if (_workspaceTabDragItem is { } draggedWorkspace)
+        {
+            if (!ReferenceEquals(WorkspaceTabs.SelectedItem, draggedWorkspace))
+            {
+                WorkspaceTabs.SelectedItem = draggedWorkspace;
+            }
+
+            return;
+        }
+
         if (WorkspaceTabs.SelectedItem is not WorkspaceViewModel workspace)
         {
             return;
         }
 
+        _viewModel.SelectedWorkspace = workspace;
         WorkspaceTabs.ScrollIntoView(workspace);
         _ = Dispatcher.BeginInvoke(
             DispatcherPriority.Loaded,
@@ -526,9 +540,8 @@ public partial class MainWindow : Window
             for (var index = currentIndex + 1; index < _viewModel.Workspaces.Count; index++)
             {
                 if (tabs.ItemContainerGenerator.ContainerFromIndex(index) is ListBoxItem item &&
-                    draggedCenterX > item.TranslatePoint(
-                        new Point(item.ActualWidth * WorkspaceTabReorderEdgeInsetRatio, 0),
-                        tabs).X)
+                    draggedCenterX > GetWorkspaceTabLayoutX(item, tabs) +
+                        (item.ActualWidth * WorkspaceTabReorderEdgeInsetRatio))
                 {
                     targetIndex = index;
                 }
@@ -540,9 +553,8 @@ public partial class MainWindow : Window
             for (var index = currentIndex - 1; index >= 0; index--)
             {
                 if (tabs.ItemContainerGenerator.ContainerFromIndex(index) is ListBoxItem item &&
-                    draggedCenterX < item.TranslatePoint(
-                        new Point(item.ActualWidth * (1 - WorkspaceTabReorderEdgeInsetRatio), 0),
-                        tabs).X)
+                    draggedCenterX < GetWorkspaceTabLayoutX(item, tabs) +
+                        (item.ActualWidth * (1 - WorkspaceTabReorderEdgeInsetRatio)))
                 {
                     targetIndex = index;
                 }
@@ -573,9 +585,18 @@ public partial class MainWindow : Window
         var transform = item.RenderTransform as TranslateTransform ?? new TranslateTransform();
         transform.BeginAnimation(TranslateTransform.XProperty, null);
         item.RenderTransform = transform;
-        var layoutX = item.TranslatePoint(default, tabs).X - transform.X;
+        var layoutX = GetWorkspaceTabLayoutX(item, tabs);
         var draggedLeft = GetClampedDraggedWorkspaceTabLeft(tabs, item, pointerX);
         transform.X = draggedLeft - layoutX;
+    }
+
+    private static double GetWorkspaceTabLayoutX(ListBoxItem item, ListBox tabs)
+    {
+        // Reorder against stable layout slots, not positions that are still moving through an animation.
+        var renderedX = item.TranslatePoint(default, tabs).X;
+        return item.RenderTransform is TranslateTransform transform
+            ? renderedX - transform.X
+            : renderedX;
     }
 
     private double GetClampedDraggedWorkspaceTabLeft(ListBox tabs, ListBoxItem item, double pointerX)
@@ -641,7 +662,10 @@ public partial class MainWindow : Window
                 continue;
             }
 
-            var animation = new DoubleAnimation(offset, 0, TimeSpan.FromMilliseconds(160))
+            var animation = new DoubleAnimation(
+                offset,
+                0,
+                TimeSpan.FromMilliseconds(WorkspaceTabReorderAnimationMilliseconds))
             {
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
                 FillBehavior = FillBehavior.Stop
@@ -692,7 +716,10 @@ public partial class MainWindow : Window
             return;
         }
 
-        var animation = new DoubleAnimation(offset, 0, TimeSpan.FromMilliseconds(120))
+        var animation = new DoubleAnimation(
+            offset,
+            0,
+            TimeSpan.FromMilliseconds(WorkspaceTabSettleAnimationMilliseconds))
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
             FillBehavior = FillBehavior.Stop

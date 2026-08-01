@@ -129,7 +129,7 @@
                              Grid.Column="1"
                              shell:WindowChrome.IsHitTestVisibleInChrome="True"
                              ItemsSource="{Binding Workspaces}"
-                             SelectedItem="{Binding SelectedWorkspace, Mode=TwoWay}"
+                             SelectedItem="{Binding SelectedWorkspace, Mode=OneWay}"
                              SelectionChanged="WorkspaceTabs_SelectionChanged"
                              VerticalContentAlignment="Center"
                              ScrollViewer.HorizontalScrollBarVisibility="Hidden"
