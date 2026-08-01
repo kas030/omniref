@@ -38,7 +38,7 @@ public sealed class SqliteWorkspaceStoreTests : IAsyncLifetime
 
         Assert.Equal(WorkspaceOpenMode.ReadWrite, opened.Mode);
         Assert.Equal(document.Id, opened.Document.Id);
-        Assert.Equal(document.Title, opened.Document.Title);
+        Assert.Equal(document.Zoom, opened.Document.Zoom);
         Assert.Equal(document.Items.Count, opened.Document.Items.Count);
         Assert.Equal(
             Enum.GetValues<ItemKind>().Order(),
@@ -94,13 +94,13 @@ public sealed class SqliteWorkspaceStoreTests : IAsyncLifetime
         var document = CreateDocument();
         using var store = new SqliteWorkspaceStore();
         await store.SaveAsync(source, document);
-        var originalTitle = document.Title;
+        var originalZoom = document.Zoom;
 
-        document.Title = "Copied workspace";
+        document.Zoom = 2.25;
         await store.SaveAsAsync(source, destination, document);
 
-        Assert.Equal(originalTitle, (await store.OpenAsync(source)).Document.Title);
-        Assert.Equal("Copied workspace", (await store.OpenAsync(destination)).Document.Title);
+        Assert.Equal(originalZoom, (await store.OpenAsync(source)).Document.Zoom);
+        Assert.Equal(2.25, (await store.OpenAsync(destination)).Document.Zoom);
     }
 
     [Fact]
@@ -114,10 +114,10 @@ public sealed class SqliteWorkspaceStoreTests : IAsyncLifetime
         {
             Assert.True(lease.IsCurrent);
             var updated = CreateDocument();
-            updated.Title = "Saved while leased";
+            updated.Zoom = 2.5;
             await store.SaveAsync(path, updated);
             await store.CompactAsync(path);
-            Assert.Equal("Saved while leased", (await store.OpenAsync(path)).Document.Title);
+            Assert.Equal(2.5, (await store.OpenAsync(path)).Document.Zoom);
             Assert.Throws<IOException>(() => File.Delete(path));
             Assert.True(File.Exists(path));
         }
@@ -162,20 +162,6 @@ public sealed class SqliteWorkspaceStoreTests : IAsyncLifetime
             ReadSchemaVersion(path));
     }
 
-    [Fact]
-    public async Task OlderSchema_CreatesBackupBeforeMigrationAttempt()
-    {
-        var path = Path.Combine(_directory, "legacy.omniref");
-        using var store = new SqliteWorkspaceStore();
-        await store.SaveAsync(path, CreateDocument());
-        SetSchemaVersion(path, 0);
-
-        await Assert.ThrowsAsync<InvalidDataException>(() => store.OpenAsync(path));
-
-        Assert.Single(Directory.GetFiles(_directory, "legacy.omniref.v0.*.bak"));
-        Assert.Equal(0, ReadSchemaVersion(path));
-    }
-
     private static WorkspaceDocument CreateDocument()
     {
         var source = new SourceDescriptor(
@@ -188,7 +174,6 @@ public sealed class SqliteWorkspaceStoreTests : IAsyncLifetime
             DateTimeOffset.UtcNow);
         return new WorkspaceDocument
         {
-            Title = "Test workspace",
             ViewportOrigin = new WorldPoint(-25, 70),
             Zoom = 1.5,
             Items =
@@ -234,4 +219,5 @@ public sealed class SqliteWorkspaceStoreTests : IAsyncLifetime
             (string)command.ExecuteScalar()!,
             System.Globalization.CultureInfo.InvariantCulture);
     }
+
 }

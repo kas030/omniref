@@ -122,9 +122,9 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     {
         get
         {
-            var title = string.IsNullOrWhiteSpace(Document.Title)
-                ? System.IO.Path.GetFileNameWithoutExtension(_path)
-                : Document.Title;
+            var title = IsRecovery
+                ? _localization["Untitled"]
+                : System.IO.Path.GetFileNameWithoutExtension(_path);
             return IsDirty ? $"{title} •" : title;
         }
     }
@@ -866,7 +866,6 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         var destinationFullPath = System.IO.Path.GetFullPath(destinationPath);
         UpdateRelativePaths(destinationFullPath);
         var snapshot = BuildSnapshot();
-        snapshot.Title = System.IO.Path.GetFileNameWithoutExtension(destinationFullPath);
         SaveState = WorkspaceSaveState.Saving;
         await _store.SaveAsAsync(_path, destinationFullPath, snapshot, cancellationToken).ConfigureAwait(true);
         var nextFileLease = _store.AcquireFileLease(destinationFullPath);
@@ -875,7 +874,6 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         _path = destinationFullPath;
         IsRecovery = false;
         IsBackingFileMissing = false;
-        Document.Title = snapshot.Title;
         _savedVersion = _changeVersion;
         SaveState = WorkspaceSaveState.Saved;
         SaveError = null;
@@ -1086,6 +1084,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     private void OnLocalizationChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs eventArgs)
     {
         OnPropertyChanged(nameof(SaveStatusText));
+        OnPropertyChanged(nameof(DisplayTitle));
         if (IsBackingFileMissing)
         {
             SaveError = _localization["WorkspaceFileMissing"];

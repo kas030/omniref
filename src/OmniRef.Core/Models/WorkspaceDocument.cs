@@ -2,11 +2,10 @@ namespace OmniRef.Core.Models;
 
 public sealed class WorkspaceDocument
 {
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
 
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
     public Guid Id { get; set; } = Guid.NewGuid();
-    public string Title { get; set; } = "Untitled";
     public DateTimeOffset CreatedUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset ModifiedUtc { get; set; } = DateTimeOffset.UtcNow;
     public WorldPoint ViewportOrigin { get; set; }
@@ -17,7 +16,6 @@ public sealed class WorkspaceDocument
     {
         SchemaVersion = SchemaVersion,
         Id = Id,
-        Title = Title,
         CreatedUtc = CreatedUtc,
         ModifiedUtc = ModifiedUtc,
         ViewportOrigin = ViewportOrigin,

@@ -85,15 +85,26 @@ public sealed class MainWindowViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task SaveAs_UsesFileNameForPersistedWorkspaceTitle()
+    public async Task SaveAs_UsesFileNameForTabTitle()
     {
         var workspace = await _viewModel.CreateNewAsync(includeWelcomeContent: false);
         var destinationPath = Path.Combine(_directory, "Reference board.omniref");
 
         await workspace.SaveAsAsync(destinationPath);
 
-        Assert.Equal("Reference board", workspace.Document.Title);
-        Assert.Equal("Reference board", _store.SavedAsDocument?.Title);
+        Assert.Equal("Reference board", workspace.DisplayTitle);
+        Assert.NotNull(_store.SavedAsDocument);
+    }
+
+    [Fact]
+    public async Task Open_UsesCurrentFileNameForTabTitle()
+    {
+        _store.RestoredDocument = new WorkspaceDocument();
+
+        var workspace = await _viewModel.OpenAsync(Path.Combine(_directory, "Renamed board.omniref"));
+
+        Assert.NotNull(workspace);
+        Assert.Equal("Renamed board", workspace.DisplayTitle);
     }
 
     [Fact]

@@ -75,7 +75,6 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             $"{Guid.NewGuid():N}.omniref");
         var document = new WorkspaceDocument
         {
-            Title = Localization["Untitled"],
             ViewportOrigin = new WorldPoint(-120, -90),
             Zoom = 1
         };

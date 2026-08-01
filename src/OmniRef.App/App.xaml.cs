@@ -171,7 +171,6 @@ public partial class App : Application
     {
         var document = new Core.Models.WorkspaceDocument
         {
-            Title = "Welcome to OmniRef",
             ViewportOrigin = new Core.Models.WorldPoint(-120, -90),
             Zoom = 1
         };

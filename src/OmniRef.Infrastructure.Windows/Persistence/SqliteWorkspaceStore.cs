@@ -279,15 +279,7 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
 
         if (schemaVersion < WorkspaceDocument.CurrentSchemaVersion)
         {
-            inspection.Close();
-            BackupBeforeMigration(path, schemaVersion);
-            using var migrationConnection = OpenConnection(path, readOnly: false);
-            Migrate(migrationConnection, schemaVersion);
-            schemaVersion = WorkspaceDocument.CurrentSchemaVersion;
-            return new(
-                LoadDocument(migrationConnection, schemaVersion),
-                WorkspaceOpenMode.ReadWrite,
-                null);
+            throw new InvalidDataException($"Workspace schema {schemaVersion} is no longer supported.");
         }
 
         var mode = CanWriteFile(path)
@@ -305,7 +297,6 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
         {
             SchemaVersion = schemaVersion,
             Id = Guid.Parse(ReadMeta(connection, "workspace_id")),
-            Title = ReadMeta(connection, "title"),
             CreatedUtc = ParseDate(ReadMeta(connection, "created_utc")),
             ModifiedUtc = ParseDate(ReadMeta(connection, "modified_utc")),
             ViewportOrigin = new(
@@ -365,8 +356,7 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
             }
             if (diskVersion < WorkspaceDocument.CurrentSchemaVersion)
             {
-                BackupBeforeMigration(path, diskVersion);
-                Migrate(connection, diskVersion);
+                throw new InvalidOperationException("An older workspace cannot be overwritten.");
             }
         }
         else
@@ -723,10 +713,6 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
             connection,
             null,
             """
-            CREATE TABLE IF NOT EXISTS schema_migrations(
-                version INTEGER PRIMARY KEY,
-                applied_utc TEXT NOT NULL
-            );
             CREATE TABLE IF NOT EXISTS workspace_meta(
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
@@ -769,42 +755,6 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
             );
             """);
 
-        using var transaction = connection.BeginTransaction();
-        using (var schema = connection.CreateCommand())
-        {
-            schema.Transaction = transaction;
-            schema.CommandText =
-                "INSERT OR IGNORE INTO workspace_meta(key, value) VALUES('schema_version', $version);";
-            schema.Parameters.AddWithValue(
-                "$version",
-                WorkspaceDocument.CurrentSchemaVersion.ToString(CultureInfo.InvariantCulture));
-            schema.ExecuteNonQuery();
-        }
-        using var migration = connection.CreateCommand();
-        migration.Transaction = transaction;
-        migration.CommandText =
-            "INSERT OR IGNORE INTO schema_migrations(version, applied_utc) VALUES($version, $date);";
-        migration.Parameters.AddWithValue("$version", WorkspaceDocument.CurrentSchemaVersion);
-        migration.Parameters.AddWithValue("$date", FormatDate(DateTimeOffset.UtcNow));
-        migration.ExecuteNonQuery();
-        transaction.Commit();
-    }
-
-    private static void Migrate(SqliteConnection connection, int currentVersion)
-    {
-        if (currentVersion == WorkspaceDocument.CurrentSchemaVersion)
-        {
-            return;
-        }
-
-        throw new InvalidDataException($"Workspace schema {currentVersion} cannot be migrated.");
-    }
-
-    private static void BackupBeforeMigration(string path, int version)
-    {
-        var timestamp = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-        var backupPath = $"{path}.v{version}.{timestamp}.bak";
-        File.Copy(path, backupPath, overwrite: false);
     }
 
     private static void WriteMeta(
@@ -814,7 +764,6 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
     {
         WriteMetaValue(connection, transaction, "schema_version", document.SchemaVersion.ToString(CultureInfo.InvariantCulture));
         WriteMetaValue(connection, transaction, "workspace_id", document.Id.ToString("D"));
-        WriteMetaValue(connection, transaction, "title", document.Title);
         WriteMetaValue(connection, transaction, "created_utc", FormatDate(document.CreatedUtc));
         WriteMetaValue(connection, transaction, "modified_utc", FormatDate(document.ModifiedUtc));
         WriteMetaValue(connection, transaction, "viewport_x", document.ViewportOrigin.X.ToString("R", CultureInfo.InvariantCulture));

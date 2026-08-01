@@ -1098,7 +1098,9 @@ public partial class MainWindow : Window
             Filter = "OmniRef workspace (*.omniref)|*.omniref",
             AddExtension = true,
             DefaultExt = ".omniref",
-            FileName = workspace.IsRecovery ? workspace.Document.Title : Path.GetFileName(workspace.Path),
+            FileName = workspace.IsRecovery
+                ? _viewModel.Localization["Untitled"]
+                : Path.GetFileName(workspace.Path),
             OverwritePrompt = true
         };
         if (dialog.ShowDialog(this) != true)
