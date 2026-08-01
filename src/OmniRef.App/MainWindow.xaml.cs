@@ -284,6 +284,7 @@ public partial class MainWindow : Window
         }
         CreateTrayIcon(handle);
         UpdateWorkspaceTabLayout();
+        BringSelectedWorkspaceTabIntoView();
         _ = Dispatcher.BeginInvoke(
             DispatcherPriority.ContextIdle,
             new Action(() => FindCanvas()?.Focus()));
@@ -559,10 +560,42 @@ public partial class MainWindow : Window
         }
 
         _viewModel.SelectedWorkspace = workspace;
+        BringSelectedWorkspaceTabIntoView();
+    }
+
+    private void BringSelectedWorkspaceTabIntoView()
+    {
+        if (WorkspaceTabs.SelectedItem is not WorkspaceViewModel workspace)
+        {
+            return;
+        }
+
         WorkspaceTabs.ScrollIntoView(workspace);
         _ = Dispatcher.BeginInvoke(
             DispatcherPriority.Loaded,
-            new Action(UpdateWorkspaceTabScrollButtons));
+            new Action(() =>
+            {
+                if (!ReferenceEquals(WorkspaceTabs.SelectedItem, workspace))
+                {
+                    return;
+                }
+
+                WorkspaceTabs.ScrollIntoView(workspace);
+                if (FindVisualDescendant<ScrollViewer>(WorkspaceTabs) is { } scrollViewer)
+                {
+                    var selectedIndex = WorkspaceTabs.Items.IndexOf(workspace);
+                    if (selectedIndex == 0)
+                    {
+                        scrollViewer.ScrollToLeftEnd();
+                    }
+                    else if (selectedIndex == WorkspaceTabs.Items.Count - 1)
+                    {
+                        scrollViewer.ScrollToRightEnd();
+                    }
+                }
+
+                UpdateWorkspaceTabScrollButtons();
+            }));
     }
 
     private void UpdateWorkspaceTabLayout()
