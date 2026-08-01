@@ -122,35 +122,35 @@
                 <Grid x:Name="WorkspaceTabsHost"
                       Grid.Column="2"
                       SizeChanged="WorkspaceTabsHost_SizeChanged">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <RepeatButton x:Name="WorkspaceTabsScrollLeftButton"
-                                  Grid.Column="0"
-                                  Panel.ZIndex="1"
-                                  Style="{StaticResource ToolbarScrollButton}"
-                                  Width="24"
-                                  Height="34"
-                                  Margin="1,0,1,2"
-                                  VerticalAlignment="Bottom"
-                                  Visibility="Collapsed"
-                                  Click="WorkspaceTabsScrollLeft_Click"
-                                  ToolTip="{Binding Localization[ScrollTabsLeft]}"
-                                  AutomationProperties.Name="{Binding Localization[ScrollTabsLeft]}">
-                        <Path Width="6"
-                              Height="10"
-                              Data="M 7,1 L 1,7 L 7,13"
-                              Stretch="Fill"
-                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RepeatButton}}}"
-                              StrokeThickness="1.5"
-                              StrokeStartLineCap="Round"
-                              StrokeEndLineCap="Round"
-                              StrokeLineJoin="Round" />
-                    </RepeatButton>
+                    <Border Panel.ZIndex="1"
+                            Width="32"
+                            Height="36"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Bottom"
+                            Background="{DynamicResource SurfaceBrush}"
+                            Visibility="{Binding Visibility, ElementName=WorkspaceTabsScrollLeftButton}">
+                        <RepeatButton x:Name="WorkspaceTabsScrollLeftButton"
+                                      Style="{StaticResource ToolbarScrollButton}"
+                                      Width="24"
+                                      Height="34"
+                                      Margin="4,0,4,2"
+                                      VerticalAlignment="Bottom"
+                                      Visibility="Collapsed"
+                                      Click="WorkspaceTabsScrollLeft_Click"
+                                      ToolTip="{Binding Localization[ScrollTabsLeft]}"
+                                      AutomationProperties.Name="{Binding Localization[ScrollTabsLeft]}">
+                            <Path Width="6"
+                                  Height="10"
+                                  Data="M 7,1 L 1,7 L 7,13"
+                                  Stretch="Fill"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RepeatButton}}}"
+                                  StrokeThickness="1.5"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round" />
+                        </RepeatButton>
+                    </Border>
                     <ListBox x:Name="WorkspaceTabs"
-                             Grid.Column="1"
                              shell:WindowChrome.IsHitTestVisibleInChrome="True"
                              ItemsSource="{Binding Workspaces}"
                              SelectedItem="{Binding SelectedWorkspace, Mode=OneWay}"
@@ -161,6 +161,7 @@
                              VerticalContentAlignment="Stretch"
                              ScrollViewer.HorizontalScrollBarVisibility="Hidden"
                              ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                             ScrollViewer.CanContentScroll="False"
                              PreviewMouseWheel="WorkspaceTabs_PreviewMouseWheel"
                              PreviewMouseLeftButtonDown="WorkspaceTabs_PreviewMouseLeftButtonDown"
                              PreviewMouseMove="WorkspaceTabs_PreviewMouseMove"
@@ -246,28 +247,34 @@
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                     </ListBox>
-                    <RepeatButton x:Name="WorkspaceTabsScrollRightButton"
-                                  Grid.Column="2"
-                                  Panel.ZIndex="1"
-                                  Style="{StaticResource ToolbarScrollButton}"
-                                  Width="24"
-                                  Height="34"
-                                  Margin="1,0,1,2"
-                                  VerticalAlignment="Bottom"
-                                  Visibility="Collapsed"
-                                  Click="WorkspaceTabsScrollRight_Click"
-                                  ToolTip="{Binding Localization[ScrollTabsRight]}"
-                                  AutomationProperties.Name="{Binding Localization[ScrollTabsRight]}">
-                        <Path Width="6"
-                              Height="10"
-                              Data="M 1,1 L 7,7 L 1,13"
-                              Stretch="Fill"
-                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RepeatButton}}}"
-                              StrokeThickness="1.5"
-                              StrokeStartLineCap="Round"
-                              StrokeEndLineCap="Round"
-                              StrokeLineJoin="Round" />
-                    </RepeatButton>
+                    <Border Panel.ZIndex="1"
+                            Width="32"
+                            Height="36"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom"
+                            Background="{DynamicResource SurfaceBrush}"
+                            Visibility="{Binding Visibility, ElementName=WorkspaceTabsScrollRightButton}">
+                        <RepeatButton x:Name="WorkspaceTabsScrollRightButton"
+                                      Style="{StaticResource ToolbarScrollButton}"
+                                      Width="24"
+                                      Height="34"
+                                      Margin="4,0,4,2"
+                                      VerticalAlignment="Bottom"
+                                      Visibility="Collapsed"
+                                      Click="WorkspaceTabsScrollRight_Click"
+                                      ToolTip="{Binding Localization[ScrollTabsRight]}"
+                                      AutomationProperties.Name="{Binding Localization[ScrollTabsRight]}">
+                            <Path Width="6"
+                                  Height="10"
+                                  Data="M 1,1 L 7,7 L 1,13"
+                                  Stretch="Fill"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RepeatButton}}}"
+                                  StrokeThickness="1.5"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round" />
+                        </RepeatButton>
+                    </Border>
                 </Grid>
 
                 <StackPanel Grid.Column="4"
@@ -334,31 +341,29 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Grid Grid.Column="0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <RepeatButton x:Name="ToolbarScrollLeftButton"
-                                  Grid.Column="0"
-                                  Panel.ZIndex="1"
-                                  Style="{StaticResource ToolbarScrollButton}"
-                                  Visibility="Collapsed"
-                                  Click="ToolbarScrollLeft_Click"
-                                  ToolTip="{Binding Localization[ScrollToolbarLeft]}"
-                                  AutomationProperties.Name="{Binding Localization[ScrollToolbarLeft]}">
-                        <Path Width="6"
-                              Height="10"
-                              Data="M 7,1 L 1,7 L 7,13"
-                              Stretch="Fill"
-                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RepeatButton}}}"
-                              StrokeThickness="1.5"
-                              StrokeStartLineCap="Round"
-                              StrokeEndLineCap="Round"
-                              StrokeLineJoin="Round" />
-                    </RepeatButton>
+                    <Border Panel.ZIndex="1"
+                            Width="32"
+                            HorizontalAlignment="Left"
+                            Background="{DynamicResource SurfaceBrush}"
+                            Visibility="{Binding Visibility, ElementName=ToolbarScrollLeftButton}">
+                        <RepeatButton x:Name="ToolbarScrollLeftButton"
+                                      Style="{StaticResource ToolbarScrollButton}"
+                                      Visibility="Collapsed"
+                                      Click="ToolbarScrollLeft_Click"
+                                      ToolTip="{Binding Localization[ScrollToolbarLeft]}"
+                                      AutomationProperties.Name="{Binding Localization[ScrollToolbarLeft]}">
+                            <Path Width="6"
+                                  Height="10"
+                                  Data="M 7,1 L 1,7 L 7,13"
+                                  Stretch="Fill"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RepeatButton}}}"
+                                  StrokeThickness="1.5"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round" />
+                        </RepeatButton>
+                    </Border>
                     <ScrollViewer x:Name="ToolbarScrollViewer"
-                                  Grid.Column="1"
                                   HorizontalScrollBarVisibility="Hidden"
                                   VerticalScrollBarVisibility="Disabled"
                                   PreviewMouseWheel="ToolbarScrollViewer_PreviewMouseWheel"
@@ -476,24 +481,28 @@
                     </Button>
                         </StackPanel>
                     </ScrollViewer>
-                    <RepeatButton x:Name="ToolbarScrollRightButton"
-                                  Grid.Column="2"
-                                  Panel.ZIndex="1"
-                                  Style="{StaticResource ToolbarScrollButton}"
-                                  Visibility="Collapsed"
-                                  Click="ToolbarScrollRight_Click"
-                                  ToolTip="{Binding Localization[ScrollToolbarRight]}"
-                                  AutomationProperties.Name="{Binding Localization[ScrollToolbarRight]}">
-                        <Path Width="6"
-                              Height="10"
-                              Data="M 1,1 L 7,7 L 1,13"
-                              Stretch="Fill"
-                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RepeatButton}}}"
-                              StrokeThickness="1.5"
-                              StrokeStartLineCap="Round"
-                              StrokeEndLineCap="Round"
-                              StrokeLineJoin="Round" />
-                    </RepeatButton>
+                    <Border Panel.ZIndex="1"
+                            Width="32"
+                            HorizontalAlignment="Right"
+                            Background="{DynamicResource SurfaceBrush}"
+                            Visibility="{Binding Visibility, ElementName=ToolbarScrollRightButton}">
+                        <RepeatButton x:Name="ToolbarScrollRightButton"
+                                      Style="{StaticResource ToolbarScrollButton}"
+                                      Visibility="Collapsed"
+                                      Click="ToolbarScrollRight_Click"
+                                      ToolTip="{Binding Localization[ScrollToolbarRight]}"
+                                      AutomationProperties.Name="{Binding Localization[ScrollToolbarRight]}">
+                            <Path Width="6"
+                                  Height="10"
+                                  Data="M 1,1 L 7,7 L 1,13"
+                                  Stretch="Fill"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RepeatButton}}}"
+                                  StrokeThickness="1.5"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round" />
+                        </RepeatButton>
+                    </Border>
                 </Grid>
 
                 <StackPanel Grid.Column="2"
@@ -540,7 +549,6 @@
 
             <Border Grid.Column="0"
                     Panel.ZIndex="1"
-                    Width="286"
                     Margin="0,-1,0,0"
                     UseLayoutRounding="True"
                     SnapsToDevicePixels="True"
@@ -548,7 +556,55 @@
                     Background="{DynamicResource SurfaceBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,1,1,0"
-                    Visibility="{Binding SidebarVisible, Converter={StaticResource BoolToVisibility}}">
+                    ClipToBounds="True">
+                <Border.Style>
+                    <Style TargetType="{x:Type Border}">
+                        <Setter Property="Width" Value="286" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SidebarVisible}" Value="False">
+                                <Setter Property="Width" Value="0" />
+                                <Setter Property="Opacity" Value="0" />
+                                <Setter Property="IsHitTestVisible" Value="False" />
+                                <DataTrigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetProperty="Width"
+                                                             From="286"
+                                                             To="0"
+                                                             Duration="0:0:0.18">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut" />
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                             From="1"
+                                                             To="0"
+                                                             Duration="0:0:0.12" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </DataTrigger.EnterActions>
+                                <DataTrigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetProperty="Width"
+                                                             From="0"
+                                                             To="286"
+                                                             Duration="0:0:0.18">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut" />
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                             From="0"
+                                                             To="1"
+                                                             Duration="0:0:0.14" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </DataTrigger.ExitActions>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -609,6 +665,7 @@
                     <ScrollViewer Grid.Row="3"
                                   Margin="0,0,-8,0"
                                   Padding="0,0,8,0"
+                                  controls:SmoothScrollBehavior.IsEnabled="True"
                                   VerticalScrollBarVisibility="Auto">
                         <ContentControl Content="{Binding SelectedWorkspace.SelectedItem}"
                                         Visibility="{Binding SelectedWorkspace.SelectedItem, Converter={StaticResource NullToVisibility}}">

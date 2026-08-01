@@ -545,7 +545,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        ScrollWorkspaceTabsBy(eventArgs.Delta * -0.4);
+        ScrollWorkspaceTabsBy(-eventArgs.Delta);
         eventArgs.Handled = true;
     }
 
@@ -627,8 +627,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        scrollViewer.ScrollToHorizontalOffset(
-            Math.Clamp(scrollViewer.HorizontalOffset + offset, 0, scrollViewer.ScrollableWidth));
+        SmoothScrollBehavior.ScrollBy(scrollViewer, offset, 0);
     }
 
     private void UpdateWorkspaceTabScrollButtons()
@@ -985,10 +984,10 @@ public partial class MainWindow : Window
         SystemCommands.CloseWindow(this);
 
     private void ToolbarScrollLeft_Click(object sender, RoutedEventArgs eventArgs) =>
-        ScrollToolbarBy(-72);
+        ScrollToolbarBy(-120);
 
     private void ToolbarScrollRight_Click(object sender, RoutedEventArgs eventArgs) =>
-        ScrollToolbarBy(72);
+        ScrollToolbarBy(120);
 
     private void ToolbarScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs eventArgs)
     {
@@ -997,7 +996,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        ScrollToolbarBy(eventArgs.Delta * -0.4);
+        ScrollToolbarBy(-eventArgs.Delta);
         eventArgs.Handled = true;
     }
 
@@ -1006,11 +1005,7 @@ public partial class MainWindow : Window
 
     private void ScrollToolbarBy(double offset)
     {
-        ToolbarScrollViewer.ScrollToHorizontalOffset(
-            Math.Clamp(
-                ToolbarScrollViewer.HorizontalOffset + offset,
-                0,
-                ToolbarScrollViewer.ScrollableWidth));
+        SmoothScrollBehavior.ScrollBy(ToolbarScrollViewer, offset, 0);
     }
 
     private void UpdateToolbarScrollButtons()
