@@ -6,11 +6,6 @@ public static class WindowsWindowAnimation
 {
     private const int WindowStyleIndex = -16;
     private const long CaptionStyle = 0x00C00000L;
-    private const uint GetClientAreaAnimation = 0x1042;
-    private const uint AnimateHide = 0x00010000;
-    private const uint AnimateActivate = 0x00020000;
-    private const uint AnimateBlend = 0x00080000;
-    private const uint VisibilityAnimationMilliseconds = 200;
     private const uint RefreshFrameFlags = 0x00000037;
     private const int WindowCornerPreferenceAttribute = 33;
     private const int RoundWindowCornerPreference = 2;
@@ -64,28 +59,6 @@ public static class WindowsWindowAnimation
             RefreshFrameFlags);
     }
 
-    public static bool TryShow(IntPtr windowHandle) =>
-        AreClientAreaAnimationsEnabled() &&
-        AnimateWindow(
-            windowHandle,
-            VisibilityAnimationMilliseconds,
-            AnimateActivate | AnimateBlend);
-
-    public static bool TryHide(IntPtr windowHandle) =>
-        AreClientAreaAnimationsEnabled() &&
-        AnimateWindow(
-            windowHandle,
-            VisibilityAnimationMilliseconds,
-            AnimateHide | AnimateBlend);
-
-    private static bool AreClientAreaAnimationsEnabled() =>
-        SystemParametersInfo(
-            GetClientAreaAnimation,
-            0,
-            out var animationsEnabled,
-            0) &&
-        animationsEnabled;
-
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
     private static extern IntPtr GetWindowLongPtr(IntPtr windowHandle, int index);
 
@@ -124,21 +97,6 @@ public static class WindowsWindowAnimation
         int attribute,
         ref int attributeValue,
         int attributeSize);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool AnimateWindow(
-        IntPtr windowHandle,
-        uint durationMilliseconds,
-        uint flags);
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SystemParametersInfo(
-        uint action,
-        uint parameter,
-        [MarshalAs(UnmanagedType.Bool)] out bool value,
-        uint updateFlags);
 
     [StructLayout(LayoutKind.Sequential)]
     private readonly struct DwmMargins(int thickness)

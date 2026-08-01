@@ -28,6 +28,11 @@ public partial class MainWindow : Window
 {
     private const string ClipboardFormat = "OmniRef.Items.v1";
     private const int GetMinMaxInfoMessage = 0x0024;
+    private const int SystemCommandMessage = 0x0112;
+    private const int SystemCommandMask = 0xFFF0;
+    private const int MinimizeSystemCommand = 0xF020;
+    private const int MaximizeSystemCommand = 0xF030;
+    private const int RestoreSystemCommand = 0xF120;
     private const double WorkspaceTabPreferredWidth = 180;
     private const double WorkspaceTabMinimumWidth = 104;
     private const double WorkspaceTabHorizontalMargin = 4;
@@ -201,8 +206,6 @@ public partial class MainWindow : Window
     {
         if (!IsVisible)
         {
-            var handle = new WindowInteropHelper(this).EnsureHandle();
-            WindowsWindowAnimation.TryShow(handle);
             Show();
         }
         if (WindowState == WindowState.Minimized)
@@ -283,8 +286,22 @@ public partial class MainWindow : Window
                 MinWidth,
                 MinHeight);
         }
+        else if (message == SystemCommandMessage &&
+                 IsWindowStateSystemCommand(wordParameter))
+        {
+            // Taskbar clicks issue WM_SYSCOMMAND directly, bypassing the custom
+            // caption buttons. Temporarily restore WS_CAPTION before Windows
+            // handles the command so DWM can play its minimize/restore transition.
+            WindowsWindowAnimation.EnableSystemWindowTransitions(windowHandle);
+        }
 
         return IntPtr.Zero;
+    }
+
+    private static bool IsWindowStateSystemCommand(IntPtr wordParameter)
+    {
+        var command = wordParameter.ToInt64() & SystemCommandMask;
+        return command is MinimizeSystemCommand or MaximizeSystemCommand or RestoreSystemCommand;
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs eventArgs)
@@ -1082,11 +1099,6 @@ public partial class MainWindow : Window
     private void HideToTray()
     {
         SaveSettings(cleanExit: false);
-        if (IsVisible)
-        {
-            var handle = new WindowInteropHelper(this).Handle;
-            WindowsWindowAnimation.TryHide(handle);
-        }
         Hide();
         _previewCache.TrimAggressively();
     }
