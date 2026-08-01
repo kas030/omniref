@@ -303,6 +303,46 @@ public partial class MainWindow : Window
     private void CloseWindow_Click(object sender, RoutedEventArgs eventArgs) =>
         SystemCommands.CloseWindow(this);
 
+    private void ToolbarScrollLeft_Click(object sender, RoutedEventArgs eventArgs) =>
+        ScrollToolbarBy(-72);
+
+    private void ToolbarScrollRight_Click(object sender, RoutedEventArgs eventArgs) =>
+        ScrollToolbarBy(72);
+
+    private void ToolbarScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs eventArgs)
+    {
+        if (ToolbarScrollViewer.ScrollableWidth <= 0 || eventArgs.Delta == 0)
+        {
+            return;
+        }
+
+        ScrollToolbarBy(eventArgs.Delta * -0.4);
+        eventArgs.Handled = true;
+    }
+
+    private void ToolbarScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs eventArgs) =>
+        UpdateToolbarScrollButtons();
+
+    private void ScrollToolbarBy(double offset)
+    {
+        ToolbarScrollViewer.ScrollToHorizontalOffset(
+            Math.Clamp(
+                ToolbarScrollViewer.HorizontalOffset + offset,
+                0,
+                ToolbarScrollViewer.ScrollableWidth));
+    }
+
+    private void UpdateToolbarScrollButtons()
+    {
+        ToolbarScrollLeftButton.Visibility = ToolbarScrollViewer.HorizontalOffset > 0.5
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        ToolbarScrollRightButton.Visibility =
+            ToolbarScrollViewer.HorizontalOffset < ToolbarScrollViewer.ScrollableWidth - 0.5
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+    }
+
     private void OnSessionEnding(object sender, SessionEndingCancelEventArgs eventArgs)
     {
         _allowClose = true;

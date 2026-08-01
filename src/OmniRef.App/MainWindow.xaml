@@ -206,10 +206,37 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <ScrollViewer Grid.Column="0"
-                              HorizontalScrollBarVisibility="Auto"
-                              VerticalScrollBarVisibility="Disabled">
-                    <StackPanel Orientation="Horizontal" Margin="6,3">
+                <Grid Grid.Column="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <RepeatButton x:Name="ToolbarScrollLeftButton"
+                                  Grid.Column="0"
+                                  Panel.ZIndex="1"
+                                  Style="{StaticResource ToolbarScrollButton}"
+                                  Visibility="Collapsed"
+                                  Click="ToolbarScrollLeft_Click"
+                                  ToolTip="{Binding Localization[ScrollToolbarLeft]}"
+                                  AutomationProperties.Name="{Binding Localization[ScrollToolbarLeft]}">
+                        <Path Width="8"
+                              Height="14"
+                              Data="M 7,1 L 1,7 L 7,13"
+                              Stretch="Fill"
+                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RepeatButton}}}"
+                              StrokeThickness="1.5"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round" />
+                    </RepeatButton>
+                    <ScrollViewer x:Name="ToolbarScrollViewer"
+                                  Grid.Column="1"
+                                  HorizontalScrollBarVisibility="Hidden"
+                                  VerticalScrollBarVisibility="Disabled"
+                                  PreviewMouseWheel="ToolbarScrollViewer_PreviewMouseWheel"
+                                  ScrollChanged="ToolbarScrollViewer_ScrollChanged">
+                        <StackPanel Orientation="Horizontal" Margin="6,3">
                     <ToggleButton Style="{StaticResource ToolbarToggleButton}"
                                   IsChecked="{Binding SidebarVisible, Mode=TwoWay}"
                                   ToolTip="{Binding Localization[Sidebar]}"
@@ -320,8 +347,27 @@
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
                                           Icon="AlignLeft" />
                     </Button>
-                    </StackPanel>
-                </ScrollViewer>
+                        </StackPanel>
+                    </ScrollViewer>
+                    <RepeatButton x:Name="ToolbarScrollRightButton"
+                                  Grid.Column="2"
+                                  Panel.ZIndex="1"
+                                  Style="{StaticResource ToolbarScrollButton}"
+                                  Visibility="Collapsed"
+                                  Click="ToolbarScrollRight_Click"
+                                  ToolTip="{Binding Localization[ScrollToolbarRight]}"
+                                  AutomationProperties.Name="{Binding Localization[ScrollToolbarRight]}">
+                        <Path Width="8"
+                              Height="14"
+                              Data="M 1,1 L 7,7 L 1,13"
+                              Stretch="Fill"
+                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RepeatButton}}}"
+                              StrokeThickness="1.5"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round" />
+                    </RepeatButton>
+                </Grid>
 
                 <StackPanel Grid.Column="1"
                             Orientation="Horizontal"
