@@ -25,6 +25,7 @@ namespace OmniRef.App;
 public partial class MainWindow : Window
 {
     private const string ClipboardFormat = "OmniRef.Items.v1";
+    private const int GetMinMaxInfoMessage = 0x0024;
 
     public static readonly DependencyProperty ShowCanvasGridProperty = DependencyProperty.Register(
         nameof(ShowCanvasGrid),
@@ -58,6 +59,7 @@ public partial class MainWindow : Window
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
     private WindowsTrayIcon? _trayIcon;
+    private HwndSource? _windowSource;
     private bool _allowClose;
     private bool _loaded;
 
@@ -89,6 +91,7 @@ public partial class MainWindow : Window
         ShowCanvasGrid = settings.ShowCanvasGrid;
         SnapToGrid = settings.SnapToGrid;
         CurrentTheme = settings.Theme;
+        SourceInitialized += OnSourceInitialized;
         Loaded += OnLoaded;
         Closing += OnClosing;
         Activated += OnActivated;
@@ -221,6 +224,32 @@ public partial class MainWindow : Window
 
     private void OnActivated(object? sender, EventArgs eventArgs) => _viewModel.RefreshReferences();
 
+    private void OnSourceInitialized(object? sender, EventArgs eventArgs)
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        _windowSource = HwndSource.FromHwnd(handle);
+        _windowSource?.AddHook(WindowMessageHook);
+    }
+
+    private IntPtr WindowMessageHook(
+        IntPtr windowHandle,
+        int message,
+        IntPtr wordParameter,
+        IntPtr longParameter,
+        ref bool handled)
+    {
+        if (message == GetMinMaxInfoMessage)
+        {
+            handled = WindowsWindowBounds.TryApplyWindowBounds(
+                windowHandle,
+                longParameter,
+                MinWidth,
+                MinHeight);
+        }
+
+        return IntPtr.Zero;
+    }
+
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs eventArgs)
     {
         if (eventArgs.ClickCount == 2)
@@ -232,8 +261,28 @@ public partial class MainWindow : Window
 
         if (eventArgs.ButtonState == MouseButtonState.Pressed)
         {
+            if (WindowState == WindowState.Maximized)
+            {
+                RestoreWindowForDrag(eventArgs);
+            }
             DragMove();
+            eventArgs.Handled = true;
         }
+    }
+
+    private void RestoreWindowForDrag(MouseButtonEventArgs eventArgs)
+    {
+        var mousePosition = eventArgs.GetPosition(this);
+        var screenPosition = PointToScreen(mousePosition);
+        var dpi = VisualTreeHelper.GetDpi(this);
+        var horizontalRatio = ActualWidth > 0
+            ? Math.Clamp(mousePosition.X / ActualWidth, 0, 1)
+            : 0.5;
+        var restoredWidth = RestoreBounds.Width;
+
+        WindowState = WindowState.Normal;
+        Left = (screenPosition.X / dpi.DpiScaleX) - (restoredWidth * horizontalRatio);
+        Top = (screenPosition.Y / dpi.DpiScaleY) - mousePosition.Y;
     }
 
     private void MinimizeWindow_Click(object sender, RoutedEventArgs eventArgs) =>
@@ -336,6 +385,11 @@ public partial class MainWindow : Window
     private void CleanupShellIntegration()
     {
         Application.Current.SessionEnding -= OnSessionEnding;
+        if (_windowSource is not null)
+        {
+            _windowSource.RemoveHook(WindowMessageHook);
+            _windowSource = null;
+        }
         if (_trayIcon is not null)
         {
             _trayIcon.Dispose();

@@ -12,8 +12,8 @@
         Icon="Assets/AppIcon.ico"
         Width="1280"
         Height="800"
-        MinWidth="900"
-        MinHeight="600"
+        MinWidth="640"
+        MinHeight="480"
         WindowStyle="None"
         Foreground="{DynamicResource TextPrimaryBrush}"
         WindowStartupLocation="CenterScreen">
@@ -33,6 +33,9 @@
     </Window.Resources>
 
     <Border x:Name="WindowFrame"
+            MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+            MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+            ClipToBounds="True"
             SnapsToDevicePixels="True">
         <Border.Style>
             <Style TargetType="{x:Type Border}">
