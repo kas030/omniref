@@ -1233,7 +1233,7 @@ public sealed class InfiniteCanvas : Canvas
     private Thickness GetTextEditorPadding()
     {
         var horizontal = Math.Clamp(12 * _zoom, 5, 16);
-        var vertical = Math.Clamp(10 * _zoom, 5, 14);
+        var vertical = Math.Clamp(12 * _zoom, 6, 16);
         return new Thickness(horizontal, vertical, horizontal, vertical);
     }
 
