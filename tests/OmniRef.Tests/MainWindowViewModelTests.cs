@@ -236,6 +236,24 @@ public sealed class MainWindowViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task RepeatedCreation_OffsetsCardsAndFrames()
+    {
+        var workspace = await _viewModel.CreateNewAsync(includeWelcomeContent: false);
+
+        var firstCard = workspace.AddText("First", new WorldPoint(100, 200));
+        var secondCard = workspace.AddText("Second", new WorldPoint(100, 200));
+        var thirdCard = workspace.AddText("Third", new WorldPoint(100, 200));
+        var firstFrame = workspace.AddFrame("First group", new WorldPoint(500, 600));
+        var secondFrame = workspace.AddFrame("Second group", new WorldPoint(500, 600));
+
+        Assert.Equal(new WorldPoint(100, 200), new WorldPoint(firstCard.Bounds.X, firstCard.Bounds.Y));
+        Assert.Equal(firstCard.Bounds.Translate(28, 28), secondCard.Bounds);
+        Assert.Equal(secondCard.Bounds.Translate(28, 28), thirdCard.Bounds);
+        Assert.Equal(new WorldPoint(500, 600), new WorldPoint(firstFrame.Bounds.X, firstFrame.Bounds.Y));
+        Assert.Equal(firstFrame.Bounds.Translate(28, 28), secondFrame.Bounds);
+    }
+
+    [Fact]
     public async Task SendAlreadyBottomItemToBack_DoesNotNormalizeOrMarkDirty()
     {
         _store.RestoredDocument = new WorkspaceDocument

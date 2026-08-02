@@ -50,6 +50,7 @@ public enum SearchSortMode
 public sealed class WorkspaceViewModel : ObservableObject, IDisposable
 {
     private const int InitialImagePreviewPixels = 512;
+    private const double RepeatedCreationOffset = 28;
     private static readonly WorldSize ImportedImageCardMaximum = new(300, 220);
     private static readonly WorldSize PastedImageCardMaximum = new(320, 240);
 
@@ -233,6 +234,34 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         return Items.Count;
     }
 
+    private WorldPoint FindAvailableCreationPosition(
+        WorldPoint requestedPosition,
+        IEnumerable<WorldPoint>? relativePositions = null,
+        IEnumerable<WorldRect>? additionalOccupiedBounds = null)
+    {
+        var offsets = relativePositions?.ToList() ?? [new WorldPoint(0, 0)];
+        if (offsets.Count == 0)
+        {
+            offsets.Add(new WorldPoint(0, 0));
+        }
+
+        var occupiedBounds = Items
+            .Select(item => item.Bounds)
+            .Concat(additionalOccupiedBounds ?? Enumerable.Empty<WorldRect>())
+            .ToList();
+        var candidate = requestedPosition;
+        while (offsets.Any(offset => occupiedBounds.Any(bounds =>
+                   AreClose(bounds.X, candidate.X + offset.X) &&
+                   AreClose(bounds.Y, candidate.Y + offset.Y))))
+        {
+            candidate = new WorldPoint(
+                candidate.X + RepeatedCreationOffset,
+                candidate.Y + RepeatedCreationOffset);
+        }
+
+        return candidate;
+    }
+
     public async Task AddPathsAsync(
         IEnumerable<string> paths,
         WorldPoint start,
@@ -249,16 +278,24 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         }
 
         var models = new List<BoardItem>();
+        var additionalOccupiedBounds = new List<WorldRect>();
         var index = 0;
         foreach (var path in pathsToAdd)
         {
             var column = index % 4;
             var row = index / 4;
+            var requestedPosition = new WorldPoint(
+                start.X + (column * 28),
+                start.Y + (row * 28));
+            var creationPosition = FindAvailableCreationPosition(
+                requestedPosition,
+                additionalOccupiedBounds: additionalOccupiedBounds);
             models.Add(BoardItemFactory.FromPath(
                 _path,
                 path,
-                new WorldPoint(start.X + (column * 28), start.Y + (row * 28)),
+                creationPosition,
                 0));
+            additionalOccupiedBounds.Add(models[^1].Bounds);
             index++;
         }
 
@@ -298,7 +335,8 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     public BoardItemViewModel AddText(string text, WorldPoint position)
     {
         EnsureWritable();
-        var model = BoardItemFactory.Text(text, position, NextZIndex());
+        var creationPosition = FindAvailableCreationPosition(position);
+        var model = BoardItemFactory.Text(text, creationPosition, NextZIndex());
         AddModelsWithUndo([model], "Add text");
         return Items.First(item => item.Id == model.Id);
     }
@@ -306,7 +344,8 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     public BoardItemViewModel AddUrl(string url, WorldPoint position)
     {
         EnsureWritable();
-        var model = BoardItemFactory.Url(url, position, NextZIndex());
+        var creationPosition = FindAvailableCreationPosition(position);
+        var model = BoardItemFactory.Url(url, creationPosition, NextZIndex());
         AddModelsWithUndo([model], "Add URL");
         return Items.First(item => item.Id == model.Id);
     }
@@ -314,7 +353,8 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     public BoardItemViewModel AddFrame(string title, WorldPoint position)
     {
         EnsureWritable();
-        var model = BoardItemFactory.Frame(title, position, NextZIndex());
+        var creationPosition = FindAvailableCreationPosition(position);
+        var model = BoardItemFactory.Frame(title, creationPosition, NextZIndex());
         AddModelsWithUndo([model], "Add frame");
         return Items.First(item => item.Id == model.Id);
     }
@@ -344,13 +384,14 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
             asset.Length,
             DateTimeOffset.UtcNow);
         var boundsSize = GetInitialImageSize(imageSize, PastedImageCardMaximum);
+        var creationPosition = FindAvailableCreationPosition(position);
         var model = new BoardItem
         {
             Kind = ItemKind.Image,
             Title = "Clipboard image",
             Bounds = new(
-                position.X,
-                position.Y,
+                creationPosition.X,
+                creationPosition.Y,
                 boundsSize.Width,
                 boundsSize.Height),
             ZIndex = NextZIndex(),
@@ -371,6 +412,10 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
 
         var minX = originals.Min(item => item.Bounds.X);
         var minY = originals.Min(item => item.Bounds.Y);
+        var relativePositions = originals
+            .Select(item => new WorldPoint(item.Bounds.X - minX, item.Bounds.Y - minY))
+            .ToList();
+        var creationPosition = FindAvailableCreationPosition(position, relativePositions);
         var idMap = originals.ToDictionary(item => item.Id, _ => Guid.NewGuid());
         var nextZ = NextZIndex(originals.Count);
         for (var index = 0; index < originals.Count; index++)
