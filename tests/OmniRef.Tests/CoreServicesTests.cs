@@ -190,6 +190,81 @@ public sealed class CoreServicesTests
         Assert.Single(WorkspaceSearch.Search(items, "MEETING"));
     }
 
+    [Fact]
+    public void Search_MatchesTypoInTitle()
+    {
+        var matching = new BoardItem
+        {
+            Title = "Google Photos",
+            Kind = ItemKind.Text
+        };
+        var unrelated = new BoardItem
+        {
+            Title = "Calendar",
+            Kind = ItemKind.Text
+        };
+
+        var results = WorkspaceSearch.Search([matching, unrelated], "goolge");
+
+        Assert.Equal([matching], results);
+    }
+
+    [Fact]
+    public void Search_MatchesRelativeSourcePath()
+    {
+        var item = new BoardItem
+        {
+            Kind = ItemKind.File,
+            Content = new FileContent(new SourceDescriptor(
+                null,
+                Path.Combine("assets", "reference.pdf"),
+                AssetMode.ExternalReference,
+                null,
+                "reference.pdf",
+                null,
+                null))
+        };
+
+        Assert.Equal([item], WorkspaceSearch.Search([item], "assets"));
+    }
+
+    [Fact]
+    public void SearchWithScores_ExposesNormalizedScoreWhileKeepingLayerOrder()
+    {
+        var fuzzyMatch = new BoardItem
+        {
+            Title = "Gogle",
+            Kind = ItemKind.Text,
+            ZIndex = 10
+        };
+        var exactMatch = new BoardItem
+        {
+            Title = "Google",
+            Kind = ItemKind.Text,
+            ZIndex = 1
+        };
+
+        var results = WorkspaceSearch.SearchWithScores([exactMatch, fuzzyMatch], "google");
+
+        Assert.Equal([fuzzyMatch, exactMatch], results.Select(result => result.Item));
+        Assert.InRange(results[0].Score, 0, 1);
+        Assert.InRange(results[1].Score, 0, 1);
+        Assert.True(results[1].Score > results[0].Score);
+    }
+
+    [Fact]
+    public void SearchWithScores_UsesInjectedScorer()
+    {
+        var item = new BoardItem { Title = "Any title", Kind = ItemKind.Text };
+
+        var results = WorkspaceSearch.SearchWithScores(
+            [item],
+            "query",
+            new FixedSearchScorer(new SearchMatch(true, 0.42)));
+
+        Assert.Equal(0.42, Assert.Single(results).Score);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
@@ -289,5 +364,10 @@ public sealed class CoreServicesTests
         {
             Directory.Delete(directory, recursive: true);
         }
+    }
+
+    private sealed class FixedSearchScorer(SearchMatch match) : IWorkspaceSearchScorer
+    {
+        public SearchMatch Score(string normalizedQuery, SearchDocument document) => match;
     }
 }

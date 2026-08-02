@@ -4,4 +4,7 @@
     <RootNamespace>OmniRef.Core</RootNamespace>
     <AssemblyName>OmniRef.Core</AssemblyName>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Raffinert.FuzzySharp" />
+  </ItemGroup>
 </Project>
