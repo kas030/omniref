@@ -95,6 +95,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         {
             AddViewModel(item);
         }
+        UpdateSearch();
 
         _saveTimer = new DispatcherTimer(
             TimeSpan.FromMilliseconds(500),

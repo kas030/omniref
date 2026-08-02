@@ -2,6 +2,7 @@ using OmniRef.App.Services;
 using OmniRef.App.ViewModels;
 using OmniRef.Core.Interfaces;
 using OmniRef.Core.Models;
+using OmniRef.Core.Services;
 using OmniRef.Infrastructure.Windows.Diagnostics;
 using OmniRef.Infrastructure.Windows.Settings;
 
@@ -118,6 +119,26 @@ public sealed class MainWindowViewModelTests : IDisposable
 
         Assert.NotNull(workspace);
         Assert.Equal("Renamed board", workspace.DisplayTitle);
+    }
+
+    [Fact]
+    public async Task Open_WithEmptySearchQueryShowsAllItems()
+    {
+        _store.RestoredDocument = new WorkspaceDocument
+        {
+            Items =
+            [
+                BoardItemFactory.Text("First", new WorldPoint(0, 0), 1),
+                BoardItemFactory.Text("Second", new WorldPoint(20, 20), 2)
+            ]
+        };
+
+        var workspace = await _viewModel.OpenAsync(Path.Combine(_directory, "References.omniref"));
+
+        Assert.NotNull(workspace);
+        Assert.Empty(workspace.SearchQuery);
+        Assert.Equal(2, workspace.SearchResults.Count);
+        Assert.All(workspace.Items, item => Assert.Contains(item, workspace.SearchResults));
     }
 
     [Fact]

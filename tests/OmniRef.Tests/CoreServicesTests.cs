@@ -190,6 +190,27 @@ public sealed class CoreServicesTests
         Assert.Single(WorkspaceSearch.Search(items, "MEETING"));
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Search_EmptyQueryReturnsAllItems(string query)
+    {
+        var older = new BoardItem
+        {
+            Title = "Older",
+            ModifiedUtc = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)
+        };
+        var newer = new BoardItem
+        {
+            Title = "Newer",
+            ModifiedUtc = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero)
+        };
+
+        var results = WorkspaceSearch.Search([older, newer], query);
+
+        Assert.Equal([newer, older], results);
+    }
+
     [Fact]
     public void Search_ThreeThousandItemsCompletesWithinInteractiveTarget()
     {

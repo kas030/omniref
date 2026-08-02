@@ -8,13 +8,8 @@ public static class WorkspaceSearch
     public static IReadOnlyList<BoardItem> Search(IEnumerable<BoardItem> items, string query)
     {
         var normalized = query.Trim();
-        if (normalized.Length == 0)
-        {
-            return [];
-        }
-
         return items
-            .Where(item => SearchableText(item).Contains(
+            .Where(item => normalized.Length == 0 || SearchableText(item).Contains(
                 normalized,
                 CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace))
             .OrderByDescending(item => item.ModifiedUtc)
