@@ -539,7 +539,7 @@ public sealed class InfiniteCanvas : Canvas
         Brush foreground,
         Brush background)
     {
-        var indicatorHeight = Math.Clamp(24 * _zoom, 15, 28);
+        var indicatorHeight = 24 * _zoom;
         var fadeHeight = Math.Min(textRect.Height, indicatorHeight * 1.6);
         var fadeRect = new Rect(
             textRect.X,
@@ -559,7 +559,7 @@ public sealed class InfiniteCanvas : Canvas
             context.DrawRectangle(fade, null, fadeRect);
         }
 
-        var indicatorWidth = Math.Clamp(32 * _zoom, 24, 38);
+        var indicatorWidth = 32 * _zoom;
         var indicatorRect = new Rect(
             textRect.Right - indicatorWidth,
             textRect.Bottom - indicatorHeight,
@@ -575,7 +575,7 @@ public sealed class InfiniteCanvas : Canvas
             context,
             "\u2026",
             indicatorRect,
-            Math.Clamp(15 * _zoom, 11, 18),
+            15 * _zoom,
             foreground,
             FontWeights.SemiBold,
             TextAlignment.Center,
