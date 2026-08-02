@@ -19,6 +19,15 @@ public sealed class InfiniteCanvas : Canvas
     private static readonly Color DefaultCardBackgroundColor = Color.FromArgb(0xFF, 0x25, 0x29, 0x32);
     private static readonly Color DefaultCardForegroundColor = Color.FromArgb(0xFF, 0xF5, 0xF7, 0xFA);
     private static readonly Color DefaultTextBackgroundColor = Color.FromArgb(0xFF, 0x2E, 0x34, 0x40);
+    private static readonly ResizeCorner[] ResizeCorners =
+    [
+        ResizeCorner.TopLeft,
+        ResizeCorner.TopRight,
+        ResizeCorner.BottomLeft,
+        ResizeCorner.BottomRight
+    ];
+    private const double ResizeHandleSize = 8;
+    private const double ResizeHandleHitSize = 14;
 
     public static readonly DependencyProperty WorkspaceProperty = DependencyProperty.Register(
         nameof(Workspace),
@@ -49,6 +58,7 @@ public sealed class InfiniteCanvas : Canvas
     private Dictionary<Guid, ItemLayoutState>? _layoutBefore;
     private WorldRect? _selectionBox;
     private BoardItemViewModel? _resizeItem;
+    private ResizeCorner? _resizeCorner;
     private bool _spacePressed;
     private TextBox? _textEditor;
     private BoardItemViewModel? _editingItem;
@@ -344,15 +354,13 @@ public sealed class InfiniteCanvas : Canvas
         }
 
         var isHovered = ReferenceEquals(_hoveredItem, item);
-        if (item.IsSelected || isHovered)
+        if (isHovered && !item.IsSelected)
         {
-            var haloBrush = item.IsSelected
-                ? WithOpacity(FindBrush("AccentBrush", Brushes.CornflowerBlue), 0.28)
-                : WithOpacity(FindBrush("CardHoverBorderBrush", Brushes.LightGray), 0.3);
+            var haloBrush = WithOpacity(FindBrush("CardHoverBorderBrush", Brushes.LightGray), 0.3);
             var haloRect = new Rect(rect.X - 2, rect.Y - 2, rect.Width + 4, rect.Height + 4);
             context.DrawRectangle(
                 null,
-                new Pen(haloBrush, item.IsSelected ? 2 : 1),
+                new Pen(haloBrush, 1),
                 haloRect);
         }
 
@@ -397,13 +405,7 @@ public sealed class InfiniteCanvas : Canvas
 
         if (item.IsSelected && Workspace?.SelectedItems.Count == 1)
         {
-            var handle = ResizeHandleRect(rect);
-            context.DrawRoundedRectangle(
-                FindBrush("AccentBrush", Brushes.CornflowerBlue),
-                new Pen(Brushes.White, 1),
-                handle,
-                4,
-                4);
+            DrawResizeHandles(context, rect);
         }
 
         if (item.IsMissing)
@@ -435,12 +437,7 @@ public sealed class InfiniteCanvas : Canvas
 
         if (item.IsSelected && Workspace?.SelectedItems.Count == 1)
         {
-            context.DrawRoundedRectangle(
-                FindBrush("AccentBrush", Brushes.CornflowerBlue),
-                new Pen(Brushes.White, 1),
-                ResizeHandleRect(rect),
-                4,
-                4);
+            DrawResizeHandles(context, rect);
         }
     }
 
@@ -792,19 +789,24 @@ public sealed class InfiniteCanvas : Canvas
             return;
         }
 
-        var hit = HitTestItem(_mouseDownWorld);
-        if (hit is not null && hit.IsSelected && Workspace.SelectedItems.Count == 1 &&
-            ResizeHandleRect(ToScreenRect(hit.Bounds)).Contains(_mouseDownScreen) &&
-            !Workspace.IsReadOnly)
+        var selectedItem = Workspace.SelectedItems.Count == 1
+            ? Workspace.SelectedItems[0]
+            : null;
+        if (!Workspace.IsReadOnly &&
+            selectedItem is not null &&
+            TryGetResizeCorner(ToScreenRect(selectedItem.Bounds), _mouseDownScreen, out var resizeCorner))
         {
-            _resizeItem = hit;
-            _layoutBefore = Workspace.CaptureLayout([hit]);
+            _resizeItem = selectedItem;
+            _resizeCorner = resizeCorner;
+            _layoutBefore = Workspace.CaptureLayout([selectedItem]);
             Workspace.BeginInteraction();
             _interaction = InteractionMode.Resize;
             CaptureMouse();
             eventArgs.Handled = true;
             return;
         }
+
+        var hit = HitTestItem(_mouseDownWorld);
 
         if (hit is not null)
         {
@@ -881,48 +883,59 @@ public sealed class InfiniteCanvas : Canvas
                     }
                 }
                 break;
-            case InteractionMode.Resize when _layoutBefore is not null && _resizeItem is not null:
-                if (_layoutBefore.TryGetValue(_resizeItem.Id, out var initial))
+            case InteractionMode.Resize when
+                _layoutBefore is not null &&
+                _resizeItem is not null &&
+                _resizeCorner is { } resizeCorner:
                 {
-                    var minWidth = _resizeItem.Kind == ItemKind.Frame ? 240 : 80;
-                    var minHeight = _resizeItem.Kind == ItemKind.Frame ? 160 : 60;
-                    var right = initial.Bounds.Right + (currentWorld.X - _mouseDownWorld.X);
-                    var bottom = initial.Bounds.Bottom + (currentWorld.Y - _mouseDownWorld.Y);
-                    if (IsGridSnappingActive)
+                    if (_layoutBefore.TryGetValue(_resizeItem.Id, out var initial))
                     {
-                        right = GridMath.Snap(right);
-                        bottom = GridMath.Snap(bottom);
+                        var minWidth = _resizeItem.Kind == ItemKind.Frame ? 240 : 80;
+                        var minHeight = _resizeItem.Kind == ItemKind.Frame ? 160 : 60;
+                        var isLeft = resizeCorner is ResizeCorner.TopLeft or ResizeCorner.BottomLeft;
+                        var isTop = resizeCorner is ResizeCorner.TopLeft or ResizeCorner.TopRight;
+                        var draggedX = (isLeft ? initial.Bounds.Left : initial.Bounds.Right) +
+                                       (currentWorld.X - _mouseDownWorld.X);
+                        var draggedY = (isTop ? initial.Bounds.Top : initial.Bounds.Bottom) +
+                                       (currentWorld.Y - _mouseDownWorld.Y);
+                        if (IsGridSnappingActive)
+                        {
+                            draggedX = GridMath.Snap(draggedX);
+                            draggedY = GridMath.Snap(draggedY);
+                        }
+                        var fixedX = isLeft ? initial.Bounds.Right : initial.Bounds.Left;
+                        var fixedY = isTop ? initial.Bounds.Bottom : initial.Bounds.Top;
+                        var requestedSize = new WorldSize(
+                            isLeft ? fixedX - draggedX : draggedX - fixedX,
+                            isTop ? fixedY - draggedY : draggedY - fixedY);
+                        WorldSize size;
+                        if (_resizeItem.Kind == ItemKind.Image &&
+                            (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
+                        {
+                            var aspectSize = _resizeItem.Preview is { } preview &&
+                                              preview.Width > 0 &&
+                                              preview.Height > 0
+                                ? new WorldSize(preview.Width, preview.Height)
+                                : new WorldSize(initial.Bounds.Width, initial.Bounds.Height);
+                            size = ResizeMath.ConstrainToAspectRatio(
+                                aspectSize,
+                                requestedSize,
+                                new WorldSize(minWidth, minHeight));
+                        }
+                        else
+                        {
+                            size = new WorldSize(
+                                Math.Max(minWidth, requestedSize.Width),
+                                Math.Max(minHeight, requestedSize.Height));
+                        }
+                        _resizeItem.UpdateBounds(new(
+                            isLeft ? fixedX - size.Width : fixedX,
+                            isTop ? fixedY - size.Height : fixedY,
+                            size.Width,
+                            size.Height));
                     }
-                    var requestedSize = new WorldSize(
-                        right - initial.Bounds.X,
-                        bottom - initial.Bounds.Y);
-                    WorldSize size;
-                    if (_resizeItem.Kind == ItemKind.Image &&
-                        (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
-                    {
-                        var aspectSize = _resizeItem.Preview is { } preview &&
-                                          preview.Width > 0 &&
-                                          preview.Height > 0
-                            ? new WorldSize(preview.Width, preview.Height)
-                            : new WorldSize(initial.Bounds.Width, initial.Bounds.Height);
-                        size = ResizeMath.ConstrainToAspectRatio(
-                            aspectSize,
-                            requestedSize,
-                            new WorldSize(minWidth, minHeight));
-                    }
-                    else
-                    {
-                        size = new WorldSize(
-                            Math.Max(minWidth, requestedSize.Width),
-                            Math.Max(minHeight, requestedSize.Height));
-                    }
-                    _resizeItem.UpdateBounds(new(
-                        initial.Bounds.X,
-                        initial.Bounds.Y,
-                        size.Width,
-                        size.Height));
+                    break;
                 }
-                break;
             case InteractionMode.SelectBox:
                 _selectionBox = WorldRect.FromPoints(_mouseDownWorld, currentWorld);
                 InvalidateVisual();
@@ -1026,6 +1039,7 @@ public sealed class InfiniteCanvas : Canvas
         _selectionBox = null;
         _layoutBefore = null;
         _resizeItem = null;
+        _resizeCorner = null;
         ReleaseMouseCapture();
         Cursor = Cursors.Arrow;
         InvalidateVisual();
@@ -1283,7 +1297,61 @@ public sealed class InfiniteCanvas : Canvas
         return new Rect(topLeft.X, topLeft.Y, world.Width * _zoom, world.Height * _zoom);
     }
 
-    private static Rect ResizeHandleRect(Rect rect) => new(rect.Right - 7, rect.Bottom - 7, 12, 12);
+    private void DrawResizeHandles(DrawingContext context, Rect rect)
+    {
+        var fill = Brushes.White;
+        var stroke = new Pen(FindBrush("AccentBrush", Brushes.CornflowerBlue), 1);
+        foreach (var corner in ResizeCorners)
+        {
+            var center = ResizeHandleCenter(rect, corner);
+            context.DrawRectangle(
+                fill,
+                stroke,
+                new Rect(
+                    center.X - (ResizeHandleSize / 2),
+                    center.Y - (ResizeHandleSize / 2),
+                    ResizeHandleSize,
+                    ResizeHandleSize));
+        }
+    }
+
+    private static bool TryGetResizeCorner(Rect rect, Point point, out ResizeCorner corner)
+    {
+        var closestCorner = ResizeCorner.TopLeft;
+        var closestDistance = double.PositiveInfinity;
+        foreach (var candidate in ResizeCorners)
+        {
+            var center = ResizeHandleCenter(rect, candidate);
+            var delta = point - center;
+            var distance = delta.LengthSquared;
+            if (distance < closestDistance)
+            {
+                closestDistance = distance;
+                closestCorner = candidate;
+            }
+        }
+
+        var deltaFromClosestCorner = point - ResizeHandleCenter(rect, closestCorner);
+        var hitHalfSize = ResizeHandleHitSize / 2;
+        if (Math.Abs(deltaFromClosestCorner.X) <= hitHalfSize &&
+            Math.Abs(deltaFromClosestCorner.Y) <= hitHalfSize)
+        {
+            corner = closestCorner;
+            return true;
+        }
+
+        corner = default;
+        return false;
+    }
+
+    private static Point ResizeHandleCenter(Rect rect, ResizeCorner corner) => corner switch
+    {
+        ResizeCorner.TopLeft => new Point(rect.Left, rect.Top),
+        ResizeCorner.TopRight => new Point(rect.Right, rect.Top),
+        ResizeCorner.BottomLeft => new Point(rect.Left, rect.Bottom),
+        ResizeCorner.BottomRight => new Point(rect.Right, rect.Bottom),
+        _ => throw new ArgumentOutOfRangeException(nameof(corner), corner, null)
+    };
 
     private Brush GetCardBackground(BoardItemViewModel item)
     {
@@ -1403,6 +1471,14 @@ public sealed class InfiniteCanvas : Canvas
         Move,
         Resize,
         SelectBox
+    }
+
+    private enum ResizeCorner
+    {
+        TopLeft,
+        TopRight,
+        BottomLeft,
+        BottomRight
     }
 }
 
