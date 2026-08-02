@@ -627,8 +627,7 @@
                     </Grid.RowDefinitions>
 
                     <Grid Grid.Row="0" Margin="0,0,0,8">
-                        <TextBox Text="{Binding SelectedWorkspace.SearchQuery, UpdateSourceTrigger=PropertyChanged}"
-                                 ToolTip="{Binding Localization[SearchPlaceholder]}" />
+                        <TextBox Text="{Binding SelectedWorkspace.SearchQuery, UpdateSourceTrigger=PropertyChanged}" />
                         <TextBlock Margin="10,0"
                                    VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextSecondaryBrush}"
