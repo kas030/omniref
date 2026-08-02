@@ -72,7 +72,7 @@ dotnet test tests/OmniRef.Tests/OmniRef.Tests.csproj -c Release --no-build --no-
 dotnet format OmniRef.slnx --verify-no-changes --no-restore
 ```
 
-For UI or Windows integration changes, also smoke-test the affected flow on Windows. Relevant checks include drag/drop, clipboard import, text editing, zoom/pan/selection, autosave, tray restore, global hotkey, topmost mode, multi-workspace restore, DPI scaling, themes, and both languages.
+For UI or Windows integration changes, include the applicable manual test scope in the handoff instead of performing UI smoke tests. Relevant checks may include drag/drop, clipboard import, text editing, zoom/pan/selection, autosave, tray restore, global hotkey, topmost mode, multi-workspace restore, DPI scaling, themes, and both languages.
 
 Use `scripts/publish.ps1` for a release artifact. The expected output is an untrimmed, non-single-file, self-contained `win-x64` directory and ZIP containing the documentation and `Samples/Welcome.omniref`.
 
