@@ -142,6 +142,86 @@ public sealed class MainWindowViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task AddFirstItem_StartsZIndexAtZero()
+    {
+        var workspace = await _viewModel.CreateNewAsync(includeWelcomeContent: false);
+
+        var item = workspace.AddText("First", new WorldPoint(0, 0));
+
+        Assert.Equal(0, item.Model.ZIndex);
+    }
+
+    [Fact]
+    public async Task SendAlreadyBottomItemToBack_DoesNotNormalizeOrMarkDirty()
+    {
+        _store.RestoredDocument = new WorkspaceDocument
+        {
+            Items =
+            [
+                BoardItemFactory.Text("Bottom", new WorldPoint(0, 0), 10),
+                BoardItemFactory.Text("Top", new WorldPoint(20, 20), 20)
+            ]
+        };
+        var workspace = await _viewModel.OpenAsync(Path.Combine(_directory, "Sparse layers.omniref"));
+        Assert.NotNull(workspace);
+        var bottom = workspace.Items.Single(item => item.SecondaryText == "Bottom");
+        workspace.SelectOnly(bottom);
+
+        workspace.MoveSelectionLayer(LayerMove.SendToBack);
+
+        Assert.Equal(10, bottom.Model.ZIndex);
+        Assert.Equal(20, workspace.Items.Single(item => item.SecondaryText == "Top").Model.ZIndex);
+        Assert.False(workspace.IsDirty);
+        Assert.False(workspace.CanUndo);
+    }
+
+    [Fact]
+    public async Task SendItemToBack_NormalizesChangedLayerOrder()
+    {
+        _store.RestoredDocument = new WorkspaceDocument
+        {
+            Items =
+            [
+                BoardItemFactory.Text("Bottom", new WorldPoint(0, 0), 10),
+                BoardItemFactory.Text("Middle", new WorldPoint(20, 20), 20),
+                BoardItemFactory.Text("Top", new WorldPoint(40, 40), 30)
+            ]
+        };
+        var workspace = await _viewModel.OpenAsync(Path.Combine(_directory, "Layer change.omniref"));
+        Assert.NotNull(workspace);
+        workspace.SelectOnly(workspace.Items.Single(item => item.SecondaryText == "Top"));
+
+        workspace.MoveSelectionLayer(LayerMove.SendToBack);
+
+        var ordered = workspace.Items.OrderBy(item => item.Model.ZIndex).ToList();
+        Assert.Equal(["Top", "Bottom", "Middle"], ordered.Select(item => item.SecondaryText));
+        Assert.Equal([0, 1, 2], ordered.Select(item => item.Model.ZIndex));
+        Assert.True(workspace.IsDirty);
+        Assert.True(workspace.CanUndo);
+    }
+
+    [Fact]
+    public async Task AddItem_WhenZIndexIsExhausted_NormalizesBeforeAppending()
+    {
+        _store.RestoredDocument = new WorkspaceDocument
+        {
+            Items =
+            [
+                BoardItemFactory.Text("Bottom", new WorldPoint(0, 0), 10),
+                BoardItemFactory.Text("Top", new WorldPoint(20, 20), int.MaxValue)
+            ]
+        };
+        var workspace = await _viewModel.OpenAsync(Path.Combine(_directory, "Exhausted layers.omniref"));
+        Assert.NotNull(workspace);
+
+        workspace.AddText("New", new WorldPoint(40, 40));
+
+        var ordered = workspace.Items.OrderBy(item => item.Model.ZIndex).ToList();
+        Assert.Equal(["Bottom", "Top", "New"], ordered.Select(item => item.SecondaryText));
+        Assert.Equal([0, 1, 2], ordered.Select(item => item.Model.ZIndex));
+    }
+
+    [Fact]
     public async Task MissingBackingFile_StopsAutomaticSaveAndKeepsWorkspaceOpen()
     {
         var workspace = await _viewModel.CreateNewAsync(includeWelcomeContent: false);

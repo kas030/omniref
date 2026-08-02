@@ -186,14 +186,45 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     public event EventHandler<BoardItemViewModel>? FocusItemRequested;
     public event EventHandler? SelectionChanged;
 
-    public int NextZIndex() => Items.Count == 0 ? 1 : Items.Max(item => item.Model.ZIndex) + 1;
+    private int NextZIndex(int itemCount = 1)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(itemCount);
+        if (Items.Count == 0)
+        {
+            return 0;
+        }
+
+        var maximum = Items.Max(item => item.Model.ZIndex);
+        if ((long)maximum + itemCount <= int.MaxValue)
+        {
+            return maximum + 1;
+        }
+
+        if ((long)Items.Count + itemCount - 1 > int.MaxValue)
+        {
+            throw new InvalidOperationException("The workspace contains too many items to assign a layer.");
+        }
+
+        NormalizeZIndices();
+        return Items.Count;
+    }
 
     public void AddPaths(IEnumerable<string> paths, WorldPoint start)
     {
         EnsureWritable();
+        var pathsToAdd = paths
+            .Where(PathResolver.Exists)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (pathsToAdd.Count == 0)
+        {
+            return;
+        }
+
         var models = new List<BoardItem>();
+        var nextZIndex = NextZIndex(pathsToAdd.Count);
         var index = 0;
-        foreach (var path in paths.Where(PathResolver.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (var path in pathsToAdd)
         {
             var column = index % 4;
             var row = index / 4;
@@ -201,7 +232,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
                 _path,
                 path,
                 new WorldPoint(start.X + (column * 28), start.Y + (row * 28)),
-                NextZIndex() + index));
+                nextZIndex + index));
             index++;
         }
 
@@ -279,7 +310,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         var minX = originals.Min(item => item.Bounds.X);
         var minY = originals.Min(item => item.Bounds.Y);
         var idMap = originals.ToDictionary(item => item.Id, _ => Guid.NewGuid());
-        var nextZ = NextZIndex();
+        var nextZ = NextZIndex(originals.Count);
         for (var index = 0; index < originals.Count; index++)
         {
             var item = originals[index];
@@ -637,6 +668,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
             .OrderBy(item => item.Model.ZIndex)
             .ThenBy(item => item.Model.CreatedUtc)
             .ToList();
+        var beforeOrder = ordered.Select(item => item.Id).ToList();
         var before = ordered.ToDictionary(item => item.Id, item => item.Model.ZIndex);
         switch (move)
         {
@@ -676,13 +708,14 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
                 throw new ArgumentOutOfRangeException(nameof(move));
         }
 
-        var after = ordered
-            .Select((item, index) => (item.Id, ZIndex: index))
-            .ToDictionary(entry => entry.Id, entry => entry.ZIndex);
-        if (before.All(pair => after.TryGetValue(pair.Key, out var value) && value == pair.Value))
+        if (beforeOrder.SequenceEqual(ordered.Select(item => item.Id)))
         {
             return;
         }
+
+        var after = ordered
+            .Select((item, index) => (item.Id, ZIndex: index))
+            .ToDictionary(entry => entry.Id, entry => entry.ZIndex);
 
         ApplyZIndices(after);
         _history.PushExecuted(
@@ -1191,6 +1224,16 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
             }
         }
         VisualInvalidated?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void NormalizeZIndices()
+    {
+        var normalized = Items
+            .OrderBy(item => item.Model.ZIndex)
+            .ThenBy(item => item.Model.CreatedUtc)
+            .Select((item, index) => (item.Id, ZIndex: index))
+            .ToDictionary(entry => entry.Id, entry => entry.ZIndex);
+        ApplyZIndices(normalized);
     }
 
     private static bool LayoutsEqual(
