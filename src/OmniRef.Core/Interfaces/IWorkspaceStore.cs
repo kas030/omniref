@@ -7,6 +7,12 @@ public interface IWorkspaceStore
     IWorkspaceFileLease AcquireFileLease(string path);
     Task<WorkspaceOpenResult> OpenAsync(string path, CancellationToken cancellationToken = default);
     Task SaveAsync(string path, WorkspaceDocument document, CancellationToken cancellationToken = default);
+    Task SaveViewportAsync(
+        string path,
+        WorldPoint origin,
+        double zoom,
+        DateTimeOffset modifiedUtc,
+        CancellationToken cancellationToken = default);
     Task SaveAsAsync(string sourcePath, string destinationPath, WorkspaceDocument document, CancellationToken cancellationToken = default);
     Task<EmbeddedAssetInfo> ImportEmbeddedAssetAsync(
         string workspacePath,

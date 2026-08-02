@@ -59,6 +59,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     private string? _saveError;
     private int _changeVersion;
     private int _savedVersion;
+    private bool _requiresFullSave;
     private int _interactionDepth;
     private bool _disposed;
 
@@ -486,7 +487,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         Document.ViewportOrigin = origin;
         Document.Zoom = zoom;
         OnPropertyChanged(nameof(ZoomPercentText));
-        MarkDirty();
+        MarkDirty(requiresFullSave: false);
         if (interactionComplete && _interactionDepth == 0)
         {
             RestartSaveTimer();
@@ -875,6 +876,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         IsRecovery = false;
         IsBackingFileMissing = false;
         _savedVersion = _changeVersion;
+        _requiresFullSave = false;
         SaveState = WorkspaceSaveState.Saved;
         SaveError = null;
         OnPropertyChanged(nameof(Path));
@@ -1192,13 +1194,14 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         first.Count == second.Count &&
         first.All(pair => second.TryGetValue(pair.Key, out var value) && pair.Value == value);
 
-    private void MarkDirty()
+    private void MarkDirty(bool requiresFullSave = true)
     {
         if (IsReadOnly)
         {
             return;
         }
         _changeVersion++;
+        _requiresFullSave |= requiresFullSave;
         SaveState = IsBackingFileMissing
             ? WorkspaceSaveState.Failed
             : WorkspaceSaveState.Unsaved;
@@ -1238,13 +1241,37 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         await _saveGate.WaitAsync(cancellationToken).ConfigureAwait(true);
         try
         {
+            if (!IsDirty)
+            {
+                return;
+            }
+
             var version = _changeVersion;
-            var snapshot = BuildSnapshot();
+            var requiresFullSave = _requiresFullSave;
+            if (requiresFullSave)
+            {
+                _requiresFullSave = false;
+            }
             SaveState = WorkspaceSaveState.Saving;
             SaveError = null;
             try
             {
-                await _store.SaveAsync(_path, snapshot, cancellationToken).ConfigureAwait(true);
+                if (requiresFullSave)
+                {
+                    var snapshot = BuildSnapshot();
+                    await _store.SaveAsync(_path, snapshot, cancellationToken).ConfigureAwait(true);
+                }
+                else
+                {
+                    Document.ModifiedUtc = DateTimeOffset.UtcNow;
+                    await _store.SaveViewportAsync(
+                            _path,
+                            Document.ViewportOrigin,
+                            Document.Zoom,
+                            Document.ModifiedUtc,
+                            cancellationToken)
+                        .ConfigureAwait(true);
+                }
                 if (_changeVersion == version)
                 {
                     _savedVersion = version;
@@ -1262,9 +1289,15 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
                 exception is IOException or UnauthorizedAccessException or InvalidDataException or
                     Microsoft.Data.Sqlite.SqliteException)
             {
+                _requiresFullSave |= requiresFullSave;
                 SaveState = WorkspaceSaveState.Failed;
                 SaveError = exception.Message;
                 _logger.Error($"Could not save workspace {_path}.", exception);
+            }
+            catch
+            {
+                _requiresFullSave |= requiresFullSave;
+                throw;
             }
         }
         finally

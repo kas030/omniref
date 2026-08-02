@@ -157,6 +157,33 @@ public sealed class MainWindowViewModelTests : IDisposable
         Assert.Equal(savesBeforeRetry + 1, _store.SaveCount);
     }
 
+    [Fact]
+    public async Task ViewportChange_UsesMetadataOnlySave()
+    {
+        var workspace = await _viewModel.CreateNewAsync(includeWelcomeContent: false);
+        var fullSaves = _store.SaveCount;
+
+        workspace.SetViewport(new WorldPoint(120, -45), 1.75, interactionComplete: true);
+        await workspace.FlushAsync();
+
+        Assert.Equal(fullSaves, _store.SaveCount);
+        Assert.Equal(1, _store.ViewportSaveCount);
+    }
+
+    [Fact]
+    public async Task ContentChange_WithViewportChange_UsesFullSave()
+    {
+        var workspace = await _viewModel.CreateNewAsync(includeWelcomeContent: false);
+        var fullSaves = _store.SaveCount;
+
+        workspace.SetViewport(new WorldPoint(120, -45), 1.75, interactionComplete: true);
+        workspace.AddText("Changed", new WorldPoint(10, 20));
+        await workspace.FlushAsync();
+
+        Assert.Equal(fullSaves + 1, _store.SaveCount);
+        Assert.Equal(0, _store.ViewportSaveCount);
+    }
+
     public void Dispose()
     {
         _viewModel.Dispose();
@@ -172,6 +199,7 @@ public sealed class MainWindowViewModelTests : IDisposable
         public WorkspaceDocument? SavedAsDocument { get; private set; }
         public TestWorkspaceFileLease? LastLease { get; private set; }
         public int SaveCount { get; private set; }
+        public int ViewportSaveCount { get; private set; }
         public WorkspaceDocument? RestoredDocument { get; set; }
 
         public IWorkspaceFileLease AcquireFileLease(string path)
@@ -193,6 +221,17 @@ public sealed class MainWindowViewModelTests : IDisposable
             CancellationToken cancellationToken = default)
         {
             SaveCount++;
+            return Task.CompletedTask;
+        }
+
+        public Task SaveViewportAsync(
+            string path,
+            WorldPoint origin,
+            double zoom,
+            DateTimeOffset modifiedUtc,
+            CancellationToken cancellationToken = default)
+        {
+            ViewportSaveCount++;
             return Task.CompletedTask;
         }
 

@@ -104,6 +104,25 @@ public sealed class SqliteWorkspaceStoreTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task SaveViewport_UpdatesOnlyWorkspaceMetadata()
+    {
+        var path = Path.Combine(_directory, "viewport.omniref");
+        var document = CreateDocument();
+        using var store = new SqliteWorkspaceStore();
+        await store.SaveAsync(path, document);
+        var itemIds = document.Items.Select(item => item.Id).ToArray();
+        var modifiedUtc = DateTimeOffset.UtcNow.AddMinutes(1);
+
+        await store.SaveViewportAsync(path, new WorldPoint(300, -175), 2.25, modifiedUtc);
+        var opened = await store.OpenAsync(path);
+
+        Assert.Equal(new WorldPoint(300, -175), opened.Document.ViewportOrigin);
+        Assert.Equal(2.25, opened.Document.Zoom);
+        Assert.Equal(modifiedUtc, opened.Document.ModifiedUtc);
+        Assert.Equal(itemIds, opened.Document.Items.Select(item => item.Id));
+    }
+
+    [Fact]
     public async Task FileLease_PreventsWorkspaceDeletionUntilReleased()
     {
         var path = Path.Combine(_directory, "leased.omniref");

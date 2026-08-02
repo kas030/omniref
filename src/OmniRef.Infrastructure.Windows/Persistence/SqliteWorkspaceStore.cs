@@ -71,6 +71,30 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
         }
     }
 
+    public async Task SaveViewportAsync(
+        string path,
+        WorldPoint origin,
+        double zoom,
+        DateTimeOffset modifiedUtc,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        var fullPath = Path.GetFullPath(path);
+
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await Task.Run(
+                    () => SaveViewportCore(fullPath, origin, zoom, modifiedUtc, cancellationToken),
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public async Task SaveAsAsync(
         string sourcePath,
         string destinationPath,
@@ -419,6 +443,38 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
         }
 
         SaveTags(connection, transaction, document.Items);
+        transaction.Commit();
+    }
+
+    private static void SaveViewportCore(
+        string path,
+        WorldPoint origin,
+        double zoom,
+        DateTimeOffset modifiedUtc,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var connection = OpenConnection(path, readOnly: false);
+        if (!HasWorkspaceSchema(connection))
+        {
+            throw new InvalidDataException("The selected file is not an OmniRef workspace.");
+        }
+
+        var diskVersion = ReadIntMeta(connection, "schema_version");
+        if (diskVersion > WorkspaceDocument.CurrentSchemaVersion)
+        {
+            throw new InvalidOperationException("A newer workspace cannot be overwritten.");
+        }
+        if (diskVersion < WorkspaceDocument.CurrentSchemaVersion)
+        {
+            throw new InvalidOperationException("An older workspace cannot be overwritten.");
+        }
+
+        using var transaction = connection.BeginTransaction();
+        WriteMetaValue(connection, transaction, "modified_utc", FormatDate(modifiedUtc));
+        WriteMetaValue(connection, transaction, "viewport_x", origin.X.ToString("R", CultureInfo.InvariantCulture));
+        WriteMetaValue(connection, transaction, "viewport_y", origin.Y.ToString("R", CultureInfo.InvariantCulture));
+        WriteMetaValue(connection, transaction, "zoom", zoom.ToString("R", CultureInfo.InvariantCulture));
         transaction.Commit();
     }
 
