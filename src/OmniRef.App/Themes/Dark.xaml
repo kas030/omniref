@@ -20,6 +20,7 @@
     <SolidColorBrush x:Key="WindowBackgroundBrush" Color="{StaticResource WindowBackgroundColor}" />
     <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}" />
     <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="{StaticResource SurfaceRaisedColor}" />
+    <SolidColorBrush x:Key="ToolTipBackgroundBrush" Color="{StaticResource SurfaceRaisedColor}" />
     <SolidColorBrush x:Key="WorkspaceTabInactiveBrush" Color="{StaticResource WorkspaceTabInactiveColor}" />
     <SolidColorBrush x:Key="WorkspaceTabHoverBrush" Color="{StaticResource WorkspaceTabHoverColor}" />
     <SolidColorBrush x:Key="WorkspaceTabActiveBrush" Color="{StaticResource WorkspaceTabActiveColor}" />
