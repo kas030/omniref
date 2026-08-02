@@ -10,17 +10,33 @@ public static class SmoothScrollBehavior
 {
     private static readonly ConditionalWeakTable<ScrollViewer, AnimationState> States = new();
 
+    static SmoothScrollBehavior()
+    {
+        EventManager.RegisterClassHandler(
+            typeof(ScrollViewer),
+            UIElement.PreviewMouseWheelEvent,
+            new MouseWheelEventHandler(OnPreviewMouseWheel));
+    }
+
     public static readonly DependencyProperty IsEnabledProperty = DependencyProperty.RegisterAttached(
         "IsEnabled",
         typeof(bool),
         typeof(SmoothScrollBehavior),
-        new PropertyMetadata(false, OnIsEnabledChanged));
+        new FrameworkPropertyMetadata(
+            true,
+            FrameworkPropertyMetadataOptions.Inherits,
+            OnIsEnabledChanged));
 
     public static bool GetIsEnabled(DependencyObject element) =>
         (bool)element.GetValue(IsEnabledProperty);
 
     public static void SetIsEnabled(DependencyObject element, bool value) =>
         element.SetValue(IsEnabledProperty, value);
+
+    public static void Initialize()
+    {
+        // Calling this method guarantees that the static class handler is registered at startup.
+    }
 
     public static bool ScrollBy(ScrollViewer scrollViewer, double horizontalDelta, double verticalDelta)
     {
@@ -60,29 +76,19 @@ public static class SmoothScrollBehavior
         DependencyObject dependencyObject,
         DependencyPropertyChangedEventArgs eventArgs)
     {
-        if (dependencyObject is not ScrollViewer scrollViewer)
+        if (!(bool)eventArgs.NewValue &&
+            dependencyObject is ScrollViewer scrollViewer &&
+            States.TryGetValue(scrollViewer, out var state))
         {
-            throw new InvalidOperationException(
-                $"{nameof(SmoothScrollBehavior)} can only be attached to a ScrollViewer.");
-        }
-
-        if ((bool)eventArgs.NewValue)
-        {
-            scrollViewer.PreviewMouseWheel += OnPreviewMouseWheel;
-        }
-        else
-        {
-            scrollViewer.PreviewMouseWheel -= OnPreviewMouseWheel;
-            if (States.TryGetValue(scrollViewer, out var state))
-            {
-                state.Stop();
-            }
+            state.Stop();
         }
     }
 
     private static void OnPreviewMouseWheel(object sender, MouseWheelEventArgs eventArgs)
     {
-        if (sender is not ScrollViewer scrollViewer || eventArgs.Delta == 0)
+        if (sender is not ScrollViewer scrollViewer ||
+            !GetIsEnabled(scrollViewer) ||
+            eventArgs.Delta == 0)
         {
             return;
         }

@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
+using OmniRef.App.Controls;
 using OmniRef.App.Services;
 using OmniRef.App.ViewModels;
 using OmniRef.Core.Services;
@@ -29,6 +30,7 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs eventArgs)
     {
         base.OnStartup(eventArgs);
+        SmoothScrollBehavior.Initialize();
         if (eventArgs.Args.Length >= 2 &&
             eventArgs.Args[0].Equals("--create-sample", StringComparison.OrdinalIgnoreCase))
         {

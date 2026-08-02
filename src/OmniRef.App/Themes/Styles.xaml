@@ -447,6 +447,13 @@
         </Setter>
     </Style>
 
+    <Style x:Key="SidebarScrollViewer"
+           TargetType="{x:Type ScrollViewer}">
+        <Setter Property="Margin" Value="0,0,-8,0" />
+        <Setter Property="Padding" Value="0,0,8,0" />
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+    </Style>
+
     <Style TargetType="{x:Type TextBox}">
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
         <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
@@ -484,6 +491,15 @@
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel" />
+    </Style>
+
+    <Style x:Key="SidebarListBox"
+           TargetType="{x:Type ListBox}"
+           BasedOn="{StaticResource {x:Type ListBox}}">
+        <Setter Property="Margin" Value="0,0,-8,0" />
+        <Setter Property="Padding" Value="0,0,8,0" />
+        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
     </Style>
 
     <Style TargetType="{x:Type ListBoxItem}">

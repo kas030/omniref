@@ -165,7 +165,6 @@
                              ScrollViewer.HorizontalScrollBarVisibility="Hidden"
                              ScrollViewer.VerticalScrollBarVisibility="Disabled"
                              ScrollViewer.CanContentScroll="False"
-                             PreviewMouseWheel="WorkspaceTabs_PreviewMouseWheel"
                              PreviewMouseLeftButtonDown="WorkspaceTabs_PreviewMouseLeftButtonDown"
                              PreviewMouseMove="WorkspaceTabs_PreviewMouseMove"
                              MouseLeave="WorkspaceTabs_MouseLeave">
@@ -372,7 +371,6 @@
                     <ScrollViewer x:Name="ToolbarScrollViewer"
                                   HorizontalScrollBarVisibility="Hidden"
                                   VerticalScrollBarVisibility="Disabled"
-                                  PreviewMouseWheel="ToolbarScrollViewer_PreviewMouseWheel"
                                   ScrollChanged="ToolbarScrollViewer_ScrollChanged">
                         <StackPanel Orientation="Horizontal" Margin="6,3">
                     <ToggleButton Style="{StaticResource ToolbarToggleButton}"
@@ -644,17 +642,9 @@
                     </Grid>
 
                     <ListBox Grid.Row="1"
-                             Margin="0,0,-8,0"
-                             Padding="0,0,8,0"
+                             Style="{StaticResource SidebarListBox}"
                              ItemsSource="{Binding SelectedWorkspace.SearchResults}"
-                             ScrollViewer.CanContentScroll="False"
-                             ScrollViewer.VerticalScrollBarVisibility="Auto"
                              PreviewMouseLeftButtonUp="SearchResult_Click">
-                        <ListBox.Resources>
-                            <Style TargetType="{x:Type ScrollViewer}">
-                                <Setter Property="controls:SmoothScrollBehavior.IsEnabled" Value="True" />
-                            </Style>
-                        </ListBox.Resources>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel>
@@ -678,10 +668,7 @@
                             Background="{DynamicResource BorderBrush}" />
 
                     <ScrollViewer Grid.Row="3"
-                                  Margin="0,0,-8,0"
-                                  Padding="0,0,8,0"
-                                  controls:SmoothScrollBehavior.IsEnabled="True"
-                                  VerticalScrollBarVisibility="Auto">
+                                  Style="{StaticResource SidebarScrollViewer}">
                         <ContentControl Content="{Binding SelectedWorkspace.SelectedItem, FallbackValue={x:Null}}"
                                         Visibility="{Binding SelectedWorkspace.SelectedItem, Converter={StaticResource NullToVisibility}, FallbackValue=Collapsed}">
                             <ContentControl.ContentTemplate>

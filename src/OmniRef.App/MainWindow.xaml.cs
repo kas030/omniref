@@ -582,18 +582,6 @@ public partial class MainWindow : Window
     private void WorkspaceTabsScrollRight_Click(object sender, RoutedEventArgs eventArgs) =>
         ScrollWorkspaceTabsBy(WorkspaceTabWidth + WorkspaceTabHorizontalMargin);
 
-    private void WorkspaceTabs_PreviewMouseWheel(object sender, MouseWheelEventArgs eventArgs)
-    {
-        var scrollViewer = FindVisualDescendant<ScrollViewer>(WorkspaceTabs);
-        if (scrollViewer is null || scrollViewer.ScrollableWidth <= 0 || eventArgs.Delta == 0)
-        {
-            return;
-        }
-
-        ScrollWorkspaceTabsBy(-eventArgs.Delta);
-        eventArgs.Handled = true;
-    }
-
     private void WorkspaceTabs_ScrollChanged(object sender, ScrollChangedEventArgs eventArgs) =>
         UpdateWorkspaceTabScrollButtons();
 
@@ -905,17 +893,6 @@ public partial class MainWindow : Window
 
     private void ToolbarScrollRight_Click(object sender, RoutedEventArgs eventArgs) =>
         ScrollToolbarBy(120);
-
-    private void ToolbarScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs eventArgs)
-    {
-        if (ToolbarScrollViewer.ScrollableWidth <= 0 || eventArgs.Delta == 0)
-        {
-            return;
-        }
-
-        ScrollToolbarBy(-eventArgs.Delta);
-        eventArgs.Handled = true;
-    }
 
     private void ToolbarScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs eventArgs) =>
         UpdateToolbarScrollButtons();
