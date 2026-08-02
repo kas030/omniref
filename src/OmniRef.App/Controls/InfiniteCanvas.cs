@@ -29,6 +29,9 @@ public sealed class InfiniteCanvas : Canvas
     private const double ResizeHandleSize = 8;
     private const double ResizeHandleHitSize = 14;
     private const double SelectedBorderThickness = 1.5;
+    private const double CardHorizontalPadding = 14;
+    private const double CardVerticalPadding = 12;
+    private const double TextLineHeightMultiplier = 1.35;
 
     public static readonly DependencyProperty WorkspaceProperty = DependencyProperty.Register(
         nameof(Workspace),
@@ -75,6 +78,7 @@ public sealed class InfiniteCanvas : Canvas
         AllowDrop = true;
         Background = Brushes.Transparent;
         SnapsToDevicePixels = true;
+        TextOptions.SetTextFormattingMode(this, TextFormattingMode.Ideal);
 
         MouseWheel += OnMouseWheel;
         MouseLeftButtonDown += OnMouseLeftButtonDown;
@@ -150,7 +154,7 @@ public sealed class InfiniteCanvas : Canvas
             AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            FontSize = GetTextFontSize(text),
+            FontSize = GetTextEditorFontSize(text),
             FontFamily = CardTextFontFamily,
             FontStyle = FontStyles.Normal,
             FontWeight = FontWeights.Normal,
@@ -212,9 +216,10 @@ public sealed class InfiniteCanvas : Canvas
             .OrderBy(item => item.Kind == ItemKind.Frame ? 0 : 1)
             .ThenBy(item => item.Model.ZIndex)
             .ToList();
+        var worldToScreen = CreateWorldToScreenTransform();
         foreach (var item in visibleItems)
         {
-            DrawItem(drawingContext, item);
+            DrawItem(drawingContext, item, worldToScreen);
         }
 
         if (_selectionBox.HasValue)
@@ -340,7 +345,10 @@ public sealed class InfiniteCanvas : Canvas
         }
     }
 
-    private void DrawItem(DrawingContext context, BoardItemViewModel item)
+    private void DrawItem(
+        DrawingContext context,
+        BoardItemViewModel item,
+        MatrixTransform worldToScreen)
     {
         var rect = ToScreenRect(item.Bounds);
         if (rect.Width < 2 || rect.Height < 2)
@@ -383,7 +391,7 @@ public sealed class InfiniteCanvas : Canvas
                 DrawFileCard(context, item, inner, isFolder: true);
                 break;
             case TextContent text when !ReferenceEquals(item, _editingItem):
-                DrawTextCard(context, item, inner, text);
+                DrawTextCard(context, item, text, worldToScreen);
                 break;
             case UrlContent url:
                 DrawUrlCard(context, item, inner, url);
@@ -514,22 +522,31 @@ public sealed class InfiniteCanvas : Canvas
     private void DrawTextCard(
         DrawingContext context,
         BoardItemViewModel item,
-        Rect inner,
-        TextContent text)
+        TextContent text,
+        MatrixTransform worldToScreen)
     {
-        var foreground = GetTextForeground(text);
-        var isOverflowing = DrawFormattedText(
-            context,
-            text.Text,
-            inner,
-            GetTextFontSize(text),
-            foreground,
-            FontWeights.Normal,
-            GetTextAlignment(text));
-        if (isOverflowing)
+        var inner = GetTextInnerWorldRect(item.Bounds);
+        context.PushTransform(worldToScreen);
+        try
         {
-            var background = GetTextBackground(text, item);
-            DrawTextOverflowIndicator(context, inner, foreground, background);
+            var foreground = GetTextForeground(text);
+            var isOverflowing = DrawFormattedText(
+                context,
+                text.Text,
+                inner,
+                GetTextWorldFontSize(text),
+                foreground,
+                FontWeights.Normal,
+                GetTextAlignment(text));
+            if (isOverflowing)
+            {
+                var background = GetTextBackground(text, item);
+                DrawTextOverflowIndicator(context, inner, foreground, background);
+            }
+        }
+        finally
+        {
+            context.Pop();
         }
     }
 
@@ -539,7 +556,7 @@ public sealed class InfiniteCanvas : Canvas
         Brush foreground,
         Brush background)
     {
-        var indicatorHeight = 24 * _zoom;
+        const double indicatorHeight = 24;
         var fadeHeight = Math.Min(textRect.Height, indicatorHeight * 1.6);
         var fadeRect = new Rect(
             textRect.X,
@@ -559,7 +576,7 @@ public sealed class InfiniteCanvas : Canvas
             context.DrawRectangle(fade, null, fadeRect);
         }
 
-        var indicatorWidth = 32 * _zoom;
+        const double indicatorWidth = 32;
         var indicatorRect = new Rect(
             textRect.Right - indicatorWidth,
             textRect.Bottom - indicatorHeight,
@@ -567,7 +584,7 @@ public sealed class InfiniteCanvas : Canvas
             indicatorHeight);
         context.DrawRoundedRectangle(
             background,
-            new Pen(WithOpacity(foreground, 0.22), 1),
+            new Pen(WithOpacity(foreground, 0.22), 1 / _zoom),
             indicatorRect,
             indicatorHeight / 2,
             indicatorHeight / 2);
@@ -575,7 +592,7 @@ public sealed class InfiniteCanvas : Canvas
             context,
             "\u2026",
             indicatorRect,
-            15 * _zoom,
+            15,
             foreground,
             FontWeights.SemiBold,
             TextAlignment.Center,
@@ -711,7 +728,7 @@ public sealed class InfiniteCanvas : Canvas
             Trimming = TextTrimming.CharacterEllipsis
         };
         var availableHeight = maxLines > 0
-            ? Math.Min(rect.Height, fontSize * 1.35 * maxLines)
+            ? Math.Min(rect.Height, fontSize * TextLineHeightMultiplier * maxLines)
             : rect.Height;
         var isOverflowing = formatted.Height > availableHeight + 0.5;
         formatted.MaxTextHeight = availableHeight;
@@ -885,7 +902,13 @@ public sealed class InfiniteCanvas : Canvas
                     if (_layoutBefore.TryGetValue(_resizeItem.Id, out var initial))
                     {
                         var minWidth = _resizeItem.Kind == ItemKind.Frame ? 240 : 80;
-                        var minHeight = _resizeItem.Kind == ItemKind.Frame ? 160 : 60;
+                        var minHeight = _resizeItem.Kind switch
+                        {
+                            ItemKind.Frame => 160,
+                            ItemKind.Text when _resizeItem.Model.Content is TextContent text =>
+                                GetMinimumTextCardHeight(text),
+                            _ => 60
+                        };
                         var isLeft = resizeCorner is ResizeCorner.TopLeft or ResizeCorner.BottomLeft;
                         var isTop = resizeCorner is ResizeCorner.TopLeft or ResizeCorner.TopRight;
                         var draggedX = (isLeft ? initial.Bounds.Left : initial.Bounds.Right) +
@@ -1218,17 +1241,28 @@ public sealed class InfiniteCanvas : Canvas
         _textEditor.Height = Math.Max(60, rect.Height);
         if (_editingItem.Model.Content is TextContent text)
         {
-            _textEditor.FontSize = GetTextFontSize(text);
+            _textEditor.FontSize = GetTextEditorFontSize(text);
             _textEditor.Padding = GetTextEditorPadding();
         }
     }
 
-    private double GetTextFontSize(TextContent text) => Math.Clamp(text.FontSize * _zoom, 6, 52);
+    private static double GetTextWorldFontSize(TextContent text) =>
+        double.IsFinite(text.FontSize) && text.FontSize > 0 ? text.FontSize : 18;
+
+    private double GetTextEditorFontSize(TextContent text) => GetTextWorldFontSize(text) * _zoom;
+
+    private double GetMinimumTextCardHeight(TextContent text)
+    {
+        // Keep the persisted card bounds large enough for one world-space line
+        // of text plus the fixed world-space top and bottom padding.
+        var lineHeight = GetTextWorldFontSize(text) * TextLineHeightMultiplier;
+        return Math.Max(60, lineHeight + (CardVerticalPadding * 2));
+    }
 
     private Thickness GetTextEditorPadding()
     {
-        var horizontal = Math.Clamp(12 * _zoom, 5, 16);
-        var vertical = Math.Clamp(12 * _zoom, 6, 16);
+        var horizontal = CardHorizontalPadding * _zoom;
+        var vertical = CardVerticalPadding * _zoom;
         return new Thickness(horizontal, vertical, horizontal, vertical);
     }
 
@@ -1290,6 +1324,25 @@ public sealed class InfiniteCanvas : Canvas
     {
         var topLeft = WorldToScreen(new WorldPoint(world.X, world.Y));
         return new Rect(topLeft.X, topLeft.Y, world.Width * _zoom, world.Height * _zoom);
+    }
+
+    private static Rect GetTextInnerWorldRect(WorldRect bounds) => new(
+        bounds.X + CardHorizontalPadding,
+        bounds.Y + CardVerticalPadding,
+        Math.Max(1, bounds.Width - (CardHorizontalPadding * 2)),
+        Math.Max(1, bounds.Height - (CardVerticalPadding * 2)));
+
+    private MatrixTransform CreateWorldToScreenTransform()
+    {
+        var transform = new MatrixTransform(new Matrix(
+            _zoom,
+            0,
+            0,
+            _zoom,
+            -_origin.X * _zoom,
+            -_origin.Y * _zoom));
+        transform.Freeze();
+        return transform;
     }
 
     private void DrawResizeHandles(DrawingContext context, Rect rect)
