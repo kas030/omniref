@@ -1380,12 +1380,60 @@ public partial class MainWindow : Window
         menu.IsOpen = true;
     }
 
+    private void SearchOptions_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        if (sender is not Button button || _viewModel.SelectedWorkspace is not { } workspace)
+        {
+            return;
+        }
+
+        var menu = CreateSidebarMenu(button);
+        AddSearchSortMenuItem(menu, workspace, "SortByLayer", SearchSortMode.Layer);
+        AddSearchSortMenuItem(menu, workspace, "SortByLastAccessed", SearchSortMode.LastAccessedUtc);
+        AddSearchSortMenuItem(menu, workspace, "SortByRelevance", SearchSortMode.Relevance);
+        menu.IsOpen = true;
+    }
+
     private static ContextMenu CreateToolbarMenu(Button button) => new()
     {
         PlacementTarget = button,
         Placement = PlacementMode.Bottom,
         VerticalOffset = 8
     };
+
+    private static ContextMenu CreateSidebarMenu(Button button) => new()
+    {
+        PlacementTarget = button,
+        Placement = PlacementMode.Right,
+        HorizontalOffset = 16
+    };
+
+    private void AddSearchSortMenuItem(
+        ContextMenu menu,
+        WorkspaceViewModel workspace,
+        string localizationKey,
+        SearchSortMode sortMode)
+    {
+        var isSelected = workspace.SearchSortMode == sortMode;
+        var item = new MenuItem
+        {
+            Header = _viewModel.Localization[localizationKey],
+            Icon = new FluentIcon
+            {
+                Icon = (Icon)Symbol.Checkmark,
+                Width = 18,
+                Height = 18,
+                FontSize = 18,
+                Visibility = isSelected ? Visibility.Visible : Visibility.Hidden
+            }
+        };
+        item.Click += (_, _) =>
+        {
+            workspace.SearchSortMode = sortMode;
+            menu.IsOpen = false;
+        };
+        menu.Items.Add(item);
+    }
 
     private void TextAlignment_Click(object sender, RoutedEventArgs eventArgs)
     {

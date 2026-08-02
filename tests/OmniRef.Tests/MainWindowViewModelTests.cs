@@ -140,6 +140,67 @@ public sealed class MainWindowViewModelTests : IDisposable
         Assert.Empty(workspace.SearchQuery);
         Assert.Equal(2, workspace.SearchResults.Count);
         Assert.All(workspace.Items, item => Assert.Contains(item, workspace.SearchResults));
+        Assert.Equal([2, 1], workspace.SearchResults.Select(item => item.Model.ZIndex));
+    }
+
+    [Fact]
+    public async Task SearchSortMode_LastAccessedUtcOrdersNewestFirst()
+    {
+        var oldest = SearchItem("Oldest", 30, DateTimeOffset.UtcNow.AddDays(-3));
+        var newest = SearchItem("Newest", 10, DateTimeOffset.UtcNow.AddDays(-1));
+        var middle = SearchItem("Middle", 20, DateTimeOffset.UtcNow.AddDays(-2));
+        _store.RestoredDocument = new WorkspaceDocument { Items = [oldest, newest, middle] };
+
+        var workspace = await _viewModel.OpenAsync(Path.Combine(_directory, "Recent.omniref"));
+
+        Assert.NotNull(workspace);
+        workspace.SearchSortMode = SearchSortMode.LastAccessedUtc;
+
+        Assert.Equal(
+            ["Newest", "Middle", "Oldest"],
+            workspace.SearchResults.Select(item => item.Model.Title));
+    }
+
+    [Fact]
+    public async Task SearchSortMode_RelevanceOrdersScoresAndKeepsLayerOrderForTies()
+    {
+        var fuzzy = SearchItem("Gogle", 20, DateTimeOffset.UtcNow);
+        var exact = SearchItem("Google", 10, DateTimeOffset.UtcNow);
+        _store.RestoredDocument = new WorkspaceDocument { Items = [fuzzy, exact] };
+
+        var workspace = await _viewModel.OpenAsync(Path.Combine(_directory, "Relevance.omniref"));
+
+        Assert.NotNull(workspace);
+        workspace.SearchQuery = "google";
+        workspace.SearchSortMode = SearchSortMode.Relevance;
+
+        Assert.Equal(
+            ["Google", "Gogle"],
+            workspace.SearchResults.Select(item => item.Model.Title));
+
+        workspace.SearchQuery = string.Empty;
+
+        Assert.Equal(["Gogle", "Google"], workspace.SearchResults.Select(item => item.Model.Title));
+    }
+
+    [Fact]
+    public async Task SearchSortMode_LastAccessedUtcReordersAfterSuccessfulOpen()
+    {
+        var older = BoardItemFactory.Url("https://older.example.com", new WorldPoint(0, 0), 10);
+        older.LastAccessedUtc = DateTimeOffset.UtcNow.AddDays(-2);
+        var newer = BoardItemFactory.Url("https://newer.example.com", new WorldPoint(20, 20), 20);
+        newer.LastAccessedUtc = DateTimeOffset.UtcNow.AddDays(-1);
+        _store.RestoredDocument = new WorkspaceDocument { Items = [older, newer] };
+
+        var workspace = await _viewModel.OpenAsync(Path.Combine(_directory, "Access sort.omniref"));
+
+        Assert.NotNull(workspace);
+        workspace.SearchSortMode = SearchSortMode.LastAccessedUtc;
+        Assert.Equal([newer.Id, older.Id], workspace.SearchResults.Select(item => item.Id));
+
+        await workspace.OpenItemAsync(workspace.Items.Single(item => item.Id == older.Id));
+
+        Assert.Equal([older.Id, newer.Id], workspace.SearchResults.Select(item => item.Id));
     }
 
     [Fact]
@@ -317,6 +378,15 @@ public sealed class MainWindowViewModelTests : IDisposable
             Directory.Delete(_directory, recursive: true);
         }
     }
+
+    private static BoardItem SearchItem(string title, int zIndex, DateTimeOffset lastAccessedUtc) => new()
+    {
+        Title = title,
+        Kind = ItemKind.Text,
+        Content = new TextContent(title),
+        ZIndex = zIndex,
+        LastAccessedUtc = lastAccessedUtc
+    };
 
     private sealed class TestWorkspaceStore : IWorkspaceStore
     {

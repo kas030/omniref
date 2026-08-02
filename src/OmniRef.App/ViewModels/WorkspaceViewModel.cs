@@ -40,6 +40,13 @@ public enum LayerMove
     SendToBack
 }
 
+public enum SearchSortMode
+{
+    Layer,
+    LastAccessedUtc,
+    Relevance
+}
+
 public sealed class WorkspaceViewModel : ObservableObject, IDisposable
 {
     private readonly IWorkspaceStore _store;
@@ -55,6 +62,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     private readonly UndoHistory _history = new(100);
     private string _path;
     private string _searchQuery = string.Empty;
+    private SearchSortMode _searchSortMode = SearchSortMode.Layer;
     private WorkspaceSaveState _saveState;
     private string? _saveError;
     private int _changeVersion;
@@ -165,6 +173,18 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         set
         {
             if (SetProperty(ref _searchQuery, value))
+            {
+                UpdateSearch();
+            }
+        }
+    }
+
+    public SearchSortMode SearchSortMode
+    {
+        get => _searchSortMode;
+        set
+        {
+            if (SetProperty(ref _searchSortMode, value))
             {
                 UpdateSearch();
             }
@@ -1378,9 +1398,19 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     private void UpdateSearch()
     {
         SearchResults.Clear();
-        foreach (var result in WorkspaceSearch.Search(Items.Select(item => item.Model), SearchQuery))
+        var results = WorkspaceSearch.SearchWithScores(
+            Items.Select(item => item.Model),
+            SearchQuery);
+        IEnumerable<WorkspaceSearchResult> orderedResults = SearchSortMode switch
         {
-            var viewModel = Items.FirstOrDefault(item => item.Id == result.Id);
+            SearchSortMode.LastAccessedUtc => results.OrderByDescending(result => result.Item.LastAccessedUtc),
+            SearchSortMode.Relevance => results.OrderByDescending(result => result.Score),
+            _ => results
+        };
+
+        foreach (var result in orderedResults)
+        {
+            var viewModel = Items.FirstOrDefault(item => item.Id == result.Item.Id);
             if (viewModel is not null)
             {
                 SearchResults.Add(viewModel);

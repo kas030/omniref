@@ -627,8 +627,15 @@
                     </Grid.RowDefinitions>
 
                     <Grid Grid.Row="0" Margin="0,0,0,8">
-                        <TextBox Text="{Binding SelectedWorkspace.SearchQuery, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Margin="10,0"
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0"
+                                 Padding="32,7,9,7"
+                                 Text="{Binding SelectedWorkspace.SearchQuery, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Grid.Column="0"
+                                   Margin="32,0,10,0"
                                    VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                    IsHitTestVisible="False"
@@ -647,6 +654,30 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
+                        <icons:FluentIcon Grid.Column="0"
+                                          Width="16"
+                                          Height="16"
+                                          Margin="10,0,0,0"
+                                          HorizontalAlignment="Left"
+                                          VerticalAlignment="Center"
+                                          Foreground="{DynamicResource TextSecondaryBrush}"
+                                          IsHitTestVisible="False"
+                                          Style="{StaticResource ToolbarIcon}"
+                                          Icon="Search" />
+                        <Button Grid.Column="1"
+                                Margin="4,0,0,0"
+                                Style="{StaticResource ToolbarButton}"
+                                Click="SearchOptions_Click"
+                                ToolTip="{Binding Localization[SearchOptions]}"
+                                AutomationProperties.Name="{Binding Localization[SearchOptions]}">
+                            <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                              Icon="Options"
+                                              RenderTransformOrigin="0.5,0.5">
+                                <icons:FluentIcon.RenderTransform>
+                                    <RotateTransform Angle="90" />
+                                </icons:FluentIcon.RenderTransform>
+                            </icons:FluentIcon>
+                        </Button>
                     </Grid>
 
                     <ListBox Grid.Row="1"
