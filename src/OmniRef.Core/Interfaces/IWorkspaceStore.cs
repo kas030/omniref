@@ -11,7 +11,7 @@ public interface IWorkspaceStore
         string path,
         WorldPoint origin,
         double zoom,
-        DateTimeOffset modifiedUtc,
+        DateTimeOffset lastAccessedUtc,
         CancellationToken cancellationToken = default);
     Task SaveAsAsync(string sourcePath, string destinationPath, WorkspaceDocument document, CancellationToken cancellationToken = default);
     Task<EmbeddedAssetInfo> ImportEmbeddedAssetAsync(

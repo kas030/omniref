@@ -230,6 +230,12 @@ public sealed class BoardItemViewModel : ObservableObject
         VisualChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    public void RecordAccess(DateTimeOffset accessedUtc)
+    {
+        Model.LastAccessedUtc = accessedUtc;
+        ModelChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     private void ReplaceTextContent(TextContent content)
     {
         if (Equals(Model.Content, content))
@@ -270,7 +276,6 @@ public sealed class BoardItemViewModel : ObservableObject
 
     private void Touch()
     {
-        Model.ModifiedUtc = DateTimeOffset.UtcNow;
         ModelChanged?.Invoke(this, EventArgs.Empty);
         VisualChanged?.Invoke(this, EventArgs.Empty);
     }

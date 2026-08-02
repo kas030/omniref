@@ -12,8 +12,8 @@ public static class WorkspaceSearch
             .Where(item => normalized.Length == 0 || SearchableText(item).Contains(
                 normalized,
                 CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace))
-            .OrderByDescending(item => item.ModifiedUtc)
-            .ThenBy(item => item.Title, StringComparer.CurrentCultureIgnoreCase)
+            .OrderByDescending(item => item.Kind != ItemKind.Frame)
+            .ThenByDescending(item => item.ZIndex)
             .ToList();
     }
 

@@ -40,6 +40,7 @@ public sealed class SqliteWorkspaceStoreTests : IAsyncLifetime
         Assert.Equal(document.Id, opened.Document.Id);
         Assert.Equal(document.Zoom, opened.Document.Zoom);
         Assert.Equal(document.Items.Count, opened.Document.Items.Count);
+        Assert.All(opened.Document.Items, item => Assert.NotEqual(default, item.LastAccessedUtc));
         Assert.Equal(
             Enum.GetValues<ItemKind>().Order(),
             opened.Document.Items.Select(item => item.Kind).Order());
@@ -111,15 +112,54 @@ public sealed class SqliteWorkspaceStoreTests : IAsyncLifetime
         using var store = new SqliteWorkspaceStore();
         await store.SaveAsync(path, document);
         var itemIds = document.Items.Select(item => item.Id).ToArray();
-        var modifiedUtc = DateTimeOffset.UtcNow.AddMinutes(1);
+        var lastAccessedUtc = DateTimeOffset.UtcNow.AddMinutes(-1);
 
-        await store.SaveViewportAsync(path, new WorldPoint(300, -175), 2.25, modifiedUtc);
+        await store.SaveViewportAsync(path, new WorldPoint(300, -175), 2.25, lastAccessedUtc);
+        Assert.Equal(
+            lastAccessedUtc,
+            DateTimeOffset.Parse(
+                ReadMetaValue(path, "last_accessed_utc"),
+                System.Globalization.CultureInfo.InvariantCulture));
         var opened = await store.OpenAsync(path);
 
         Assert.Equal(new WorldPoint(300, -175), opened.Document.ViewportOrigin);
         Assert.Equal(2.25, opened.Document.Zoom);
-        Assert.Equal(modifiedUtc, opened.Document.ModifiedUtc);
+        Assert.True(opened.Document.LastAccessedUtc > lastAccessedUtc);
         Assert.Equal(itemIds, opened.Document.Items.Select(item => item.Id));
+    }
+
+    [Fact]
+    public async Task NewWorkspace_UsesDevelopmentSchemaV1AndLastAccessedFields()
+    {
+        var path = Path.Combine(_directory, "schema-v1.omniref");
+        using var store = new SqliteWorkspaceStore();
+
+        await store.SaveAsync(path, CreateDocument());
+
+        Assert.Equal(1, ReadSchemaVersion(path));
+        Assert.Contains("last_accessed_utc", ReadItemColumns(path));
+        Assert.DoesNotContain("modified_utc", ReadItemColumns(path));
+        Assert.Contains("last_accessed_utc", ReadMetaKeys(path));
+        Assert.DoesNotContain("modified_utc", ReadMetaKeys(path));
+    }
+
+    [Fact]
+    public async Task OpenWritableWorkspace_UpdatesWorkspaceLastAccessedTime()
+    {
+        var path = Path.Combine(_directory, "last-accessed.omniref");
+        var originalAccess = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        using var store = new SqliteWorkspaceStore();
+        await store.SaveAsync(path, CreateDocument());
+        SetMetaValue(path, "last_accessed_utc", originalAccess.ToString("O"));
+
+        var opened = await store.OpenAsync(path);
+
+        Assert.True(opened.Document.LastAccessedUtc > originalAccess);
+        Assert.Equal(
+            opened.Document.LastAccessedUtc,
+            DateTimeOffset.Parse(
+                ReadMetaValue(path, "last_accessed_utc"),
+                System.Globalization.CultureInfo.InvariantCulture));
     }
 
     [Fact]
@@ -237,6 +277,59 @@ public sealed class SqliteWorkspaceStoreTests : IAsyncLifetime
         return int.Parse(
             (string)command.ExecuteScalar()!,
             System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static string ReadMetaValue(string path, string key)
+    {
+        using var connection = new SqliteConnection($"Data Source={path};Mode=ReadOnly;Pooling=False");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT value FROM workspace_meta WHERE key = $key;";
+        command.Parameters.AddWithValue("$key", key);
+        return (string)command.ExecuteScalar()!;
+    }
+
+    private static void SetMetaValue(string path, string key, string value)
+    {
+        using var connection = new SqliteConnection($"Data Source={path};Pooling=False");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE workspace_meta SET value = $value WHERE key = $key;";
+        command.Parameters.AddWithValue("$key", key);
+        command.Parameters.AddWithValue("$value", value);
+        command.ExecuteNonQuery();
+    }
+
+    private static HashSet<string> ReadItemColumns(string path)
+    {
+        using var connection = new SqliteConnection($"Data Source={path};Mode=ReadOnly;Pooling=False");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA table_info(items);";
+        using var reader = command.ExecuteReader();
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        while (reader.Read())
+        {
+            columns.Add(reader.GetString(1));
+        }
+
+        return columns;
+    }
+
+    private static HashSet<string> ReadMetaKeys(string path)
+    {
+        using var connection = new SqliteConnection($"Data Source={path};Mode=ReadOnly;Pooling=False");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT key FROM workspace_meta;";
+        using var reader = command.ExecuteReader();
+        var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        while (reader.Read())
+        {
+            keys.Add(reader.GetString(0));
+        }
+
+        return keys;
     }
 
 }

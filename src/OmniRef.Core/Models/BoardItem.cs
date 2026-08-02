@@ -12,7 +12,7 @@ public sealed class BoardItem
     public ItemContent Content { get; set; } = new TextContent(string.Empty);
     public List<string> Tags { get; set; } = [];
     public DateTimeOffset CreatedUtc { get; set; } = DateTimeOffset.UtcNow;
-    public DateTimeOffset ModifiedUtc { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset LastAccessedUtc { get; set; } = DateTimeOffset.UtcNow;
 
     public BoardItem DeepClone() => new()
     {
@@ -35,6 +35,6 @@ public sealed class BoardItem
         },
         Tags = [.. Tags],
         CreatedUtc = CreatedUtc,
-        ModifiedUtc = ModifiedUtc
+        LastAccessedUtc = LastAccessedUtc
     };
 }

@@ -193,22 +193,26 @@ public sealed class CoreServicesTests
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public void Search_EmptyQueryReturnsAllItems(string query)
+    public void Search_OrdersCardsAndFramesFromTopLayerToBottom(string query)
     {
-        var older = new BoardItem
+        var bottomCard = new BoardItem
         {
-            Title = "Older",
-            ModifiedUtc = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)
+            Title = "Bottom card",
+            Kind = ItemKind.Text,
+            ZIndex = 1
         };
-        var newer = new BoardItem
+        var topCard = new BoardItem
         {
-            Title = "Newer",
-            ModifiedUtc = new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero)
+            Title = "Top card",
+            Kind = ItemKind.Image,
+            ZIndex = 4
         };
+        var bottomFrame = new BoardItem { Title = "Bottom frame", Kind = ItemKind.Frame, ZIndex = 2 };
+        var topFrame = new BoardItem { Title = "Top frame", Kind = ItemKind.Frame, ZIndex = 9 };
 
-        var results = WorkspaceSearch.Search([older, newer], query);
+        var results = WorkspaceSearch.Search([bottomFrame, bottomCard, topFrame, topCard], query);
 
-        Assert.Equal([newer, older], results);
+        Assert.Equal([topCard, bottomCard, topFrame, bottomFrame], results);
     }
 
     [Fact]

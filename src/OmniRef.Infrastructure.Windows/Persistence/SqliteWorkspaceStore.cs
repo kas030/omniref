@@ -75,7 +75,7 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
         string path,
         WorldPoint origin,
         double zoom,
-        DateTimeOffset modifiedUtc,
+        DateTimeOffset lastAccessedUtc,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -85,7 +85,7 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
         try
         {
             await Task.Run(
-                    () => SaveViewportCore(fullPath, origin, zoom, modifiedUtc, cancellationToken),
+                    () => SaveViewportCore(fullPath, origin, zoom, lastAccessedUtc, cancellationToken),
                     cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -312,7 +312,22 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
         var warning = mode == WorkspaceOpenMode.ReadOnly
             ? "The workspace file is not writable and was opened read-only."
             : null;
-        return new(LoadDocument(inspection, schemaVersion), mode, warning);
+        var document = LoadDocument(inspection, schemaVersion);
+        if (mode == WorkspaceOpenMode.ReadWrite)
+        {
+            inspection.Close();
+            document.LastAccessedUtc = DateTimeOffset.UtcNow;
+            using var connection = OpenConnection(path, readOnly: false);
+            using var transaction = connection.BeginTransaction();
+            WriteMetaValue(
+                connection,
+                transaction,
+                "last_accessed_utc",
+                FormatDate(document.LastAccessedUtc));
+            transaction.Commit();
+        }
+
+        return new(document, mode, warning);
     }
 
     private WorkspaceDocument LoadDocument(SqliteConnection connection, int schemaVersion)
@@ -322,7 +337,7 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
             SchemaVersion = schemaVersion,
             Id = Guid.Parse(ReadMeta(connection, "workspace_id")),
             CreatedUtc = ParseDate(ReadMeta(connection, "created_utc")),
-            ModifiedUtc = ParseDate(ReadMeta(connection, "modified_utc")),
+            LastAccessedUtc = ParseDate(ReadMeta(connection, "last_accessed_utc")),
             ViewportOrigin = new(
                 ReadDoubleMeta(connection, "viewport_x"),
                 ReadDoubleMeta(connection, "viewport_y")),
@@ -333,7 +348,7 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
         command.CommandText =
             """
             SELECT id, kind, title, x, y, width, height, z_index, parent_frame_id,
-                   style_json, content_json, created_utc, modified_utc
+                   style_json, content_json, created_utc, last_accessed_utc
             FROM items
             ORDER BY z_index, created_utc;
             """;
@@ -357,7 +372,7 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
                 Content = JsonSerializer.Deserialize<ItemContent>(reader.GetString(10), _jsonOptions)
                           ?? throw new InvalidDataException("An item has invalid content."),
                 CreatedUtc = ParseDate(reader.GetString(11)),
-                ModifiedUtc = ParseDate(reader.GetString(12))
+                LastAccessedUtc = ParseDate(reader.GetString(12))
             };
             document.Items.Add(item);
         }
@@ -389,7 +404,7 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
         }
 
         document.SchemaVersion = WorkspaceDocument.CurrentSchemaVersion;
-        document.ModifiedUtc = DateTimeOffset.UtcNow;
+        document.LastAccessedUtc = DateTimeOffset.UtcNow;
 
         using var transaction = connection.BeginTransaction();
         WriteMeta(connection, transaction, document);
@@ -401,10 +416,10 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
             """
             INSERT INTO items(
                 id, kind, title, x, y, width, height, z_index, parent_frame_id,
-                style_json, content_json, created_utc, modified_utc)
+                style_json, content_json, created_utc, last_accessed_utc)
             VALUES(
                 $id, $kind, $title, $x, $y, $width, $height, $z, $parent,
-                $style, $content, $created, $modified);
+                $style, $content, $created, $lastAccessed);
             """;
         var parameters = new[]
         {
@@ -420,7 +435,7 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
             insertItem.Parameters.Add("$style", SqliteType.Text),
             insertItem.Parameters.Add("$content", SqliteType.Text),
             insertItem.Parameters.Add("$created", SqliteType.Text),
-            insertItem.Parameters.Add("$modified", SqliteType.Text)
+            insertItem.Parameters.Add("$lastAccessed", SqliteType.Text)
         };
 
         foreach (var item in document.Items)
@@ -438,7 +453,7 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
             parameters[9].Value = JsonSerializer.Serialize(item.Style, _jsonOptions);
             parameters[10].Value = JsonSerializer.Serialize<ItemContent>(item.Content, _jsonOptions);
             parameters[11].Value = FormatDate(item.CreatedUtc);
-            parameters[12].Value = FormatDate(item.ModifiedUtc);
+            parameters[12].Value = FormatDate(item.LastAccessedUtc);
             insertItem.ExecuteNonQuery();
         }
 
@@ -450,7 +465,7 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
         string path,
         WorldPoint origin,
         double zoom,
-        DateTimeOffset modifiedUtc,
+        DateTimeOffset lastAccessedUtc,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -471,7 +486,7 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
         }
 
         using var transaction = connection.BeginTransaction();
-        WriteMetaValue(connection, transaction, "modified_utc", FormatDate(modifiedUtc));
+        WriteMetaValue(connection, transaction, "last_accessed_utc", FormatDate(lastAccessedUtc));
         WriteMetaValue(connection, transaction, "viewport_x", origin.X.ToString("R", CultureInfo.InvariantCulture));
         WriteMetaValue(connection, transaction, "viewport_y", origin.Y.ToString("R", CultureInfo.InvariantCulture));
         WriteMetaValue(connection, transaction, "zoom", zoom.ToString("R", CultureInfo.InvariantCulture));
@@ -786,7 +801,7 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
                 style_json TEXT NOT NULL,
                 content_json TEXT NOT NULL,
                 created_utc TEXT NOT NULL,
-                modified_utc TEXT NOT NULL
+                last_accessed_utc TEXT NOT NULL
             );
             CREATE INDEX IF NOT EXISTS ix_items_z_index ON items(z_index);
             CREATE INDEX IF NOT EXISTS ix_items_parent_frame_id ON items(parent_frame_id);
@@ -821,7 +836,7 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
         WriteMetaValue(connection, transaction, "schema_version", document.SchemaVersion.ToString(CultureInfo.InvariantCulture));
         WriteMetaValue(connection, transaction, "workspace_id", document.Id.ToString("D"));
         WriteMetaValue(connection, transaction, "created_utc", FormatDate(document.CreatedUtc));
-        WriteMetaValue(connection, transaction, "modified_utc", FormatDate(document.ModifiedUtc));
+        WriteMetaValue(connection, transaction, "last_accessed_utc", FormatDate(document.LastAccessedUtc));
         WriteMetaValue(connection, transaction, "viewport_x", document.ViewportOrigin.X.ToString("R", CultureInfo.InvariantCulture));
         WriteMetaValue(connection, transaction, "viewport_y", document.ViewportOrigin.Y.ToString("R", CultureInfo.InvariantCulture));
         WriteMetaValue(connection, transaction, "zoom", document.Zoom.ToString("R", CultureInfo.InvariantCulture));

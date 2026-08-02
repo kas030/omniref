@@ -323,7 +323,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
                 ? parentId
                 : null;
             item.CreatedUtc = DateTimeOffset.UtcNow;
-            item.ModifiedUtc = item.CreatedUtc;
+            item.LastAccessedUtc = item.CreatedUtc;
         }
 
         AddModelsWithUndo(originals, "Paste items");
@@ -740,7 +740,10 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     {
         if (item.Model.Content is UrlContent url)
         {
-            _shell.OpenUrl(url.Url);
+            if (_shell.OpenUrl(url.Url))
+            {
+                RecordAccess(item);
+            }
             return;
         }
 
@@ -754,9 +757,9 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         {
             var resolved = PathResolver.Resolve(_path, source);
             item.IsMissing = resolved is null;
-            if (resolved is not null)
+            if (resolved is not null && _shell.OpenPath(resolved))
             {
-                _shell.OpenPath(resolved);
+                RecordAccess(item);
             }
             return;
         }
@@ -776,7 +779,10 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         await _store.ExportEmbeddedAssetAsync(_path, source.EmbeddedAssetId.Value, temporaryPath, cancellationToken)
             .ConfigureAwait(true);
         File.SetAttributes(temporaryPath, FileAttributes.ReadOnly);
-        _shell.OpenPath(temporaryPath);
+        if (_shell.OpenPath(temporaryPath))
+        {
+            RecordAccess(item);
+        }
     }
 
     public bool RevealSelected()
@@ -1311,12 +1317,12 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
                 }
                 else
                 {
-                    Document.ModifiedUtc = DateTimeOffset.UtcNow;
+                    Document.LastAccessedUtc = DateTimeOffset.UtcNow;
                     await _store.SaveViewportAsync(
                             _path,
                             Document.ViewportOrigin,
                             Document.Zoom,
-                            Document.ModifiedUtc,
+                            Document.LastAccessedUtc,
                             cancellationToken)
                         .ConfigureAwait(true);
                 }
@@ -1357,8 +1363,16 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     private WorkspaceDocument BuildSnapshot()
     {
         Document.Items = Items.Select(item => item.Model.DeepClone()).ToList();
-        Document.ModifiedUtc = DateTimeOffset.UtcNow;
+        Document.LastAccessedUtc = DateTimeOffset.UtcNow;
         return Document.DeepClone();
+    }
+
+    private void RecordAccess(BoardItemViewModel item)
+    {
+        if (!IsReadOnly)
+        {
+            item.RecordAccess(DateTimeOffset.UtcNow);
+        }
     }
 
     private void UpdateSearch()

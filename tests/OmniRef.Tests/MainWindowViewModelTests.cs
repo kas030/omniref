@@ -15,6 +15,7 @@ public sealed class MainWindowViewModelTests : IDisposable
         "OmniRef.Tests",
         Guid.NewGuid().ToString("N"));
     private readonly TestWorkspaceStore _store = new();
+    private readonly TestPlatformShell _shell = new();
     private readonly PreviewCache _previewCache;
     private readonly MainWindowViewModel _viewModel;
 
@@ -31,7 +32,7 @@ public sealed class MainWindowViewModelTests : IDisposable
         localization.SetLanguage("en-US");
         _viewModel = new MainWindowViewModel(
             _store,
-            new TestPlatformShell(),
+            _shell,
             _previewCache,
             logger,
             settingsStore,
@@ -139,6 +140,28 @@ public sealed class MainWindowViewModelTests : IDisposable
         Assert.Empty(workspace.SearchQuery);
         Assert.Equal(2, workspace.SearchResults.Count);
         Assert.All(workspace.Items, item => Assert.Contains(item, workspace.SearchResults));
+    }
+
+    [Fact]
+    public async Task OpenItem_RecordsAccessOnlyWhenShellOpenSucceeds()
+    {
+        var originalAccess = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var model = BoardItemFactory.Url("https://example.com", new WorldPoint(0, 0), 0);
+        model.LastAccessedUtc = originalAccess;
+        _store.RestoredDocument = new WorkspaceDocument { Items = [model] };
+        var workspace = await _viewModel.OpenAsync(Path.Combine(_directory, "Access.omniref"));
+        Assert.NotNull(workspace);
+        var item = Assert.Single(workspace.Items);
+
+        _shell.OpenSucceeds = false;
+        await workspace.OpenItemAsync(item);
+        Assert.Equal(originalAccess, item.Model.LastAccessedUtc);
+        Assert.False(workspace.IsDirty);
+
+        _shell.OpenSucceeds = true;
+        await workspace.OpenItemAsync(item);
+        Assert.True(item.Model.LastAccessedUtc > originalAccess);
+        Assert.True(workspace.IsDirty);
     }
 
     [Fact]
@@ -329,7 +352,7 @@ public sealed class MainWindowViewModelTests : IDisposable
             string path,
             WorldPoint origin,
             double zoom,
-            DateTimeOffset modifiedUtc,
+            DateTimeOffset lastAccessedUtc,
             CancellationToken cancellationToken = default)
         {
             ViewportSaveCount++;
@@ -397,8 +420,10 @@ public sealed class MainWindowViewModelTests : IDisposable
 
     private sealed class TestPlatformShell : IPlatformShell
     {
-        public bool OpenPath(string path) => true;
+        public bool OpenSucceeds { get; set; } = true;
+
+        public bool OpenPath(string path) => OpenSucceeds;
         public bool RevealPath(string path) => true;
-        public bool OpenUrl(string url) => true;
+        public bool OpenUrl(string url) => OpenSucceeds;
     }
 }
