@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src/OmniRef.App/Assets/AppIcon.svg" width="160" alt="OmniRef 图标">
+  <img src="src/OmniRef.App/Assets/AppIcon.png" width="160" alt="OmniRef 图标">
 </p>
 
 <h1 align="center">OmniRef</h1>
@@ -64,6 +64,7 @@ docs/
   SHORTCUTS.md                     操作和快捷键
   DATA_STORAGE.md                  工作区格式、引用与本地数据目录
 scripts/
+  generate-app-icon.ps1           从 PNG 生成多尺寸 Windows ICO
   publish.ps1                      自包含发布和 ZIP 打包
 ```
 
