@@ -1142,7 +1142,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void AddFiles_Click(object sender, RoutedEventArgs eventArgs)
+    private async void AddFiles_Click(object sender, RoutedEventArgs eventArgs)
     {
         var workspace = _viewModel.SelectedWorkspace;
         if (workspace is null || workspace.IsReadOnly)
@@ -1158,11 +1158,11 @@ public partial class MainWindow : Window
         };
         if (dialog.ShowDialog(this) == true)
         {
-            workspace.AddPaths(dialog.FileNames, CurrentCanvasCenter());
+            await workspace.AddPathsAsync(dialog.FileNames, CurrentCanvasCenter());
         }
     }
 
-    private void AddFolder_Click(object sender, RoutedEventArgs eventArgs)
+    private async void AddFolder_Click(object sender, RoutedEventArgs eventArgs)
     {
         var workspace = _viewModel.SelectedWorkspace;
         if (workspace is null || workspace.IsReadOnly)
@@ -1176,7 +1176,7 @@ public partial class MainWindow : Window
         };
         if (dialog.ShowDialog(this) == true)
         {
-            workspace.AddPaths(dialog.FolderNames, CurrentCanvasCenter());
+            await workspace.AddPathsAsync(dialog.FolderNames, CurrentCanvasCenter());
         }
     }
 
@@ -1629,7 +1629,7 @@ public partial class MainWindow : Window
 
     private void Canvas_CopyRequested(object sender, EventArgs eventArgs) => CopySelectionToClipboard();
 
-    private void Canvas_ExternalDrop(object sender, CanvasDropEventArgs eventArgs)
+    private async void Canvas_ExternalDrop(object sender, CanvasDropEventArgs eventArgs)
     {
         var workspace = _viewModel.SelectedWorkspace;
         if (workspace is null)
@@ -1638,7 +1638,7 @@ public partial class MainWindow : Window
         }
         if (eventArgs.Files.Count > 0)
         {
-            workspace.AddPaths(eventArgs.Files, eventArgs.Position);
+            await workspace.AddPathsAsync(eventArgs.Files, eventArgs.Position);
             return;
         }
         var text = eventArgs.Text?.Trim();
@@ -1730,8 +1730,13 @@ public partial class MainWindow : Window
                 ? Clipboard.GetFileDropList().Cast<string>().ToList()
                 : [];
             byte[]? pngBytes = null;
+            WorldSize? pastedImageSize = null;
             if (paths.Count == 0 && Clipboard.ContainsImage() && Clipboard.GetImage() is BitmapSource bitmap)
             {
+                if (bitmap.PixelWidth > 0 && bitmap.PixelHeight > 0)
+                {
+                    pastedImageSize = new WorldSize(bitmap.PixelWidth, bitmap.PixelHeight);
+                }
                 var encoder = new PngBitmapEncoder();
                 encoder.Frames.Add(BitmapFrame.Create(bitmap));
                 using var stream = new MemoryStream();
@@ -1743,10 +1748,13 @@ public partial class MainWindow : Window
             switch (result.Kind)
             {
                 case ClipboardImportKind.Files:
-                    workspace.AddPaths(result.FilePaths, position);
+                    await workspace.AddPathsAsync(result.FilePaths, position);
                     break;
                 case ClipboardImportKind.Image when result.PngBytes is not null:
-                    await workspace.AddEmbeddedImageAsync(result.PngBytes, position);
+                    await workspace.AddEmbeddedImageAsync(
+                        result.PngBytes,
+                        position,
+                        imageSize: pastedImageSize);
                     break;
                 case ClipboardImportKind.Url when result.Text is not null:
                     workspace.AddUrl(result.Text, position);

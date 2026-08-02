@@ -4,6 +4,19 @@ namespace OmniRef.Core.Services;
 
 public static class ResizeMath
 {
+    public static WorldSize FitWithin(WorldSize sourceSize, WorldSize maximumSize)
+    {
+        ValidateSize(sourceSize, nameof(sourceSize), requirePositive: true);
+        ValidateSize(maximumSize, nameof(maximumSize), requirePositive: true);
+
+        var scale = Math.Min(
+            maximumSize.Width / sourceSize.Width,
+            maximumSize.Height / sourceSize.Height);
+        return new WorldSize(
+            sourceSize.Width * scale,
+            sourceSize.Height * scale);
+    }
+
     public static WorldSize ConstrainToAspectRatio(
         WorldSize initialSize,
         WorldSize requestedSize,

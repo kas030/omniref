@@ -49,6 +49,10 @@ public enum SearchSortMode
 
 public sealed class WorkspaceViewModel : ObservableObject, IDisposable
 {
+    private const int InitialImagePreviewPixels = 512;
+    private static readonly WorldSize ImportedImageCardMaximum = new(300, 220);
+    private static readonly WorldSize PastedImageCardMaximum = new(320, 240);
+
     private readonly IWorkspaceStore _store;
     private IWorkspaceFileLease _fileLease;
     private readonly IPlatformShell _shell;
@@ -229,7 +233,10 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         return Items.Count;
     }
 
-    public void AddPaths(IEnumerable<string> paths, WorldPoint start)
+    public async Task AddPathsAsync(
+        IEnumerable<string> paths,
+        WorldPoint start,
+        CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         var pathsToAdd = paths
@@ -242,7 +249,6 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         }
 
         var models = new List<BoardItem>();
-        var nextZIndex = NextZIndex(pathsToAdd.Count);
         var index = 0;
         foreach (var path in pathsToAdd)
         {
@@ -252,11 +258,41 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
                 _path,
                 path,
                 new WorldPoint(start.X + (column * 28), start.Y + (row * 28)),
-                nextZIndex + index));
+                0));
             index++;
         }
 
+        var previews = await Task.WhenAll(
+                models.Select(model => model.Kind == ItemKind.Image
+                    ? _previewCache.GetAsync(
+                        _path,
+                        model,
+                        InitialImagePreviewPixels,
+                        cancellationToken)
+                    : Task.FromResult<ImageSource?>(null)))
+            .ConfigureAwait(true);
+        for (var modelIndex = 0; modelIndex < models.Count; modelIndex++)
+        {
+            ApplyImageAspectRatio(
+                models[modelIndex],
+                previews[modelIndex],
+                ImportedImageCardMaximum);
+        }
+
+        var nextZIndex = NextZIndex(models.Count);
+        for (var modelIndex = 0; modelIndex < models.Count; modelIndex++)
+        {
+            models[modelIndex].ZIndex = nextZIndex + modelIndex;
+        }
         AddModelsWithUndo(models, "Add files");
+
+        for (var modelIndex = 0; modelIndex < models.Count; modelIndex++)
+        {
+            if (previews[modelIndex] is { } preview)
+            {
+                Items.First(item => item.Id == models[modelIndex].Id).Preview = preview;
+            }
+        }
     }
 
     public BoardItemViewModel AddText(string text, WorldPoint position)
@@ -286,7 +322,8 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     public async Task<BoardItemViewModel> AddEmbeddedImageAsync(
         byte[] pngBytes,
         WorldPoint position,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        WorldSize? imageSize = null)
     {
         EnsureWritable();
         await FlushAsync(cancellationToken).ConfigureAwait(true);
@@ -306,11 +343,16 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
             asset.FileName,
             asset.Length,
             DateTimeOffset.UtcNow);
+        var boundsSize = GetInitialImageSize(imageSize, PastedImageCardMaximum);
         var model = new BoardItem
         {
             Kind = ItemKind.Image,
             Title = "Clipboard image",
-            Bounds = new(position.X, position.Y, 320, 240),
+            Bounds = new(
+                position.X,
+                position.Y,
+                boundsSize.Width,
+                boundsSize.Height),
             ZIndex = NextZIndex(),
             Content = new ImageContent(source)
         };
@@ -569,6 +611,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
                     requestedPixels,
                     cancellationToken)
                 .ConfigureAwait(true);
+            ApplyInitialImageAspectRatio(item, item.Preview);
         }
         catch (OperationCanceledException)
         {
@@ -579,6 +622,103 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
             VisualInvalidated?.Invoke(this, EventArgs.Empty);
         }
     }
+
+    private static WorldSize GetInitialImageSize(WorldSize? imageSize, WorldSize maximumSize)
+    {
+        return imageSize is { } sourceSize &&
+               double.IsFinite(sourceSize.Width) &&
+               double.IsFinite(sourceSize.Height) &&
+               sourceSize.Width > 0 &&
+               sourceSize.Height > 0
+            ? ResizeMath.FitWithin(sourceSize, maximumSize)
+            : maximumSize;
+    }
+
+    private static void ApplyImageAspectRatio(
+        BoardItem model,
+        ImageSource? preview,
+        WorldSize maximumSize)
+    {
+        if (model.Kind != ItemKind.Image ||
+            !TryGetImageSize(preview, out var imageSize))
+        {
+            return;
+        }
+
+        var boundsSize = ResizeMath.FitWithin(imageSize, maximumSize);
+        model.Bounds = new(
+            model.Bounds.X,
+            model.Bounds.Y,
+            boundsSize.Width,
+            boundsSize.Height);
+    }
+
+    private void ApplyInitialImageAspectRatio(
+        BoardItemViewModel item,
+        ImageSource? preview)
+    {
+        if (IsReadOnly ||
+            item.Kind != ItemKind.Image ||
+            !TryGetInitialImageMaximum(item.Bounds, out var maximumSize) ||
+            !TryGetImageSize(preview, out var imageSize))
+        {
+            return;
+        }
+
+        var boundsSize = ResizeMath.FitWithin(imageSize, maximumSize);
+        if (AreClose(item.Bounds.Width, boundsSize.Width) &&
+            AreClose(item.Bounds.Height, boundsSize.Height))
+        {
+            return;
+        }
+
+        item.UpdateBounds(new(
+            item.Bounds.X,
+            item.Bounds.Y,
+            boundsSize.Width,
+            boundsSize.Height));
+    }
+
+    private static bool TryGetImageSize(ImageSource? preview, out WorldSize imageSize)
+    {
+        if (preview is not null &&
+            double.IsFinite(preview.Width) &&
+            double.IsFinite(preview.Height) &&
+            preview.Width > 0 &&
+            preview.Height > 0)
+        {
+            imageSize = new WorldSize(preview.Width, preview.Height);
+            return true;
+        }
+
+        imageSize = default;
+        return false;
+    }
+
+    private static bool TryGetInitialImageMaximum(
+        WorldRect bounds,
+        out WorldSize maximumSize)
+    {
+        if (AreClose(bounds.Width, PastedImageCardMaximum.Width) &&
+            AreClose(bounds.Height, PastedImageCardMaximum.Height))
+        {
+            maximumSize = PastedImageCardMaximum;
+            return true;
+        }
+
+        if (AreClose(bounds.Width, ImportedImageCardMaximum.Width) &&
+            AreClose(bounds.Height, ImportedImageCardMaximum.Height))
+        {
+            maximumSize = ImportedImageCardMaximum;
+            return true;
+        }
+
+        maximumSize = default;
+        return false;
+    }
+
+    private static bool AreClose(double first, double second) =>
+        Math.Abs(first - second) < 0.01;
 
     public void UpdateTextWithUndo(BoardItemViewModel item, string text)
     {

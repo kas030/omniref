@@ -906,11 +906,12 @@ public sealed class InfiniteCanvas : Canvas
                         if (_resizeItem.Kind == ItemKind.Image &&
                             (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
                         {
-                            var aspectSize = _resizeItem.Preview is { } preview &&
-                                              preview.Width > 0 &&
-                                              preview.Height > 0
-                                ? new WorldSize(preview.Width, preview.Height)
-                                : new WorldSize(initial.Bounds.Width, initial.Bounds.Height);
+                            // The bounds captured at mouse-down are the stable aspect-ratio
+                            // source for this gesture. Preview loading must not change the
+                            // ratio underneath the pointer and cause the first move to jump.
+                            var aspectSize = new WorldSize(
+                                initial.Bounds.Width,
+                                initial.Bounds.Height);
                             size = ResizeMath.ConstrainToAspectRatio(
                                 aspectSize,
                                 requestedSize,

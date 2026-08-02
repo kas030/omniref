@@ -59,6 +59,17 @@ public sealed class CoreServicesTests
     }
 
     [Fact]
+    public void AspectRatioFit_PreservesImageRatioWithinCardMaximum()
+    {
+        var size = ResizeMath.FitWithin(
+            new WorldSize(1600, 900),
+            new WorldSize(300, 220));
+
+        Assert.Equal(new WorldSize(300, 168.75), size);
+        Assert.Equal(1600d / 900d, size.Width / size.Height, 10);
+    }
+
+    [Fact]
     public void AspectRatioResize_ChangesContinuouslyAcrossDiagonalDrag()
     {
         var initial = new WorldSize(300, 220);
