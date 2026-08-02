@@ -129,6 +129,8 @@ public sealed class BoardItemViewModel : ObservableObject
         _ => string.Empty
     };
 
+    public string SecondaryPreviewText => SecondaryText.ReplaceLineEndings(" ");
+
     public double TextFontSize
     {
         get => Model.Content is TextContent text ? text.FontSize : 18;
@@ -200,6 +202,7 @@ public sealed class BoardItemViewModel : ObservableObject
         Touch();
         Preview = null;
         OnPropertyChanged(nameof(SecondaryText));
+        OnPropertyChanged(nameof(SecondaryPreviewText));
         VisualChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -219,6 +222,7 @@ public sealed class BoardItemViewModel : ObservableObject
         OnPropertyChanged(nameof(ParentFrameId));
         OnPropertyChanged(nameof(TagsText));
         OnPropertyChanged(nameof(SecondaryText));
+        OnPropertyChanged(nameof(SecondaryPreviewText));
         OnPropertyChanged(nameof(TextFontSize));
         OnPropertyChanged(nameof(TextForeground));
         OnPropertyChanged(nameof(TextBackground));
@@ -236,6 +240,7 @@ public sealed class BoardItemViewModel : ObservableObject
         Model.Content = content;
         Touch();
         OnPropertyChanged(nameof(SecondaryText));
+        OnPropertyChanged(nameof(SecondaryPreviewText));
         OnPropertyChanged(nameof(TextFontSize));
         OnPropertyChanged(nameof(TextForeground));
         OnPropertyChanged(nameof(TextBackground));

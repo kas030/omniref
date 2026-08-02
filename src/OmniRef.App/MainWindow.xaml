@@ -651,11 +651,10 @@
                                     <TextBlock Text="{Binding DisplayTitle}"
                                                FontWeight="SemiBold"
                                                TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Text="{Binding SecondaryText}"
+                                    <TextBlock Text="{Binding SecondaryPreviewText}"
                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                FontSize="11"
-                                               MaxHeight="34"
-                                               TextWrapping="Wrap"
+                                               TextWrapping="NoWrap"
                                                TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
                             </DataTemplate>
