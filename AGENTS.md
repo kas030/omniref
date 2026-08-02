@@ -61,6 +61,11 @@ Keep the dependency direction `Core <- Infrastructure.Windows <- App`. Package v
 - Keep commands representing a drag or resize merged into a single undo step.
 - Avoid unrelated refactors in focused fixes, and add tests for behavioral changes where the logic can be exercised without UI automation.
 
+## GitNexus
+
+- Prefer GitNexus MCP for repository structure, symbol context, call chains, dependency exploration, and impact analysis when it materially improves understanding.
+- If GitNexus reports a stale index, refresh the repository index before relying on graph results; preserve this file by using `--skip-agents-md`.
+
 ## Validation
 
 Run these commands from the repository root before committing:
