@@ -577,7 +577,7 @@
                                             <DoubleAnimation Storyboard.TargetProperty="Width"
                                                              From="286"
                                                              To="0"
-                                                             Duration="0:0:0.18">
+                                                             Duration="0:0:0.12">
                                                 <DoubleAnimation.EasingFunction>
                                                     <CubicEase EasingMode="EaseOut" />
                                                 </DoubleAnimation.EasingFunction>
@@ -585,7 +585,7 @@
                                             <DoubleAnimation Storyboard.TargetProperty="Opacity"
                                                              From="1"
                                                              To="0"
-                                                             Duration="0:0:0.12" />
+                                                             Duration="0:0:0.08" />
                                         </Storyboard>
                                     </BeginStoryboard>
                                 </DataTrigger.EnterActions>
@@ -595,7 +595,7 @@
                                             <DoubleAnimation Storyboard.TargetProperty="Width"
                                                              From="0"
                                                              To="286"
-                                                             Duration="0:0:0.18">
+                                                             Duration="0:0:0.12">
                                                 <DoubleAnimation.EasingFunction>
                                                     <CubicEase EasingMode="EaseOut" />
                                                 </DoubleAnimation.EasingFunction>
@@ -603,7 +603,7 @@
                                             <DoubleAnimation Storyboard.TargetProperty="Opacity"
                                                              From="0"
                                                              To="1"
-                                                             Duration="0:0:0.14" />
+                                                             Duration="0:0:0.10" />
                                         </Storyboard>
                                     </BeginStoryboard>
                                 </DataTrigger.ExitActions>
