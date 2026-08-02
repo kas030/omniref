@@ -395,7 +395,7 @@
                                   AutomationProperties.Name="{Binding Localization[GridSnap]}">
                         <Path Style="{StaticResource ToolbarMagnetIcon}" />
                     </ToggleButton>
-                    <Separator />
+                    <Separator Style="{StaticResource ToolbarSeparator}" />
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="Open_Click"
                             ToolTip="{Binding Localization[OpenWorkspace]}"
@@ -417,7 +417,7 @@
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
                                           Icon="SaveEdit" />
                     </Button>
-                    <Separator />
+                    <Separator Style="{StaticResource ToolbarSeparator}" />
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="AddFiles_Click"
                             ToolTip="{Binding Localization[AddFiles]}"
@@ -446,7 +446,7 @@
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
                                           Icon="SquareHint" />
                     </Button>
-                    <Separator />
+                    <Separator Style="{StaticResource ToolbarSeparator}" />
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="Undo_Click"
                             ToolTip="{Binding Localization[Undo]}"
