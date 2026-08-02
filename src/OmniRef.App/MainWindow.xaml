@@ -693,9 +693,6 @@
                             <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
                                               Icon="Options"
                                               RenderTransformOrigin="0.5,0.5">
-                                <icons:FluentIcon.RenderTransform>
-                                    <RotateTransform Angle="90" />
-                                </icons:FluentIcon.RenderTransform>
                             </icons:FluentIcon>
                         </Button>
                     </Grid>
