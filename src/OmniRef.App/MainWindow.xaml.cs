@@ -35,6 +35,7 @@ public partial class MainWindow : Window
     private const int MinimizeSystemCommand = 0xF020;
     private const int MaximizeSystemCommand = 0xF030;
     private const int RestoreSystemCommand = 0xF120;
+    private const double ApplicationIconSize = 20;
     private const double WorkspaceTabPreferredWidth = 180;
     private const double WorkspaceTabMinimumWidth = 104;
     private const double WorkspaceTabHorizontalMargin = 4;
@@ -87,6 +88,7 @@ public partial class MainWindow : Window
     private readonly RollingFileLogger _logger;
     private readonly WorkspaceTabDropHandler _workspaceTabDropHandler;
     private readonly WorkspaceTabDragHandler _workspaceTabDragHandler;
+    private readonly IReadOnlyList<BitmapFrame> _applicationIconFrames;
     private readonly JsonSerializerOptions _clipboardJsonOptions = new(JsonSerializerDefaults.General)
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -136,6 +138,7 @@ public partial class MainWindow : Window
             () => _workspaceTabDragStartAllowed,
             BeginWorkspaceTabDragOperation,
             EndWorkspaceTabDragOperation);
+        _applicationIconFrames = LoadApplicationIconFrames();
         DataContext = viewModel;
         ConfigureWorkspaceTabDragDrop();
         WorkspaceTabs.AddHandler(
@@ -152,6 +155,7 @@ public partial class MainWindow : Window
         Loaded += OnLoaded;
         Closing += OnClosing;
         Activated += OnActivated;
+        DpiChanged += OnDpiChanged;
         StateChanged += OnWindowStateChanged;
         Application.Current.SessionEnding += OnSessionEnding;
     }
@@ -281,6 +285,7 @@ public partial class MainWindow : Window
             return;
         }
         _loaded = true;
+        UpdateApplicationIcon(VisualTreeHelper.GetDpi(this).DpiScaleX);
         var handle = new WindowInteropHelper(this).Handle;
         _hotkeyService.Pressed += OnHotkeyPressed;
         var registered = _hotkeyService.Register(
@@ -320,6 +325,43 @@ public partial class MainWindow : Window
     }
 
     private void OnActivated(object? sender, EventArgs eventArgs) => _viewModel.RefreshReferences();
+
+    private void OnDpiChanged(object sender, DpiChangedEventArgs eventArgs) =>
+        UpdateApplicationIcon(eventArgs.NewDpi.DpiScaleX);
+
+    private void UpdateApplicationIcon(double dpiScale)
+    {
+        var targetPixelWidth = Math.Max(
+            1,
+            (int)Math.Round(
+                ApplicationIconSize * dpiScale,
+                MidpointRounding.AwayFromZero));
+        ApplicationIconImage.Source = IconFrameSelector.SelectBestFrame(
+            _applicationIconFrames,
+            targetPixelWidth);
+    }
+
+    private static IReadOnlyList<BitmapFrame> LoadApplicationIconFrames()
+    {
+        var resource = Application.GetResourceStream(
+            new Uri("Assets/AppIcon.ico", UriKind.Relative))
+            ?? throw new InvalidOperationException("The application icon resource is missing.");
+        using var stream = resource.Stream;
+        var decoder = BitmapDecoder.Create(
+            stream,
+            BitmapCreateOptions.PreservePixelFormat,
+            BitmapCacheOption.OnLoad);
+        var frames = decoder.Frames.ToArray();
+        foreach (var frame in frames)
+        {
+            if (frame.CanFreeze)
+            {
+                frame.Freeze();
+            }
+        }
+
+        return frames;
+    }
 
     private void OnSourceInitialized(object? sender, EventArgs eventArgs)
     {
