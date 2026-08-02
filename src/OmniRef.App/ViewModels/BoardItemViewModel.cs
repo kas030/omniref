@@ -21,6 +21,26 @@ public sealed class BoardItemViewModel : ObservableObject
     public ItemKind Kind => Model.Kind;
     public bool IsText => Kind == ItemKind.Text;
 
+    public bool HasSourcePath => !string.IsNullOrWhiteSpace(SourcePath);
+
+    public string SourcePath
+    {
+        get
+        {
+            var source = GetSourceDescriptor();
+            if (source is null)
+            {
+                return string.Empty;
+            }
+
+            return !string.IsNullOrWhiteSpace(source.AbsolutePath)
+                ? source.AbsolutePath
+                : !string.IsNullOrWhiteSpace(source.RelativePath)
+                    ? source.RelativePath
+                    : source.OriginalFileName;
+        }
+    }
+
     public string Title
     {
         get => Model.Title;
@@ -201,6 +221,8 @@ public sealed class BoardItemViewModel : ObservableObject
         Model.Content = content;
         Touch();
         Preview = null;
+        OnPropertyChanged(nameof(HasSourcePath));
+        OnPropertyChanged(nameof(SourcePath));
         OnPropertyChanged(nameof(SecondaryText));
         OnPropertyChanged(nameof(SecondaryPreviewText));
         VisualChanged?.Invoke(this, EventArgs.Empty);
@@ -221,6 +243,8 @@ public sealed class BoardItemViewModel : ObservableObject
         OnPropertyChanged(nameof(Bounds));
         OnPropertyChanged(nameof(ParentFrameId));
         OnPropertyChanged(nameof(TagsText));
+        OnPropertyChanged(nameof(HasSourcePath));
+        OnPropertyChanged(nameof(SourcePath));
         OnPropertyChanged(nameof(SecondaryText));
         OnPropertyChanged(nameof(SecondaryPreviewText));
         OnPropertyChanged(nameof(TextFontSize));
@@ -252,6 +276,14 @@ public sealed class BoardItemViewModel : ObservableObject
         OnPropertyChanged(nameof(TextBackground));
         OnPropertyChanged(nameof(TextAlignment));
     }
+
+    private SourceDescriptor? GetSourceDescriptor() => Model.Content switch
+    {
+        ImageContent image => image.Source,
+        FileContent file => file.Source,
+        FolderContent folder => folder.Source,
+        _ => null
+    };
 
     private static bool TryNormalizeColor(string value, out string color)
     {

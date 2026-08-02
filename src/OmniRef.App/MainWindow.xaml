@@ -750,6 +750,18 @@
                                                  IsReadOnly="{Binding DataContext.SelectedWorkspace.IsReadOnly, RelativeSource={RelativeSource AncestorType=Window}}"
                                                  ToolTip="{Binding DataContext.Localization[TagsHint], RelativeSource={RelativeSource AncestorType=Window}}"
                                                  Margin="0,0,0,12" />
+                                        <StackPanel Visibility="{Binding HasSourcePath, Converter={StaticResource BoolToVisibility}}"
+                                                    Margin="0,0,0,12">
+                                            <TextBlock Text="{Binding DataContext.Localization[Path], RelativeSource={RelativeSource AncestorType=Window}}"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       Margin="0,0,0,4" />
+                                            <TextBox Text="{Binding SourcePath, Mode=OneWay}"
+                                                     IsReadOnly="True"
+                                                     TextWrapping="Wrap"
+                                                     VerticalScrollBarVisibility="Auto"
+                                                     MaxHeight="72"
+                                                     ToolTip="{Binding SourcePath}" />
+                                        </StackPanel>
                                         <StackPanel Visibility="{Binding IsText, Converter={StaticResource BoolToVisibility}}"
                                                     IsEnabled="{Binding DataContext.SelectedWorkspace.IsReadOnly, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
                                                     Margin="0,0,0,12">
