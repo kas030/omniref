@@ -478,10 +478,19 @@
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="Arrange_Click"
+                            IsEnabled="{Binding SelectedWorkspace.CanAlignSelection, FallbackValue=False, TargetNullValue=False}"
                             ToolTip="{Binding Localization[Arrange]}"
                             AutomationProperties.Name="{Binding Localization[Arrange]}">
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
                                           Icon="AlignLeft" />
+                    </Button>
+                    <Button Style="{StaticResource ToolbarButton}"
+                            Click="Layer_Click"
+                            IsEnabled="{Binding SelectedWorkspace.CanMoveSelectionLayer, FallbackValue=False, TargetNullValue=False}"
+                            ToolTip="{Binding Localization[Layer]}"
+                            AutomationProperties.Name="{Binding Localization[Layer]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="Layer" />
                     </Button>
                         </StackPanel>
                     </ScrollViewer>

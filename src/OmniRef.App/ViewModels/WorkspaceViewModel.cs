@@ -177,6 +177,10 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     public IReadOnlyList<BoardItemViewModel> SelectedItems =>
         Items.Where(item => item.IsSelected).ToList();
 
+    public bool CanAlignSelection => !IsReadOnly && TopLevelSelection().Count >= 2;
+    public bool CanDistributeSelection => !IsReadOnly && TopLevelSelection().Count >= 3;
+    public bool CanMoveSelectionLayer => !IsReadOnly && SelectedItems.Count > 0;
+
     public event EventHandler? ItemsChanged;
     public event EventHandler? VisualInvalidated;
     public event EventHandler<BoardItemViewModel>? FocusItemRequested;
@@ -1339,6 +1343,9 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(SelectedItem));
         OnPropertyChanged(nameof(SelectedItems));
+        OnPropertyChanged(nameof(CanAlignSelection));
+        OnPropertyChanged(nameof(CanDistributeSelection));
+        OnPropertyChanged(nameof(CanMoveSelectionLayer));
         SelectionChanged?.Invoke(this, EventArgs.Empty);
         VisualInvalidated?.Invoke(this, EventArgs.Empty);
     }

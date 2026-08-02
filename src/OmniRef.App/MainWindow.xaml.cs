@@ -4,6 +4,7 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -12,6 +13,8 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shell;
 using System.Windows.Threading;
 using GongSolutions.Wpf.DragDrop;
+using FluentIcons.Common;
+using FluentIcons.Wpf;
 using Microsoft.Win32;
 using OmniRef.App.Controls;
 using OmniRef.App.Services;
@@ -1338,23 +1341,51 @@ public partial class MainWindow : Window
             return;
         }
 
-        var menu = new ContextMenu { PlacementTarget = button };
-        AddMenuItem(menu, "AlignLeft", () => workspace.AlignSelected(AlignmentKind.Left));
-        AddMenuItem(menu, "AlignCenter", () => workspace.AlignSelected(AlignmentKind.HorizontalCenter));
-        AddMenuItem(menu, "AlignRight", () => workspace.AlignSelected(AlignmentKind.Right));
-        AddMenuItem(menu, "AlignTop", () => workspace.AlignSelected(AlignmentKind.Top));
-        AddMenuItem(menu, "AlignMiddle", () => workspace.AlignSelected(AlignmentKind.VerticalCenter));
-        AddMenuItem(menu, "AlignBottom", () => workspace.AlignSelected(AlignmentKind.Bottom));
-        menu.Items.Add(new Separator());
-        AddMenuItem(menu, "DistributeHorizontal", () => workspace.DistributeSelected(horizontally: true));
-        AddMenuItem(menu, "DistributeVertical", () => workspace.DistributeSelected(horizontally: false));
-        menu.Items.Add(new Separator());
-        AddMenuItem(menu, "BringToFront", () => workspace.MoveSelectionLayer(LayerMove.BringToFront));
-        AddMenuItem(menu, "BringForward", () => workspace.MoveSelectionLayer(LayerMove.BringForward));
-        AddMenuItem(menu, "SendBackward", () => workspace.MoveSelectionLayer(LayerMove.SendBackward));
-        AddMenuItem(menu, "SendToBack", () => workspace.MoveSelectionLayer(LayerMove.SendToBack));
+        var menu = CreateToolbarMenu(button);
+        AddMenuItem(menu, "AlignLeft", Symbol.AlignLeft, () => workspace.AlignSelected(AlignmentKind.Left));
+        AddMenuItem(menu, "AlignCenter", Symbol.AlignCenterVertical, () => workspace.AlignSelected(AlignmentKind.HorizontalCenter));
+        AddMenuItem(menu, "AlignRight", Symbol.AlignRight, () => workspace.AlignSelected(AlignmentKind.Right));
+        AddMenuItem(menu, "AlignTop", Symbol.AlignTop, () => workspace.AlignSelected(AlignmentKind.Top));
+        AddMenuItem(menu, "AlignMiddle", Symbol.AlignCenterHorizontal, () => workspace.AlignSelected(AlignmentKind.VerticalCenter));
+        AddMenuItem(menu, "AlignBottom", Symbol.AlignBottom, () => workspace.AlignSelected(AlignmentKind.Bottom));
+        AddMenuSeparator(menu);
+        AddMenuItem(
+            menu,
+            "DistributeHorizontal",
+            Symbol.AlignSpaceEvenlyHorizontal,
+            () => workspace.DistributeSelected(horizontally: true),
+            workspace.CanDistributeSelection);
+        AddMenuItem(
+            menu,
+            "DistributeVertical",
+            Symbol.AlignSpaceEvenlyVertical,
+            () => workspace.DistributeSelected(horizontally: false),
+            workspace.CanDistributeSelection);
         menu.IsOpen = true;
     }
+
+    private void Layer_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        if (sender is not Button button || _viewModel.SelectedWorkspace is not { IsReadOnly: false } workspace)
+        {
+            return;
+        }
+
+        var menu = CreateToolbarMenu(button);
+        AddMenuItem(menu, "BringToFront", Symbol.ArrowUpload, () => workspace.MoveSelectionLayer(LayerMove.BringToFront));
+        AddMenuItem(menu, "BringForward", Symbol.ArrowUp, () => workspace.MoveSelectionLayer(LayerMove.BringForward));
+        AddMenuSeparator(menu);
+        AddMenuItem(menu, "SendBackward", Symbol.ArrowDown, () => workspace.MoveSelectionLayer(LayerMove.SendBackward));
+        AddMenuItem(menu, "SendToBack", Symbol.ArrowDownload, () => workspace.MoveSelectionLayer(LayerMove.SendToBack));
+        menu.IsOpen = true;
+    }
+
+    private static ContextMenu CreateToolbarMenu(Button button) => new()
+    {
+        PlacementTarget = button,
+        Placement = PlacementMode.Bottom,
+        VerticalOffset = 8
+    };
 
     private void TextAlignment_Click(object sender, RoutedEventArgs eventArgs)
     {
@@ -1366,12 +1397,31 @@ public partial class MainWindow : Window
         }
     }
 
-    private void AddMenuItem(ContextMenu menu, string localizationKey, Action action)
+    private void AddMenuItem(
+        ContextMenu menu,
+        string localizationKey,
+        Symbol icon,
+        Action action,
+        bool isEnabled = true)
     {
-        var item = new MenuItem { Header = _viewModel.Localization[localizationKey] };
+        var item = new MenuItem
+        {
+            Header = _viewModel.Localization[localizationKey],
+            IsEnabled = isEnabled,
+            Icon = new FluentIcon
+            {
+                Icon = (Icon)icon,
+                Width = 18,
+                Height = 18,
+                FontSize = 18
+            }
+        };
         item.Click += (_, _) => action();
         menu.Items.Add(item);
     }
+
+    private void AddMenuSeparator(ContextMenu menu) =>
+        menu.Items.Add(new Separator { Style = (Style)FindResource("MenuSeparator") });
 
     private async void CloseTab_Click(object sender, RoutedEventArgs eventArgs)
     {
