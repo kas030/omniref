@@ -644,8 +644,17 @@
                     </Grid>
 
                     <ListBox Grid.Row="1"
+                             Margin="0,0,-8,0"
+                             Padding="0,0,8,0"
                              ItemsSource="{Binding SelectedWorkspace.SearchResults}"
+                             ScrollViewer.CanContentScroll="False"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
                              PreviewMouseLeftButtonUp="SearchResult_Click">
+                        <ListBox.Resources>
+                            <Style TargetType="{x:Type ScrollViewer}">
+                                <Setter Property="controls:SmoothScrollBehavior.IsEnabled" Value="True" />
+                            </Style>
+                        </ListBox.Resources>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel>
