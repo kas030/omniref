@@ -9,6 +9,13 @@
     <Color x:Key="CanvasBackgroundColor">#FF121419</Color>
     <Color x:Key="CanvasGridColor">#FF596477</Color>
     <Color x:Key="BorderColor">#FF343945</Color>
+    <Color x:Key="CardBackgroundColor">#FF252932</Color>
+    <Color x:Key="CardTextBackgroundColor">#FF2B2F38</Color>
+    <Color x:Key="CardBorderColor">#FF3B414D</Color>
+    <Color x:Key="CardHoverBorderColor">#FF626D7D</Color>
+    <Color x:Key="CardIconSurfaceColor">#FF303641</Color>
+    <Color x:Key="CardFrameFillColor">#2B8391FF</Color>
+    <Color x:Key="CardFrameBorderColor">#B08391FF</Color>
     <Color x:Key="TextPrimaryColor">#FFF4F6FA</Color>
     <Color x:Key="TextSecondaryColor">#FFAEB6C5</Color>
     <Color x:Key="AccentColor">#FF8391FF</Color>
@@ -27,6 +34,13 @@
     <SolidColorBrush x:Key="CanvasBackgroundBrush" Color="{StaticResource CanvasBackgroundColor}" />
     <SolidColorBrush x:Key="CanvasGridBrush" Color="{StaticResource CanvasGridColor}" />
     <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}" />
+    <SolidColorBrush x:Key="CardBackgroundBrush" Color="{StaticResource CardBackgroundColor}" />
+    <SolidColorBrush x:Key="CardTextBackgroundBrush" Color="{StaticResource CardTextBackgroundColor}" />
+    <SolidColorBrush x:Key="CardBorderBrush" Color="{StaticResource CardBorderColor}" />
+    <SolidColorBrush x:Key="CardHoverBorderBrush" Color="{StaticResource CardHoverBorderColor}" />
+    <SolidColorBrush x:Key="CardIconSurfaceBrush" Color="{StaticResource CardIconSurfaceColor}" />
+    <SolidColorBrush x:Key="CardFrameFillBrush" Color="{StaticResource CardFrameFillColor}" />
+    <SolidColorBrush x:Key="CardFrameBorderBrush" Color="{StaticResource CardFrameBorderColor}" />
     <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}" />
     <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}" />
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />

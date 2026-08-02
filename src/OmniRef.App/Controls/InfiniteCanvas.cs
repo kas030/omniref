@@ -16,6 +16,9 @@ namespace OmniRef.App.Controls;
 public sealed class InfiniteCanvas : Canvas
 {
     private static readonly FontFamily CardTextFontFamily = new("Segoe UI Variable Text, Segoe UI");
+    private static readonly Color DefaultCardBackgroundColor = Color.FromArgb(0xFF, 0x25, 0x29, 0x32);
+    private static readonly Color DefaultCardForegroundColor = Color.FromArgb(0xFF, 0xF5, 0xF7, 0xFA);
+    private static readonly Color DefaultTextBackgroundColor = Color.FromArgb(0xFF, 0x2E, 0x34, 0x40);
 
     public static readonly DependencyProperty WorkspaceProperty = DependencyProperty.Register(
         nameof(Workspace),
@@ -51,6 +54,7 @@ public sealed class InfiniteCanvas : Canvas
     private BoardItemViewModel? _editingItem;
     private string? _editingOriginal;
     private bool _closingEditor;
+    private BoardItemViewModel? _hoveredItem;
 
     public InfiniteCanvas()
     {
@@ -72,6 +76,7 @@ public sealed class InfiniteCanvas : Canvas
         LostKeyboardFocus += OnLostKeyboardFocus;
         DragOver += OnDragOver;
         Drop += OnDrop;
+        MouseLeave += OnMouseLeave;
         SizeChanged += (_, _) => InvalidateVisual();
     }
 
@@ -141,7 +146,7 @@ public sealed class InfiniteCanvas : Canvas
             FontStretch = FontStretches.Normal,
             Language = XmlLanguage.GetLanguage(CultureInfo.CurrentUICulture.IetfLanguageTag),
             FlowDirection = FlowDirection.LeftToRight,
-            Foreground = ParseBrush(text.Foreground, Brushes.White),
+            Foreground = GetTextForeground(text),
             Background = Brushes.Transparent,
             BorderBrush = Brushes.Transparent,
             BorderThickness = new Thickness(0),
@@ -252,6 +257,7 @@ public sealed class InfiniteCanvas : Canvas
         }
         _subscribedItems.Clear();
         _index.Clear();
+        _hoveredItem = null;
     }
 
     private void RebuildIndex()
@@ -337,38 +343,38 @@ public sealed class InfiniteCanvas : Canvas
             return;
         }
 
-        var corner = Math.Clamp(item.Model.Style.CornerRadius * _zoom, 3, 16);
-        var shadowRect = new Rect(rect.X + 2, rect.Y + 3, rect.Width, rect.Height);
-        context.DrawRoundedRectangle(
-            new SolidColorBrush(Color.FromArgb(45, 0, 0, 0)),
-            null,
-            shadowRect,
-            corner,
-            corner);
-        var background = item.Model.Content is TextContent textContent
-            ? ParseBrush(textContent.Background, ParseBrush(item.Model.Style.Background, Brushes.DimGray))
-            : ParseBrush(item.Model.Style.Background, Brushes.DimGray);
+        var isHovered = ReferenceEquals(_hoveredItem, item);
+        if (item.IsSelected || isHovered)
+        {
+            var haloBrush = item.IsSelected
+                ? WithOpacity(FindBrush("AccentBrush", Brushes.CornflowerBlue), 0.28)
+                : WithOpacity(FindBrush("CardHoverBorderBrush", Brushes.LightGray), 0.3);
+            var haloRect = new Rect(rect.X - 2, rect.Y - 2, rect.Width + 4, rect.Height + 4);
+            context.DrawRectangle(
+                null,
+                new Pen(haloBrush, item.IsSelected ? 2 : 1),
+                haloRect);
+        }
+
+        var background = GetCardBackground(item);
         var borderBrush = item.IsMissing
-            ? TryFindResource("DangerBrush") as Brush ?? Brushes.OrangeRed
+            ? FindBrush("DangerBrush", Brushes.OrangeRed)
             : item.IsSelected
-                ? TryFindResource("AccentBrush") as Brush ?? Brushes.CornflowerBlue
-                : TryFindResource("BorderBrush") as Brush ?? Brushes.Gray;
-        context.DrawRoundedRectangle(
-            background,
-            new Pen(borderBrush, item.IsSelected || item.IsMissing ? 2 : 1),
-            rect,
-            corner,
-            corner);
+                ? FindBrush("AccentBrush", Brushes.CornflowerBlue)
+                : isHovered
+                    ? FindBrush("CardHoverBorderBrush", Brushes.LightGray)
+                    : FindBrush("CardBorderBrush", FindBrush("BorderBrush", Brushes.Gray));
+        context.DrawRectangle(background, null, rect);
 
         var inner = new Rect(
-            rect.X + Math.Clamp(12 * _zoom, 5, 16),
-            rect.Y + Math.Clamp(10 * _zoom, 5, 14),
-            Math.Max(1, rect.Width - Math.Clamp(24 * _zoom, 10, 32)),
-            Math.Max(1, rect.Height - Math.Clamp(20 * _zoom, 10, 28)));
+            rect.X + Math.Clamp(14 * _zoom, 6, 18),
+            rect.Y + Math.Clamp(12 * _zoom, 6, 16),
+            Math.Max(1, rect.Width - Math.Clamp(28 * _zoom, 12, 36)),
+            Math.Max(1, rect.Height - Math.Clamp(24 * _zoom, 12, 32)));
         switch (item.Model.Content)
         {
             case ImageContent:
-                DrawImageCard(context, item, inner);
+                DrawImageCard(context, item, rect);
                 break;
             case FileContent:
                 DrawFileCard(context, item, inner, isFolder: false);
@@ -384,85 +390,95 @@ public sealed class InfiniteCanvas : Canvas
                 break;
         }
 
+        context.DrawRectangle(
+            null,
+            new Pen(borderBrush, item.IsSelected || item.IsMissing ? 2 : isHovered ? 1.35 : 1),
+            rect);
+
         if (item.IsSelected && Workspace?.SelectedItems.Count == 1)
         {
             var handle = ResizeHandleRect(rect);
-            context.DrawRectangle(
-                TryFindResource("AccentBrush") as Brush ?? Brushes.CornflowerBlue,
+            context.DrawRoundedRectangle(
+                FindBrush("AccentBrush", Brushes.CornflowerBlue),
                 new Pen(Brushes.White, 1),
-                handle);
+                handle,
+                4,
+                4);
         }
 
         if (item.IsMissing)
         {
-            DrawBadge(context, rect, "!", TryFindResource("DangerBrush") as Brush ?? Brushes.OrangeRed);
+            DrawBadge(context, rect, "!", FindBrush("DangerBrush", Brushes.OrangeRed));
         }
     }
 
     private void DrawFrame(DrawingContext context, BoardItemViewModel item, Rect rect)
     {
         var content = (FrameContent)item.Model.Content;
-        var fill = ParseBrush(content.Color, new SolidColorBrush(Color.FromArgb(28, 124, 140, 255)));
+        var fill = IsColor(content.Color, "#337C8CFF")
+            ? FindBrush("CardFrameFillBrush", new SolidColorBrush(Color.FromArgb(28, 124, 140, 255)))
+            : ParseBrush(content.Color, FindBrush("CardFrameFillBrush", Brushes.Transparent));
         var stroke = item.IsSelected
-            ? TryFindResource("AccentBrush") as Brush ?? Brushes.CornflowerBlue
-            : ParseBrush(item.Model.Style.Accent, Brushes.SlateBlue);
-        context.DrawRoundedRectangle(fill, new Pen(stroke, item.IsSelected ? 2 : 1), rect, 12, 12);
+            ? FindBrush("AccentBrush", Brushes.CornflowerBlue)
+            : IsColor(item.Model.Style.Accent, "#FF7C8CFF")
+                ? FindBrush("CardFrameBorderBrush", FindBrush("AccentBrush", Brushes.SlateBlue))
+                : ParseBrush(item.Model.Style.Accent, Brushes.SlateBlue);
+        context.DrawRectangle(fill, new Pen(stroke, item.IsSelected ? 2 : 1), rect);
         DrawFormattedText(
             context,
             item.DisplayTitle,
-            new Rect(rect.X + 14, rect.Y + 8, Math.Max(1, rect.Width - 28), 30),
+            new Rect(rect.X + 16, rect.Y + 10, Math.Max(1, rect.Width - 32), 30),
             Math.Clamp(15 * _zoom, 8, 24),
-            TryFindResource("TextPrimaryBrush") as Brush ?? Brushes.White,
+            FindBrush("TextPrimaryBrush", Brushes.White),
             FontWeights.SemiBold,
             TextAlignment.Left);
 
         if (item.IsSelected && Workspace?.SelectedItems.Count == 1)
         {
-            context.DrawRectangle(
-                TryFindResource("AccentBrush") as Brush ?? Brushes.CornflowerBlue,
+            context.DrawRoundedRectangle(
+                FindBrush("AccentBrush", Brushes.CornflowerBlue),
                 new Pen(Brushes.White, 1),
-                ResizeHandleRect(rect));
+                ResizeHandleRect(rect),
+                4,
+                4);
         }
     }
 
-    private void DrawImageCard(DrawingContext context, BoardItemViewModel item, Rect inner)
+    private void DrawImageCard(DrawingContext context, BoardItemViewModel item, Rect destination)
     {
         if (item.Preview is not null)
         {
-            DrawImageFit(context, item.Preview, inner);
+            DrawImageCover(context, item.Preview, destination);
         }
         else
         {
             DrawCenteredGlyph(
                 context,
-                inner,
+                destination,
                 "▧",
-                ParseBrush(item.Model.Style.Foreground, Brushes.White));
-            RequestPreview(item, inner);
+                GetCardForeground(item));
+            RequestPreview(item, destination);
         }
 
-        if (_zoom >= 0.35)
-        {
-            var titleRect = new Rect(inner.X, inner.Bottom - Math.Min(30, inner.Height / 3), inner.Width, Math.Min(30, inner.Height / 3));
-            context.DrawRectangle(new SolidColorBrush(Color.FromArgb(150, 15, 17, 21)), null, titleRect);
-            DrawFormattedText(
-                context,
-                item.DisplayTitle,
-                new Rect(titleRect.X + 7, titleRect.Y + 4, Math.Max(1, titleRect.Width - 14), Math.Max(1, titleRect.Height - 8)),
-                Math.Clamp(12 * _zoom, 7, 18),
-                Brushes.White,
-                FontWeights.SemiBold,
-                TextAlignment.Left);
-        }
     }
 
     private void DrawFileCard(DrawingContext context, BoardItemViewModel item, Rect inner, bool isFolder)
     {
-        var iconSize = Math.Min(inner.Height * 0.5, Math.Min(inner.Width * 0.35, 88 * _zoom));
+        var iconSize = Math.Min(inner.Height * 0.56, Math.Min(inner.Width * 0.35, 88 * _zoom));
         var iconRect = new Rect(inner.X, inner.Y + ((inner.Height - iconSize) / 2), iconSize, iconSize);
+        var iconCorner = Math.Clamp(10 * _zoom, 5, 12);
+        context.DrawRoundedRectangle(
+            FindBrush("CardIconSurfaceBrush", FindBrush("SurfaceRaisedBrush", Brushes.DimGray)),
+            null,
+            iconRect,
+            iconCorner,
+            iconCorner);
         if (item.Preview is not null)
         {
-            DrawImageFit(context, item.Preview, iconRect);
+            DrawImageFit(
+                context,
+                item.Preview,
+                new Rect(iconRect.X + 5, iconRect.Y + 5, Math.Max(1, iconRect.Width - 10), Math.Max(1, iconRect.Height - 10)));
         }
         else
         {
@@ -470,7 +486,7 @@ public sealed class InfiniteCanvas : Canvas
                 context,
                 iconRect,
                 isFolder ? "▰" : "▤",
-                ParseBrush(item.Model.Style.Foreground, Brushes.White));
+                GetCardAccent(item));
             RequestPreview(item, iconRect);
         }
 
@@ -484,7 +500,7 @@ public sealed class InfiniteCanvas : Canvas
             item.DisplayTitle,
             textRect,
             Math.Clamp(14 * _zoom, 7, 22),
-            ParseBrush(item.Model.Style.Foreground, Brushes.White),
+            GetCardForeground(item),
             FontWeights.SemiBold,
             TextAlignment.Left,
             maxLines: 2);
@@ -498,7 +514,7 @@ public sealed class InfiniteCanvas : Canvas
             item.SecondaryText,
             secondaryRect,
             Math.Clamp(11 * _zoom, 6, 16),
-            WithOpacity(ParseBrush(item.Model.Style.Foreground, Brushes.White), 0.68),
+            WithOpacity(GetCardForeground(item), 0.62),
             FontWeights.Normal,
             TextAlignment.Left,
             maxLines: 2);
@@ -510,7 +526,7 @@ public sealed class InfiniteCanvas : Canvas
         Rect inner,
         TextContent text)
     {
-        var foreground = ParseBrush(text.Foreground, Brushes.White);
+        var foreground = GetTextForeground(text);
         var isOverflowing = DrawFormattedText(
             context,
             text.Text,
@@ -521,9 +537,7 @@ public sealed class InfiniteCanvas : Canvas
             GetTextAlignment(text));
         if (isOverflowing)
         {
-            var background = ParseBrush(
-                text.Background,
-                ParseBrush(item.Model.Style.Background, Brushes.DimGray));
+            var background = GetTextBackground(text, item);
             DrawTextOverflowIndicator(context, inner, foreground, background);
         }
     }
@@ -579,10 +593,17 @@ public sealed class InfiniteCanvas : Canvas
 
     private void DrawUrlCard(DrawingContext context, BoardItemViewModel item, Rect inner, UrlContent url)
     {
-        var glyphRect = new Rect(inner.X, inner.Y, Math.Min(44 * _zoom, inner.Width * 0.25), inner.Height);
-        var cardForeground = ParseBrush(item.Model.Style.Foreground, Brushes.White);
+        var glyphRect = new Rect(inner.X, inner.Y, Math.Min(52 * _zoom, inner.Width * 0.25), inner.Height);
+        var glyphCorner = Math.Clamp(10 * _zoom, 5, 12);
+        context.DrawRoundedRectangle(
+            FindBrush("CardIconSurfaceBrush", FindBrush("SurfaceRaisedBrush", Brushes.DimGray)),
+            null,
+            glyphRect,
+            glyphCorner,
+            glyphCorner);
+        var cardForeground = GetCardForeground(item);
         DrawCenteredGlyph(context, glyphRect, "↗", cardForeground);
-        var textRect = new Rect(glyphRect.Right + 8, inner.Y, Math.Max(1, inner.Right - glyphRect.Right - 8), inner.Height);
+        var textRect = new Rect(glyphRect.Right + 10, inner.Y, Math.Max(1, inner.Right - glyphRect.Right - 10), inner.Height);
         DrawFormattedText(
             context,
             item.DisplayTitle,
@@ -597,7 +618,7 @@ public sealed class InfiniteCanvas : Canvas
             url.Url,
             new Rect(textRect.X, textRect.Y + Math.Min(32 * _zoom, textRect.Height * 0.5), textRect.Width, textRect.Height * 0.45),
             Math.Clamp(11 * _zoom, 6, 16),
-            WithOpacity(cardForeground, 0.68),
+            WithOpacity(cardForeground, 0.62),
             FontWeights.Normal,
             TextAlignment.Left,
             maxLines: 2);
@@ -645,6 +666,29 @@ public sealed class InfiniteCanvas : Canvas
                 destination.Y + ((destination.Height - height) / 2),
                 width,
                 height));
+    }
+
+    private static void DrawImageCover(DrawingContext context, ImageSource image, Rect destination)
+    {
+        var imageWidth = image.Width;
+        var imageHeight = image.Height;
+        if (imageWidth <= 0 || imageHeight <= 0 || destination.Width <= 0 || destination.Height <= 0)
+        {
+            return;
+        }
+
+        var scale = Math.Max(destination.Width / imageWidth, destination.Height / imageHeight);
+        var width = imageWidth * scale;
+        var height = imageHeight * scale;
+        context.PushClip(new RectangleGeometry(destination));
+        context.DrawImage(
+            image,
+            new Rect(
+                destination.X + ((destination.Width - width) / 2),
+                destination.Y + ((destination.Height - height) / 2),
+                width,
+                height));
+        context.Pop();
     }
 
     private bool DrawFormattedText(
@@ -797,11 +841,18 @@ public sealed class InfiniteCanvas : Canvas
 
     private void OnMouseMove(object sender, MouseEventArgs eventArgs)
     {
-        if (Workspace is null || _interaction == InteractionMode.None)
+        if (Workspace is null)
         {
             return;
         }
+
         var currentScreen = eventArgs.GetPosition(this);
+        if (_interaction == InteractionMode.None)
+        {
+            UpdateHoveredItem(currentScreen);
+            return;
+        }
+
         var currentWorld = ScreenToWorld(currentScreen);
         switch (_interaction)
         {
@@ -849,8 +900,13 @@ public sealed class InfiniteCanvas : Canvas
                     if (_resizeItem.Kind == ItemKind.Image &&
                         (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
                     {
+                        var aspectSize = _resizeItem.Preview is { } preview &&
+                                          preview.Width > 0 &&
+                                          preview.Height > 0
+                            ? new WorldSize(preview.Width, preview.Height)
+                            : new WorldSize(initial.Bounds.Width, initial.Bounds.Height);
                         size = ResizeMath.ConstrainToAspectRatio(
-                            new WorldSize(initial.Bounds.Width, initial.Bounds.Height),
+                            aspectSize,
                             requestedSize,
                             new WorldSize(minWidth, minHeight));
                     }
@@ -873,6 +929,27 @@ public sealed class InfiniteCanvas : Canvas
                 break;
         }
         eventArgs.Handled = true;
+    }
+
+    private void OnMouseLeave(object sender, MouseEventArgs eventArgs)
+    {
+        if (_interaction == InteractionMode.None && _hoveredItem is not null)
+        {
+            _hoveredItem = null;
+            InvalidateVisual();
+        }
+    }
+
+    private void UpdateHoveredItem(Point screenPoint)
+    {
+        var hoveredItem = HitTestItem(ScreenToWorld(screenPoint));
+        if (ReferenceEquals(_hoveredItem, hoveredItem))
+        {
+            return;
+        }
+
+        _hoveredItem = hoveredItem;
+        InvalidateVisual();
     }
 
     private bool IsGridSnappingActive =>
@@ -1207,6 +1284,86 @@ public sealed class InfiniteCanvas : Canvas
     }
 
     private static Rect ResizeHandleRect(Rect rect) => new(rect.Right - 7, rect.Bottom - 7, 12, 12);
+
+    private Brush GetCardBackground(BoardItemViewModel item)
+    {
+        var themedBackground = FindBrush("CardBackgroundBrush", FindBrush("SurfaceBrush", Brushes.DimGray));
+        var styleBackground = IsColor(item.Model.Style.Background, DefaultCardBackgroundColor.ToString())
+            ? themedBackground
+            : ParseBrush(item.Model.Style.Background, themedBackground);
+        if (item.Model.Content is not TextContent text)
+        {
+            return styleBackground;
+        }
+
+        return IsColor(text.Background, DefaultTextBackgroundColor.ToString())
+            ? FindBrush("CardTextBackgroundBrush", styleBackground)
+            : ParseBrush(text.Background, styleBackground);
+    }
+
+    private Brush GetCardForeground(BoardItemViewModel item) => item.Model.Content is TextContent text
+        ? GetTextForeground(text)
+        : GetThemeAwareBrush(
+            item.Model.Style.Foreground,
+            DefaultCardForegroundColor,
+            "TextPrimaryBrush",
+            Brushes.White);
+
+    private Brush GetCardAccent(BoardItemViewModel item) => GetThemeAwareBrush(
+        item.Model.Style.Accent,
+        Color.FromArgb(0xFF, 0x7C, 0x8C, 0xFF),
+        "AccentBrush",
+        Brushes.CornflowerBlue);
+
+    private Brush GetTextForeground(TextContent text) => GetThemeAwareBrush(
+        text.Foreground,
+        DefaultCardForegroundColor,
+        "TextPrimaryBrush",
+        Brushes.White);
+
+    private Brush GetTextBackground(TextContent text, BoardItemViewModel item) =>
+        IsColor(text.Background, DefaultTextBackgroundColor.ToString())
+            ? FindBrush("CardTextBackgroundBrush", GetCardBackground(item))
+            : ParseBrush(text.Background, GetCardBackground(item));
+
+    private Brush GetThemeAwareBrush(
+        string value,
+        Color legacyDefault,
+        string resourceKey,
+        Brush fallback)
+    {
+        return IsColor(value, legacyDefault.ToString())
+            ? FindBrush(resourceKey, fallback)
+            : ParseBrush(value, fallback);
+    }
+
+    private Brush FindBrush(string resourceKey, Brush fallback) =>
+        TryFindResource(resourceKey) as Brush ?? fallback;
+
+    private static bool IsColor(string value, string expected)
+    {
+        try
+        {
+            if (ColorConverter.ConvertFromString(value) is not Color parsed ||
+                ColorConverter.ConvertFromString(expected) is not Color expectedColor)
+            {
+                return false;
+            }
+
+            return parsed.A == expectedColor.A &&
+                   parsed.R == expectedColor.R &&
+                   parsed.G == expectedColor.G &&
+                   parsed.B == expectedColor.B;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+    }
 
     private static Brush ParseBrush(string value, Brush fallback)
     {
