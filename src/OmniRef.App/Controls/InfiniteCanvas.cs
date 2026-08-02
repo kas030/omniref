@@ -350,6 +350,7 @@ public sealed class InfiniteCanvas : Canvas
         BoardItemViewModel item,
         MatrixTransform worldToScreen)
     {
+        var worldRect = new Rect(item.Bounds.X, item.Bounds.Y, item.Bounds.Width, item.Bounds.Height);
         var rect = ToScreenRect(item.Bounds);
         if (rect.Width < 2 || rect.Height < 2)
         {
@@ -358,7 +359,7 @@ public sealed class InfiniteCanvas : Canvas
 
         if (item.Kind == ItemKind.Frame)
         {
-            DrawFrame(context, item, rect);
+            DrawFrame(context, item, worldRect, rect, worldToScreen);
             return;
         }
 
@@ -374,28 +375,32 @@ public sealed class InfiniteCanvas : Canvas
                     : FindBrush("CardBorderBrush", FindBrush("BorderBrush", Brushes.Gray));
         context.DrawRectangle(background, null, rect);
 
-        var inner = new Rect(
-            rect.X + Math.Clamp(14 * _zoom, 6, 18),
-            rect.Y + Math.Clamp(12 * _zoom, 6, 16),
-            Math.Max(1, rect.Width - Math.Clamp(28 * _zoom, 12, 36)),
-            Math.Max(1, rect.Height - Math.Clamp(24 * _zoom, 12, 32)));
-        switch (item.Model.Content)
+        var inner = GetCardInnerWorldRect(item.Bounds);
+        context.PushTransform(worldToScreen);
+        try
         {
-            case ImageContent:
-                DrawImageCard(context, item, rect);
-                break;
-            case FileContent:
-                DrawFileCard(context, item, inner, isFolder: false);
-                break;
-            case FolderContent:
-                DrawFileCard(context, item, inner, isFolder: true);
-                break;
-            case TextContent text when !ReferenceEquals(item, _editingItem):
-                DrawTextCard(context, item, text, worldToScreen);
-                break;
-            case UrlContent url:
-                DrawUrlCard(context, item, inner, url);
-                break;
+            switch (item.Model.Content)
+            {
+                case ImageContent:
+                    DrawImageCard(context, item, worldRect, rect);
+                    break;
+                case FileContent:
+                    DrawFileCard(context, item, inner, isFolder: false);
+                    break;
+                case FolderContent:
+                    DrawFileCard(context, item, inner, isFolder: true);
+                    break;
+                case TextContent text when !ReferenceEquals(item, _editingItem):
+                    DrawTextCard(context, item, inner, text);
+                    break;
+                case UrlContent url:
+                    DrawUrlCard(context, item, inner, url);
+                    break;
+            }
+        }
+        finally
+        {
+            context.Pop();
         }
 
         context.DrawRectangle(
@@ -416,7 +421,12 @@ public sealed class InfiniteCanvas : Canvas
         }
     }
 
-    private void DrawFrame(DrawingContext context, BoardItemViewModel item, Rect rect)
+    private void DrawFrame(
+        DrawingContext context,
+        BoardItemViewModel item,
+        Rect worldRect,
+        Rect screenRect,
+        MatrixTransform worldToScreen)
     {
         var content = (FrameContent)item.Model.Content;
         var fill = IsColor(content.Color, "#337C8CFF")
@@ -427,23 +437,39 @@ public sealed class InfiniteCanvas : Canvas
             : IsColor(item.Model.Style.Accent, "#FF7C8CFF")
                 ? FindBrush("CardFrameBorderBrush", FindBrush("AccentBrush", Brushes.SlateBlue))
                 : ParseBrush(item.Model.Style.Accent, Brushes.SlateBlue);
-        context.DrawRectangle(fill, new Pen(stroke, item.IsSelected ? SelectedBorderThickness : 1), rect);
-        DrawFormattedText(
-            context,
-            item.DisplayTitle,
-            new Rect(rect.X + 16, rect.Y + 10, Math.Max(1, rect.Width - 32), 30),
-            Math.Clamp(15 * _zoom, 8, 24),
-            FindBrush("TextPrimaryBrush", Brushes.White),
-            FontWeights.SemiBold,
-            TextAlignment.Left);
+        context.DrawRectangle(fill, null, screenRect);
+        context.PushTransform(worldToScreen);
+        try
+        {
+            DrawFormattedText(
+                context,
+                item.DisplayTitle,
+                new Rect(worldRect.X + 16, worldRect.Y + 10, Math.Max(1, worldRect.Width - 32), 30),
+                15,
+                FindBrush("TextPrimaryBrush", Brushes.White),
+                FontWeights.SemiBold,
+                TextAlignment.Left);
+        }
+        finally
+        {
+            context.Pop();
+        }
+        context.DrawRectangle(
+            null,
+            new Pen(stroke, item.IsSelected ? SelectedBorderThickness : 1),
+            screenRect);
 
         if (item.IsSelected && Workspace?.SelectedItems.Count == 1)
         {
-            DrawResizeHandles(context, rect);
+            DrawResizeHandles(context, screenRect);
         }
     }
 
-    private void DrawImageCard(DrawingContext context, BoardItemViewModel item, Rect destination)
+    private void DrawImageCard(
+        DrawingContext context,
+        BoardItemViewModel item,
+        Rect destination,
+        Rect previewDestination)
     {
         if (item.Preview is not null)
         {
@@ -456,16 +482,16 @@ public sealed class InfiniteCanvas : Canvas
                 destination,
                 "▧",
                 GetCardForeground(item));
-            RequestPreview(item, destination);
+            RequestPreview(item, previewDestination);
         }
 
     }
 
     private void DrawFileCard(DrawingContext context, BoardItemViewModel item, Rect inner, bool isFolder)
     {
-        var iconSize = Math.Min(inner.Height * 0.56, Math.Min(inner.Width * 0.35, 88 * _zoom));
+        var iconSize = Math.Min(inner.Height * 0.56, Math.Min(inner.Width * 0.35, 88));
         var iconRect = new Rect(inner.X, inner.Y + ((inner.Height - iconSize) / 2), iconSize, iconSize);
-        var iconCorner = Math.Clamp(10 * _zoom, 5, 12);
+        var iconCorner = Math.Min(10, iconSize / 2);
         context.DrawRoundedRectangle(
             FindBrush("CardIconSurfaceBrush", FindBrush("SurfaceRaisedBrush", Brushes.DimGray)),
             null,
@@ -486,33 +512,33 @@ public sealed class InfiniteCanvas : Canvas
                 iconRect,
                 isFolder ? "▰" : "▤",
                 GetCardAccent(item));
-            RequestPreview(item, iconRect);
+            RequestPreview(item, ToScreenRect(iconRect));
         }
 
         var textRect = new Rect(
-            iconRect.Right + Math.Clamp(12 * _zoom, 6, 18),
+            iconRect.Right + 12,
             inner.Y + 4,
-            Math.Max(1, inner.Right - iconRect.Right - Math.Clamp(12 * _zoom, 6, 18)),
+            Math.Max(1, inner.Right - iconRect.Right - 12),
             Math.Max(1, inner.Height - 8));
         DrawFormattedText(
             context,
             item.DisplayTitle,
             textRect,
-            Math.Clamp(14 * _zoom, 7, 22),
+            14,
             GetCardForeground(item),
             FontWeights.SemiBold,
             TextAlignment.Left,
             maxLines: 2);
         var secondaryRect = new Rect(
             textRect.X,
-            textRect.Y + Math.Min(textRect.Height * 0.55, 42 * _zoom),
+            textRect.Y + Math.Min(textRect.Height * 0.55, 42),
             textRect.Width,
             Math.Max(1, textRect.Height * 0.4));
         DrawFormattedText(
             context,
             item.SecondaryText,
             secondaryRect,
-            Math.Clamp(11 * _zoom, 6, 16),
+            11,
             WithOpacity(GetCardForeground(item), 0.62),
             FontWeights.Normal,
             TextAlignment.Left,
@@ -522,31 +548,22 @@ public sealed class InfiniteCanvas : Canvas
     private void DrawTextCard(
         DrawingContext context,
         BoardItemViewModel item,
-        TextContent text,
-        MatrixTransform worldToScreen)
+        Rect inner,
+        TextContent text)
     {
-        var inner = GetTextInnerWorldRect(item.Bounds);
-        context.PushTransform(worldToScreen);
-        try
+        var foreground = GetTextForeground(text);
+        var isOverflowing = DrawFormattedText(
+            context,
+            text.Text,
+            inner,
+            GetTextWorldFontSize(text),
+            foreground,
+            FontWeights.Normal,
+            GetTextAlignment(text));
+        if (isOverflowing)
         {
-            var foreground = GetTextForeground(text);
-            var isOverflowing = DrawFormattedText(
-                context,
-                text.Text,
-                inner,
-                GetTextWorldFontSize(text),
-                foreground,
-                FontWeights.Normal,
-                GetTextAlignment(text));
-            if (isOverflowing)
-            {
-                var background = GetTextBackground(text, item);
-                DrawTextOverflowIndicator(context, inner, foreground, background);
-            }
-        }
-        finally
-        {
-            context.Pop();
+            var background = GetTextBackground(text, item);
+            DrawTextOverflowIndicator(context, inner, foreground, background);
         }
     }
 
@@ -601,8 +618,8 @@ public sealed class InfiniteCanvas : Canvas
 
     private void DrawUrlCard(DrawingContext context, BoardItemViewModel item, Rect inner, UrlContent url)
     {
-        var glyphRect = new Rect(inner.X, inner.Y, Math.Min(52 * _zoom, inner.Width * 0.25), inner.Height);
-        var glyphCorner = Math.Clamp(10 * _zoom, 5, 12);
+        var glyphRect = new Rect(inner.X, inner.Y, Math.Max(1, Math.Min(52, inner.Width * 0.25)), inner.Height);
+        var glyphCorner = Math.Min(10, Math.Min(glyphRect.Width, glyphRect.Height) / 2);
         context.DrawRoundedRectangle(
             FindBrush("CardIconSurfaceBrush", FindBrush("SurfaceRaisedBrush", Brushes.DimGray)),
             null,
@@ -616,7 +633,7 @@ public sealed class InfiniteCanvas : Canvas
             context,
             item.DisplayTitle,
             textRect,
-            Math.Clamp(15 * _zoom, 8, 23),
+            15,
             cardForeground,
             FontWeights.SemiBold,
             TextAlignment.Left,
@@ -624,8 +641,8 @@ public sealed class InfiniteCanvas : Canvas
         DrawFormattedText(
             context,
             url.Url,
-            new Rect(textRect.X, textRect.Y + Math.Min(32 * _zoom, textRect.Height * 0.5), textRect.Width, textRect.Height * 0.45),
-            Math.Clamp(11 * _zoom, 6, 16),
+            new Rect(textRect.X, textRect.Y + Math.Min(32, textRect.Height * 0.5), textRect.Width, textRect.Height * 0.45),
+            11,
             WithOpacity(cardForeground, 0.62),
             FontWeights.Normal,
             TextAlignment.Left,
@@ -637,7 +654,7 @@ public sealed class InfiniteCanvas : Canvas
             context,
             glyph,
             rect,
-            Math.Clamp(Math.Min(rect.Width, rect.Height) * 0.46, 10, 56),
+            Math.Max(1, Math.Min(rect.Width, rect.Height) * 0.46),
             foreground ?? TryFindResource("TextSecondaryBrush") as Brush ?? Brushes.LightGray,
             FontWeights.Normal,
             TextAlignment.Center,
@@ -1322,11 +1339,16 @@ public sealed class InfiniteCanvas : Canvas
 
     private Rect ToScreenRect(WorldRect world)
     {
+        return ToScreenRect(new Rect(world.X, world.Y, world.Width, world.Height));
+    }
+
+    private Rect ToScreenRect(Rect world)
+    {
         var topLeft = WorldToScreen(new WorldPoint(world.X, world.Y));
         return new Rect(topLeft.X, topLeft.Y, world.Width * _zoom, world.Height * _zoom);
     }
 
-    private static Rect GetTextInnerWorldRect(WorldRect bounds) => new(
+    private static Rect GetCardInnerWorldRect(WorldRect bounds) => new(
         bounds.X + CardHorizontalPadding,
         bounds.Y + CardVerticalPadding,
         Math.Max(1, bounds.Width - (CardHorizontalPadding * 2)),
