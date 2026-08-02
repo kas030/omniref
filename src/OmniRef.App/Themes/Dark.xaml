@@ -12,7 +12,7 @@
     <Color x:Key="CardBackgroundColor">#FF252932</Color>
     <Color x:Key="CardTextBackgroundColor">#FF2B2F38</Color>
     <Color x:Key="CardBorderColor">#FF3B414D</Color>
-    <Color x:Key="CardHoverBorderColor">#FF626D7D</Color>
+    <Color x:Key="CardHoverBorderColor">#FF9AA5FF</Color>
     <Color x:Key="CardIconSurfaceColor">#FF303641</Color>
     <Color x:Key="CardFrameFillColor">#2B8391FF</Color>
     <Color x:Key="CardFrameBorderColor">#B08391FF</Color>

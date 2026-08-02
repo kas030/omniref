@@ -354,15 +354,6 @@ public sealed class InfiniteCanvas : Canvas
         }
 
         var isHovered = ReferenceEquals(_hoveredItem, item);
-        if (isHovered && !item.IsSelected)
-        {
-            var haloBrush = WithOpacity(FindBrush("CardHoverBorderBrush", Brushes.LightGray), 0.3);
-            var haloRect = new Rect(rect.X - 2, rect.Y - 2, rect.Width + 4, rect.Height + 4);
-            context.DrawRectangle(
-                null,
-                new Pen(haloBrush, 1),
-                haloRect);
-        }
 
         var background = GetCardBackground(item);
         var borderBrush = item.IsMissing
