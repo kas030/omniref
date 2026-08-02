@@ -562,13 +562,12 @@
 
             <Border Grid.Column="0"
                     Panel.ZIndex="1"
-                    Margin="0,-1,0,-1"
                     UseLayoutRounding="True"
                     SnapsToDevicePixels="True"
                     Padding="12"
                     Background="{DynamicResource SurfaceBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
-                    BorderThickness="0,1,1,1"
+                    BorderThickness="0,0,1,0"
                     ClipToBounds="True">
                 <Border.Style>
                     <Style TargetType="{x:Type Border}">
