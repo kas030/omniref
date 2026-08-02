@@ -28,6 +28,7 @@ public sealed class InfiniteCanvas : Canvas
     ];
     private const double ResizeHandleSize = 8;
     private const double ResizeHandleHitSize = 14;
+    private const double SelectedBorderThickness = 1.5;
 
     public static readonly DependencyProperty WorkspaceProperty = DependencyProperty.Register(
         nameof(Workspace),
@@ -391,7 +392,9 @@ public sealed class InfiniteCanvas : Canvas
 
         context.DrawRectangle(
             null,
-            new Pen(borderBrush, item.IsSelected || item.IsMissing ? 2 : isHovered ? 1.35 : 1),
+            new Pen(
+                borderBrush,
+                item.IsSelected || item.IsMissing ? SelectedBorderThickness : isHovered ? 1.35 : 1),
             rect);
 
         if (item.IsSelected && Workspace?.SelectedItems.Count == 1)
@@ -416,7 +419,7 @@ public sealed class InfiniteCanvas : Canvas
             : IsColor(item.Model.Style.Accent, "#FF7C8CFF")
                 ? FindBrush("CardFrameBorderBrush", FindBrush("AccentBrush", Brushes.SlateBlue))
                 : ParseBrush(item.Model.Style.Accent, Brushes.SlateBlue);
-        context.DrawRectangle(fill, new Pen(stroke, item.IsSelected ? 2 : 1), rect);
+        context.DrawRectangle(fill, new Pen(stroke, item.IsSelected ? SelectedBorderThickness : 1), rect);
         DrawFormattedText(
             context,
             item.DisplayTitle,
@@ -1291,7 +1294,7 @@ public sealed class InfiniteCanvas : Canvas
     private void DrawResizeHandles(DrawingContext context, Rect rect)
     {
         var fill = Brushes.White;
-        var stroke = new Pen(FindBrush("AccentBrush", Brushes.CornflowerBlue), 1);
+        var stroke = new Pen(FindBrush("AccentBrush", Brushes.CornflowerBlue), SelectedBorderThickness);
         foreach (var corner in ResizeCorners)
         {
             var center = ResizeHandleCenter(rect, corner);
