@@ -1394,6 +1394,18 @@ public partial class MainWindow : Window
         menu.IsOpen = true;
     }
 
+    private void SearchClear_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        if (_viewModel.SelectedWorkspace is not { } workspace)
+        {
+            return;
+        }
+
+        workspace.SearchQuery = string.Empty;
+        SearchTextBox.Focus();
+        SearchTextBox.CaretIndex = SearchTextBox.Text.Length;
+    }
+
     private static ContextMenu CreateToolbarMenu(Button button) => new()
     {
         PlacementTarget = button,

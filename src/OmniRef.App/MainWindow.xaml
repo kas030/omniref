@@ -631,11 +631,12 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <TextBox Grid.Column="0"
-                                 Padding="32,7,9,7"
+                        <TextBox x:Name="SearchTextBox"
+                                 Grid.Column="0"
+                                 Padding="32,7,42,7"
                                  Text="{Binding SelectedWorkspace.SearchQuery, UpdateSourceTrigger=PropertyChanged}" />
                         <TextBlock Grid.Column="0"
-                                   Margin="32,0,10,0"
+                                   Margin="36,0,10,0"
                                    VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                    IsHitTestVisible="False"
@@ -664,6 +665,26 @@
                                           IsHitTestVisible="False"
                                           Style="{StaticResource ToolbarIcon}"
                                           Icon="Search" />
+                        <Button Grid.Column="0"
+                                Width="34"
+                                Height="34"
+                                Margin="0,0,3,0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Padding="7"
+                                Style="{StaticResource ToolbarButton}"
+                                Click="SearchClear_Click"
+                                Visibility="{Binding SelectedWorkspace.SearchQuery, Converter={StaticResource NonEmptyStringToVisibility}}"
+                                ToolTip="{Binding Localization[ClearSearch]}"
+                                AutomationProperties.Name="{Binding Localization[ClearSearch]}">
+                            <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                              IsHitTestVisible="False"
+                                              Width="16"
+                                              Height="16"
+                                              FontSize="16"
+                                              IconSize="Size16"
+                                              Icon="Dismiss" />
+                        </Button>
                         <Button Grid.Column="1"
                                 Margin="4,0,0,0"
                                 Style="{StaticResource ToolbarButton}"
