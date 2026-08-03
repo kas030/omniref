@@ -16,6 +16,7 @@ public sealed class AppSettings
     public AppTheme Theme { get; set; } = AppTheme.System;
     public string Language { get; set; } = "auto";
     public bool AlwaysOnTop { get; set; }
+    public bool CanvasOnlyMode { get; set; }
     public bool ShowCanvasGrid { get; set; }
     public bool SnapToGrid { get; set; }
     public bool CloseToTray { get; set; } = true;

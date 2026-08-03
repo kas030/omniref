@@ -18,6 +18,7 @@ public sealed class AppSettingsStoreTests : IDisposable
 
         Assert.False(settings.ShowCanvasGrid);
         Assert.False(settings.SnapToGrid);
+        Assert.False(settings.CanvasOnlyMode);
     }
 
     [Fact]
@@ -27,7 +28,8 @@ public sealed class AppSettingsStoreTests : IDisposable
         var settings = new AppSettings
         {
             ShowCanvasGrid = true,
-            SnapToGrid = true
+            SnapToGrid = true,
+            CanvasOnlyMode = true
         };
 
         store.Save(settings);
@@ -35,6 +37,21 @@ public sealed class AppSettingsStoreTests : IDisposable
 
         Assert.True(loaded.ShowCanvasGrid);
         Assert.True(loaded.SnapToGrid);
+        Assert.True(loaded.CanvasOnlyMode);
+    }
+
+    [Fact]
+    public void LoadLegacySettings_DefaultsCanvasOnlyModeToOff()
+    {
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(
+            Path.Combine(_directory, "settings.json"),
+            "{\"alwaysOnTop\":true}");
+
+        var settings = new AppSettingsStore(_directory).Load();
+
+        Assert.True(settings.AlwaysOnTop);
+        Assert.False(settings.CanvasOnlyMode);
     }
 
     public void Dispose()

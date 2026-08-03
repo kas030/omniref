@@ -42,6 +42,45 @@
                         </Setter.Value>
                     </Setter>
                 </Trigger>
+                <Trigger Property="local:MainWindow.IsCanvasOnlyMode" Value="True">
+                    <Setter Property="shell:WindowChrome.WindowChrome">
+                        <Setter.Value>
+                            <shell:WindowChrome CaptionHeight="0"
+                                                CornerRadius="0"
+                                                GlassFrameThickness="0"
+                                                ResizeBorderThickness="6"
+                                                UseAeroCaptionButtons="False" />
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+                <Trigger Property="local:MainWindow.IsWindowLocked" Value="True">
+                    <Setter Property="shell:WindowChrome.WindowChrome">
+                        <Setter.Value>
+                            <shell:WindowChrome CaptionHeight="0"
+                                                CornerRadius="0"
+                                                GlassFrameThickness="0"
+                                                ResizeBorderThickness="0"
+                                                UseAeroCaptionButtons="False" />
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding WindowState, RelativeSource={RelativeSource Self}}"
+                                   Value="Maximized" />
+                        <Condition Binding="{Binding IsCanvasOnlyMode, RelativeSource={RelativeSource Self}}"
+                                   Value="True" />
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="shell:WindowChrome.WindowChrome">
+                        <Setter.Value>
+                            <shell:WindowChrome CaptionHeight="0"
+                                                CornerRadius="0"
+                                                GlassFrameThickness="0"
+                                                ResizeBorderThickness="0"
+                                                UseAeroCaptionButtons="False" />
+                        </Setter.Value>
+                    </Setter>
+                </MultiDataTrigger>
             </Style.Triggers>
         </Style>
     </Window.Style>
@@ -70,18 +109,24 @@
                         <Setter Property="BorderThickness" Value="0" />
                         <Setter Property="CornerRadius" Value="0" />
                     </DataTrigger>
+                    <DataTrigger Binding="{Binding IsCanvasOnlyMode, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                 Value="True">
+                        <Setter Property="BorderThickness" Value="0" />
+                        <Setter Property="CornerRadius" Value="0" />
+                    </DataTrigger>
                 </Style.Triggers>
             </Style>
         </Border.Style>
         <Grid x:Name="WindowContent">
         <Grid.RowDefinitions>
-            <RowDefinition Height="42" />
-            <RowDefinition Height="46" />
+            <RowDefinition x:Name="TitleBarRow" Height="42" />
+            <RowDefinition x:Name="ToolbarRow" Height="46" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="28" />
+            <RowDefinition x:Name="StatusRow" Height="28" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0"
+        <Border x:Name="TitleBar"
+                Grid.Row="0"
                 Background="{DynamicResource SurfaceBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,0,0,1"
@@ -335,7 +380,8 @@
             </Grid>
         </Border>
 
-        <Border Grid.Row="1"
+        <Border x:Name="ToolbarBar"
+                Grid.Row="1"
                 Background="{DynamicResource SurfaceBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,0,0,1">
@@ -395,6 +441,14 @@
                                   AutomationProperties.Name="{Binding Localization[GridSnap]}">
                         <Path Style="{StaticResource ToolbarMagnetIcon}" />
                     </ToggleButton>
+                    <ToggleButton Style="{StaticResource ToolbarToggleButton}"
+                                  IsChecked="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}, Mode=OneWay}"
+                                  Click="CanvasLock_Click"
+                                  ToolTip="{Binding Localization[LockCanvas]}"
+                                  AutomationProperties.Name="{Binding Localization[LockCanvas]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="TableLock" />
+                    </ToggleButton>
                     <Separator Style="{StaticResource ToolbarSeparator}" />
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="Open_Click"
@@ -420,6 +474,7 @@
                     <Separator Style="{StaticResource ToolbarSeparator}" />
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="AddFiles_Click"
+                            IsEnabled="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
                             ToolTip="{Binding Localization[AddFiles]}"
                             AutomationProperties.Name="{Binding Localization[AddFiles]}">
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
@@ -427,6 +482,7 @@
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="AddFolder_Click"
+                            IsEnabled="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
                             ToolTip="{Binding Localization[AddFolder]}"
                             AutomationProperties.Name="{Binding Localization[AddFolder]}">
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
@@ -434,6 +490,7 @@
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="AddText_Click"
+                            IsEnabled="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
                             ToolTip="{Binding Localization[AddText]}"
                             AutomationProperties.Name="{Binding Localization[AddText]}">
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
@@ -441,6 +498,7 @@
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="AddFrame_Click"
+                            IsEnabled="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
                             ToolTip="{Binding Localization[AddFrame]}"
                             AutomationProperties.Name="{Binding Localization[AddFrame]}">
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
@@ -449,6 +507,7 @@
                     <Separator Style="{StaticResource ToolbarSeparator}" />
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="Undo_Click"
+                            IsEnabled="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
                             ToolTip="{Binding Localization[Undo]}"
                             AutomationProperties.Name="{Binding Localization[Undo]}">
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
@@ -456,6 +515,7 @@
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="Redo_Click"
+                            IsEnabled="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
                             ToolTip="{Binding Localization[Redo]}"
                             AutomationProperties.Name="{Binding Localization[Redo]}">
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
@@ -463,6 +523,7 @@
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="Paste_Click"
+                            IsEnabled="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
                             ToolTip="{Binding Localization[Paste]}"
                             AutomationProperties.Name="{Binding Localization[Paste]}">
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
@@ -471,6 +532,7 @@
                     <Button Style="{StaticResource ToolbarButton}"
                             Foreground="{DynamicResource DangerBrush}"
                             Click="Delete_Click"
+                            IsEnabled="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
                             ToolTip="{Binding Localization[Delete]}"
                             AutomationProperties.Name="{Binding Localization[Delete]}">
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
@@ -529,6 +591,14 @@
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
                                           Icon="Pin" />
                     </ToggleButton>
+                    <ToggleButton Style="{StaticResource ToolbarToggleButton}"
+                                  IsChecked="{Binding IsCanvasOnlyMode, RelativeSource={RelativeSource AncestorType=Window}, Mode=OneWay}"
+                                  Click="CanvasOnlyMode_Click"
+                                  ToolTip="{Binding Localization[CanvasOnlyMode]}"
+                                  AutomationProperties.Name="{Binding Localization[CanvasOnlyMode]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Icon="WindowHeaderHorizontalOff" />
+                    </ToggleButton>
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="Theme_Click"
                             ToolTip="{Binding Localization[Theme]}"
@@ -554,16 +624,24 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="2">
+        <Grid x:Name="CanvasArea"
+              Grid.Row="2"
+              Background="Transparent"
+              PreviewMouseRightButtonDown="CanvasHost_PreviewMouseRightButtonDown"
+              PreviewMouseMove="CanvasHost_PreviewMouseMove"
+              PreviewMouseRightButtonUp="CanvasHost_PreviewMouseRightButtonUp"
+              LostMouseCapture="CanvasHost_LostMouseCapture">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0"
+            <Border x:Name="SidebarPanel"
+                    Grid.Column="0"
                     Panel.ZIndex="1"
                     UseLayoutRounding="True"
                     SnapsToDevicePixels="True"
+                    IsEnabled="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType={x:Type Window}}, Converter={StaticResource InverseBool}}"
                     Padding="12"
                     Background="{DynamicResource SurfaceBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
@@ -842,6 +920,7 @@
                             <controls:InfiniteCanvas Workspace="{Binding}"
                                                      ShowGrid="{Binding ShowCanvasGrid, RelativeSource={RelativeSource AncestorType=Window}}"
                                                      SnapToGrid="{Binding SnapToGrid, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                     IsCanvasLocked="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}}"
                                                      PasteRequested="Canvas_PasteRequested"
                                                      CopyRequested="Canvas_CopyRequested"
                                                      ExternalDrop="Canvas_ExternalDrop" />
@@ -903,7 +982,8 @@
             </Grid>
         </Grid>
 
-        <Border Grid.Row="3"
+        <Border x:Name="StatusBar"
+                Grid.Row="3"
                 Background="{DynamicResource SurfaceBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,1,0,0">

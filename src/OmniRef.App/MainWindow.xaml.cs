@@ -40,6 +40,10 @@ public partial class MainWindow : Window
     private const int MaximizeSystemCommand = 0xF030;
     private const int RestoreSystemCommand = 0xF120;
     private const double ApplicationIconSize = 20;
+    private const double NormalMinimumWidth = 640;
+    private const double NormalMinimumHeight = 480;
+    private const double CanvasOnlyMinimumWidth = 240;
+    private const double CanvasOnlyMinimumHeight = 180;
     private const double WorkspaceTabPreferredWidth = 180;
     private const double WorkspaceTabMinimumWidth = 104;
     private const double WorkspaceTabHorizontalMargin = 4;
@@ -52,6 +56,24 @@ public partial class MainWindow : Window
 
     public static readonly DependencyProperty ShowCanvasGridProperty = DependencyProperty.Register(
         nameof(ShowCanvasGrid),
+        typeof(bool),
+        typeof(MainWindow),
+        new PropertyMetadata(false));
+
+    public static readonly DependencyProperty IsCanvasOnlyModeProperty = DependencyProperty.Register(
+        nameof(IsCanvasOnlyMode),
+        typeof(bool),
+        typeof(MainWindow),
+        new PropertyMetadata(false, OnWindowPresentationChanged));
+
+    public static readonly DependencyProperty IsWindowLockedProperty = DependencyProperty.Register(
+        nameof(IsWindowLocked),
+        typeof(bool),
+        typeof(MainWindow),
+        new PropertyMetadata(false, OnWindowPresentationChanged));
+
+    public static readonly DependencyProperty IsCanvasLockedProperty = DependencyProperty.Register(
+        nameof(IsCanvasLocked),
         typeof(bool),
         typeof(MainWindow),
         new PropertyMetadata(false));
@@ -111,6 +133,12 @@ public partial class MainWindow : Window
     private bool _workspaceTabAutoScrollActive;
     private bool _workspaceTabDragStartAllowed = true;
     private ListBoxItem? _workspaceTabPointerOverItem;
+    private Point _canvasOnlyDragStart;
+    private WindowDragOrigin _canvasOnlyDragOrigin;
+    private bool _canvasOnlyDragPending;
+    private bool _canvasOnlyDragActive;
+    private bool _canvasOnlyDragOriginCaptured;
+    private bool _canvasOnlyDragAttempted;
 
     public MainWindow(
         MainWindowViewModel viewModel,
@@ -150,6 +178,7 @@ public partial class MainWindow : Window
             new ScrollChangedEventHandler(WorkspaceTabs_ScrollChanged));
         _viewModel.Workspaces.CollectionChanged += Workspaces_CollectionChanged;
 
+        IsCanvasOnlyMode = settings.CanvasOnlyMode;
         RestoreWindowState();
         Topmost = settings.AlwaysOnTop;
         ShowCanvasGrid = settings.ShowCanvasGrid;
@@ -162,6 +191,89 @@ public partial class MainWindow : Window
         DpiChanged += OnDpiChanged;
         StateChanged += OnWindowStateChanged;
         Application.Current.SessionEnding += OnSessionEnding;
+    }
+
+    public bool IsCanvasOnlyMode
+    {
+        get => (bool)GetValue(IsCanvasOnlyModeProperty);
+        set => SetValue(IsCanvasOnlyModeProperty, value);
+    }
+
+    public bool IsWindowLocked
+    {
+        get => (bool)GetValue(IsWindowLockedProperty);
+        set => SetValue(IsWindowLockedProperty, value);
+    }
+
+    public bool IsCanvasLocked
+    {
+        get => (bool)GetValue(IsCanvasLockedProperty);
+        set => SetValue(IsCanvasLockedProperty, value);
+    }
+
+    private static void OnWindowPresentationChanged(
+        DependencyObject dependencyObject,
+        DependencyPropertyChangedEventArgs eventArgs)
+    {
+        if (dependencyObject is MainWindow window)
+        {
+            window.ApplyWindowPresentation();
+        }
+    }
+
+    private void ApplyWindowPresentation()
+    {
+        var canvasOnly = IsCanvasOnlyMode;
+        MinWidth = canvasOnly ? CanvasOnlyMinimumWidth : NormalMinimumWidth;
+        MinHeight = canvasOnly ? CanvasOnlyMinimumHeight : NormalMinimumHeight;
+
+        if (!canvasOnly && WindowState != WindowState.Maximized)
+        {
+            Width = Math.Max(Width, NormalMinimumWidth);
+            Height = Math.Max(Height, NormalMinimumHeight);
+        }
+
+        var hiddenRow = new GridLength(0);
+        TitleBarRow.Height = canvasOnly ? hiddenRow : new GridLength(42);
+        ToolbarRow.Height = canvasOnly ? hiddenRow : new GridLength(46);
+        StatusRow.Height = canvasOnly ? hiddenRow : new GridLength(28);
+        TitleBar.Visibility = canvasOnly ? Visibility.Collapsed : Visibility.Visible;
+        ToolbarBar.Visibility = canvasOnly ? Visibility.Collapsed : Visibility.Visible;
+        StatusBar.Visibility = canvasOnly ? Visibility.Collapsed : Visibility.Visible;
+        SidebarPanel.Visibility = canvasOnly ? Visibility.Collapsed : Visibility.Visible;
+
+        if (canvasOnly)
+        {
+            EndCanvasOnlyWindowDrag();
+        }
+
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle != IntPtr.Zero)
+        {
+            if (IsLoaded)
+            {
+                UpdateLayout();
+            }
+
+            RefreshWindowPresentationFrame();
+            Dispatcher.BeginInvoke(
+                DispatcherPriority.Render,
+                new Action(RefreshWindowPresentationFrame));
+        }
+    }
+
+    private void RefreshWindowPresentationFrame()
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        RefreshWindowChrome();
+        WindowsWindowAnimation.SetRoundedCorners(
+            handle,
+            enabled: !IsCanvasOnlyMode && WindowState != WindowState.Maximized);
     }
 
     private void ConfigureWorkspaceTabDragDrop()
@@ -373,6 +485,7 @@ public partial class MainWindow : Window
         var handle = new WindowInteropHelper(this).Handle;
         _windowSource = HwndSource.FromHwnd(handle);
         _windowSource?.AddHook(WindowMessageHook);
+        ApplyWindowPresentation();
     }
 
     private IntPtr WindowMessageHook(
@@ -499,6 +612,149 @@ public partial class MainWindow : Window
         }
     }
 
+    private void CanvasHost_PreviewMouseRightButtonDown(
+        object sender,
+        MouseButtonEventArgs eventArgs)
+    {
+        if (!IsCanvasOnlyMode || eventArgs.ChangedButton != MouseButton.Right)
+        {
+            return;
+        }
+
+        _canvasOnlyDragStart = eventArgs.GetPosition(this);
+        _canvasOnlyDragPending = true;
+        _canvasOnlyDragActive = false;
+        _canvasOnlyDragAttempted = false;
+        _canvasOnlyDragOriginCaptured = !IsWindowLocked &&
+            WindowsWindowBounds.TryCaptureWindowDrag(
+                new WindowInteropHelper(this).Handle,
+                out _canvasOnlyDragOrigin);
+        CanvasArea.CaptureMouse();
+        eventArgs.Handled = true;
+    }
+
+    private void CanvasHost_PreviewMouseMove(object sender, MouseEventArgs eventArgs)
+    {
+        if (!IsCanvasOnlyMode ||
+            (!_canvasOnlyDragPending && !_canvasOnlyDragActive))
+        {
+            return;
+        }
+
+        if (eventArgs.RightButton != MouseButtonState.Pressed)
+        {
+            EndCanvasOnlyWindowDrag();
+            return;
+        }
+
+        if (!_canvasOnlyDragActive)
+        {
+            var position = eventArgs.GetPosition(this);
+            var delta = position - _canvasOnlyDragStart;
+            if (Math.Abs(delta.X) < SystemParameters.MinimumHorizontalDragDistance &&
+                Math.Abs(delta.Y) < SystemParameters.MinimumVerticalDragDistance)
+            {
+                return;
+            }
+
+            _canvasOnlyDragAttempted = true;
+            _canvasOnlyDragPending = false;
+            if (IsWindowLocked)
+            {
+                eventArgs.Handled = true;
+                return;
+            }
+
+            if (WindowState == WindowState.Maximized)
+            {
+                RestoreWindowForDrag(position);
+                _canvasOnlyDragOriginCaptured = WindowsWindowBounds.TryCaptureWindowDrag(
+                    new WindowInteropHelper(this).Handle,
+                    out _canvasOnlyDragOrigin);
+            }
+
+            _canvasOnlyDragActive = _canvasOnlyDragOriginCaptured;
+        }
+
+        if (_canvasOnlyDragActive)
+        {
+            WindowsWindowBounds.TryMoveWindow(
+                new WindowInteropHelper(this).Handle,
+                _canvasOnlyDragOrigin);
+        }
+
+        eventArgs.Handled = true;
+    }
+
+    private void CanvasHost_PreviewMouseRightButtonUp(
+        object sender,
+        MouseButtonEventArgs eventArgs)
+    {
+        if (!IsCanvasOnlyMode || eventArgs.ChangedButton != MouseButton.Right)
+        {
+            return;
+        }
+
+        var shouldOpenMenu = _canvasOnlyDragPending && !_canvasOnlyDragAttempted;
+        EndCanvasOnlyWindowDrag();
+        eventArgs.Handled = true;
+        if (shouldOpenMenu)
+        {
+            ShowCanvasOnlyContextMenu();
+        }
+    }
+
+    private void CanvasHost_LostMouseCapture(object sender, MouseEventArgs eventArgs) =>
+        EndCanvasOnlyWindowDrag();
+
+    private void EndCanvasOnlyWindowDrag()
+    {
+        _canvasOnlyDragPending = false;
+        _canvasOnlyDragActive = false;
+        _canvasOnlyDragOriginCaptured = false;
+        if (ReferenceEquals(Mouse.Captured, CanvasArea))
+        {
+            CanvasArea.ReleaseMouseCapture();
+        }
+    }
+
+    private void ShowCanvasOnlyContextMenu()
+    {
+        var menu = new ContextMenu
+        {
+            Placement = PlacementMode.MousePoint
+        };
+        var restoreInterface = new MenuItem
+        {
+            Header = _viewModel.Localization["RestoreInterface"],
+            Icon = CreateMenuIcon(Symbol.ExpandUpLeft)
+        };
+        restoreInterface.Click += (_, _) => SetCanvasOnlyMode(false);
+        menu.Items.Add(restoreInterface);
+        AddMenuSeparator(menu);
+
+        var alwaysOnTop = new MenuItem
+        {
+            Header = _viewModel.Localization["AlwaysOnTop"],
+            IsCheckable = true,
+            IsChecked = Topmost,
+            Icon = CreateMenuIcon(Symbol.WindowMultiple)
+        };
+        alwaysOnTop.Click += (_, _) => ToggleAlwaysOnTop();
+        menu.Items.Add(alwaysOnTop);
+
+        var lockWindow = new MenuItem
+        {
+            Header = _viewModel.Localization["LockWindow"],
+            IsCheckable = true,
+            IsChecked = IsWindowLocked,
+            Icon = CreateMenuIcon(Symbol.CalendarLock)
+        };
+        lockWindow.Click += (_, _) => IsWindowLocked = !IsWindowLocked;
+        menu.Items.Add(lockWindow);
+        menu.IsOpen = true;
+    }
+
     private void OnWindowStateChanged(object? sender, EventArgs eventArgs)
     {
         if (WindowState != WindowState.Minimized)
@@ -507,7 +763,7 @@ public partial class MainWindow : Window
             WindowsWindowAnimation.DisableSystemWindowTransitions(handle);
             WindowsWindowAnimation.SetRoundedCorners(
                 handle,
-                enabled: WindowState != WindowState.Maximized);
+                enabled: !IsCanvasOnlyMode && WindowState != WindowState.Maximized);
             if (WindowState == WindowState.Maximized)
             {
                 WindowsWindowBounds.TryFitWindowToWorkArea(handle);
@@ -537,10 +793,20 @@ public partial class MainWindow : Window
 
     private void RefreshWindowChrome()
     {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero)
+        {
+            return;
+        }
+
         WindowChrome.SetWindowChrome(this, null);
         ClearValue(WindowChrome.WindowChromeProperty);
         WindowsWindowAnimation.RefreshSystemWindowFrame(
-            new WindowInteropHelper(this).Handle);
+            handle,
+            frameThickness: IsCanvasOnlyMode ? 0 : 1);
+        WindowsWindowAnimation.SetRoundedCorners(
+            handle,
+            enabled: !IsCanvasOnlyMode && WindowState != WindowState.Maximized);
     }
 
     private void WorkspaceTabs_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs eventArgs)
@@ -1147,7 +1413,7 @@ public partial class MainWindow : Window
     private async void AddFiles_Click(object sender, RoutedEventArgs eventArgs)
     {
         var workspace = _viewModel.SelectedWorkspace;
-        if (workspace is null || workspace.IsReadOnly)
+        if (IsCanvasLocked || workspace is null || workspace.IsReadOnly)
         {
             return;
         }
@@ -1167,7 +1433,7 @@ public partial class MainWindow : Window
     private async void AddFolder_Click(object sender, RoutedEventArgs eventArgs)
     {
         var workspace = _viewModel.SelectedWorkspace;
-        if (workspace is null || workspace.IsReadOnly)
+        if (IsCanvasLocked || workspace is null || workspace.IsReadOnly)
         {
             return;
         }
@@ -1186,7 +1452,7 @@ public partial class MainWindow : Window
     {
         var workspace = _viewModel.SelectedWorkspace;
         var canvas = FindCanvas();
-        if (workspace is null || workspace.IsReadOnly || canvas is null)
+        if (IsCanvasLocked || workspace is null || workspace.IsReadOnly || canvas is null)
         {
             return;
         }
@@ -1197,25 +1463,44 @@ public partial class MainWindow : Window
     private void AddFrame_Click(object sender, RoutedEventArgs eventArgs)
     {
         var workspace = _viewModel.SelectedWorkspace;
-        if (workspace is null || workspace.IsReadOnly)
+        if (IsCanvasLocked || workspace is null || workspace.IsReadOnly)
         {
             return;
         }
         workspace.AddFrame(_viewModel.Localization["FrameDefault"], CurrentCanvasCenter());
     }
 
-    private void Undo_Click(object sender, RoutedEventArgs eventArgs) => _viewModel.SelectedWorkspace?.Undo();
-    private void Redo_Click(object sender, RoutedEventArgs eventArgs) => _viewModel.SelectedWorkspace?.Redo();
+    private void Undo_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        if (!IsCanvasLocked)
+        {
+            _viewModel.SelectedWorkspace?.Undo();
+        }
+    }
+
+    private void Redo_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        if (!IsCanvasLocked)
+        {
+            _viewModel.SelectedWorkspace?.Redo();
+        }
+    }
+
     private void Delete_Click(object sender, RoutedEventArgs eventArgs)
     {
-        if (_viewModel.SelectedWorkspace is { IsReadOnly: false } workspace)
+        if (!IsCanvasLocked && _viewModel.SelectedWorkspace is { IsReadOnly: false } workspace)
         {
             workspace.RemoveSelected();
         }
     }
 
-    private void Paste_Click(object sender, RoutedEventArgs eventArgs) =>
-        PasteFromClipboard(CurrentCanvasCenter());
+    private void Paste_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        if (!IsCanvasLocked)
+        {
+            PasteFromClipboard(CurrentCanvasCenter());
+        }
+    }
 
     public bool ShowCanvasGrid
     {
@@ -1249,9 +1534,62 @@ public partial class MainWindow : Window
 
     private void AlwaysOnTop_Click(object sender, RoutedEventArgs eventArgs)
     {
+        ToggleAlwaysOnTop();
+    }
+
+    private void ToggleAlwaysOnTop()
+    {
         _settings.AlwaysOnTop = !_settings.AlwaysOnTop;
         Topmost = _settings.AlwaysOnTop;
         SaveSettings(cleanExit: false);
+    }
+
+    private void CanvasOnlyMode_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        SetCanvasOnlyMode(!IsCanvasOnlyMode);
+    }
+
+    private void CanvasLock_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        IsCanvasLocked = !IsCanvasLocked;
+    }
+
+    private void SetCanvasOnlyMode(bool enabled)
+    {
+        if (IsCanvasOnlyMode == enabled)
+        {
+            return;
+        }
+
+        if (!enabled)
+        {
+            IsWindowLocked = false;
+        }
+
+        IsCanvasOnlyMode = enabled;
+        _settings.CanvasOnlyMode = enabled;
+        SaveSettings(cleanExit: false);
+        if (!enabled)
+        {
+            WindowState = WindowState.Normal;
+            Dispatcher.BeginInvoke(
+                DispatcherPriority.Loaded,
+                new Action(CenterWindowAfterCanvasOnlyModeExit));
+        }
+    }
+
+    private void CenterWindowAfterCanvasOnlyModeExit()
+    {
+        if (IsCanvasOnlyMode || WindowState != WindowState.Normal)
+        {
+            return;
+        }
+
+        var handle = new WindowInteropHelper(this).Handle;
+        if (WindowsWindowBounds.TryCenterWindowOnCurrentMonitor(handle))
+        {
+            SaveSettings(cleanExit: false);
+        }
     }
 
     private void Theme_Click(object sender, RoutedEventArgs eventArgs)
@@ -1338,7 +1676,9 @@ public partial class MainWindow : Window
 
     private void Arrange_Click(object sender, RoutedEventArgs eventArgs)
     {
-        if (sender is not Button button || _viewModel.SelectedWorkspace is not { IsReadOnly: false } workspace)
+        if (IsCanvasLocked ||
+            sender is not Button button ||
+            _viewModel.SelectedWorkspace is not { IsReadOnly: false } workspace)
         {
             return;
         }
@@ -1368,7 +1708,9 @@ public partial class MainWindow : Window
 
     private void Layer_Click(object sender, RoutedEventArgs eventArgs)
     {
-        if (sender is not Button button || _viewModel.SelectedWorkspace is not { IsReadOnly: false } workspace)
+        if (IsCanvasLocked ||
+            sender is not Button button ||
+            _viewModel.SelectedWorkspace is not { IsReadOnly: false } workspace)
         {
             return;
         }
@@ -1451,7 +1793,8 @@ public partial class MainWindow : Window
 
     private void TextAlignment_Click(object sender, RoutedEventArgs eventArgs)
     {
-        if (_viewModel.SelectedWorkspace is { IsReadOnly: false } &&
+        if (!IsCanvasLocked &&
+            _viewModel.SelectedWorkspace is { IsReadOnly: false } &&
             sender is Button { Tag: string alignment } &&
             Enum.TryParse<TextHorizontalAlignment>(alignment, out var parsed))
         {
@@ -1470,17 +1813,19 @@ public partial class MainWindow : Window
         {
             Header = _viewModel.Localization[localizationKey],
             IsEnabled = isEnabled,
-            Icon = new FluentIcon
-            {
-                Icon = (Icon)icon,
-                Width = 18,
-                Height = 18,
-                FontSize = 18
-            }
+            Icon = CreateMenuIcon(icon)
         };
         item.Click += (_, _) => action();
         menu.Items.Add(item);
     }
+
+    private static FluentIcon CreateMenuIcon(Symbol symbol) => new()
+    {
+        Icon = (Icon)symbol,
+        Width = 18,
+        Height = 18,
+        FontSize = 18
+    };
 
     private void AddMenuSeparator(ContextMenu menu) =>
         menu.Items.Add(new Separator { Style = (Style)FindResource("MenuSeparator") });
@@ -1520,6 +1865,11 @@ public partial class MainWindow : Window
 
     private async void Embed_Click(object sender, RoutedEventArgs eventArgs)
     {
+        if (IsCanvasLocked)
+        {
+            return;
+        }
+
         try
         {
             await (_viewModel.SelectedWorkspace?.EmbedSelectedAsync() ?? Task.FromResult(false));
@@ -1553,6 +1903,11 @@ public partial class MainWindow : Window
 
     private void Relink_Click(object sender, RoutedEventArgs eventArgs)
     {
+        if (IsCanvasLocked)
+        {
+            return;
+        }
+
         var workspace = _viewModel.SelectedWorkspace;
         var item = workspace?.SelectedItem;
         if (workspace is null || item is null || item.Model.Content is not (ImageContent or FileContent or FolderContent))
@@ -1627,15 +1982,26 @@ public partial class MainWindow : Window
         }
     }
 
-    private void Canvas_PasteRequested(object sender, CanvasPasteEventArgs eventArgs) =>
-        PasteFromClipboard(eventArgs.Position);
+    private void Canvas_PasteRequested(object sender, CanvasPasteEventArgs eventArgs)
+    {
+        if (!IsCanvasLocked)
+        {
+            PasteFromClipboard(eventArgs.Position);
+        }
+    }
 
-    private void Canvas_CopyRequested(object sender, EventArgs eventArgs) => CopySelectionToClipboard();
+    private void Canvas_CopyRequested(object sender, EventArgs eventArgs)
+    {
+        if (!IsCanvasLocked)
+        {
+            CopySelectionToClipboard();
+        }
+    }
 
     private async void Canvas_ExternalDrop(object sender, CanvasDropEventArgs eventArgs)
     {
         var workspace = _viewModel.SelectedWorkspace;
-        if (workspace is null)
+        if (IsCanvasLocked || workspace is null)
         {
             return;
         }
@@ -1712,7 +2078,7 @@ public partial class MainWindow : Window
     private async void PasteFromClipboard(WorldPoint position)
     {
         var workspace = _viewModel.SelectedWorkspace;
-        if (workspace is null || workspace.IsReadOnly)
+        if (IsCanvasLocked || workspace is null || workspace.IsReadOnly)
         {
             return;
         }

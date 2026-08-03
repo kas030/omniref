@@ -2,10 +2,17 @@ using System.Runtime.InteropServices;
 
 namespace OmniRef.Infrastructure.Windows.Shell;
 
+public readonly record struct WindowDragOrigin(
+    int CursorLeft,
+    int CursorTop,
+    int WindowLeft,
+    int WindowTop);
+
 public static class WindowsWindowBounds
 {
     private const uint MonitorDefaultToNearest = 0x00000002;
     private const uint KeepZOrderAndActivation = 0x00000014;
+    private const uint MoveWindowWithoutResizeOrActivation = 0x00000015;
 
     public static bool TryApplyWindowBounds(
         IntPtr windowHandle,
@@ -69,6 +76,83 @@ public static class WindowsWindowBounds
             KeepZOrderAndActivation);
     }
 
+    public static bool TryCenterWindowOnCurrentMonitor(IntPtr windowHandle)
+    {
+        if (windowHandle == IntPtr.Zero ||
+            !GetWindowRect(windowHandle, out var windowRect))
+        {
+            return false;
+        }
+
+        var monitorHandle = MonitorFromWindow(windowHandle, MonitorDefaultToNearest);
+        if (monitorHandle == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        var monitorInfo = new MonitorInfo
+        {
+            Size = Marshal.SizeOf<MonitorInfo>()
+        };
+        if (!GetMonitorInfo(monitorHandle, ref monitorInfo))
+        {
+            return false;
+        }
+
+        var windowWidth = windowRect.Right - windowRect.Left;
+        var windowHeight = windowRect.Bottom - windowRect.Top;
+        var workArea = monitorInfo.WorkArea;
+        var left = workArea.Left + ((workArea.Right - workArea.Left - windowWidth) / 2);
+        var top = workArea.Top + ((workArea.Bottom - workArea.Top - windowHeight) / 2);
+        return SetWindowPos(
+            windowHandle,
+            IntPtr.Zero,
+            left,
+            top,
+            0,
+            0,
+            KeepZOrderAndActivation);
+    }
+
+    public static bool TryCaptureWindowDrag(
+        IntPtr windowHandle,
+        out WindowDragOrigin origin)
+    {
+        origin = default;
+        if (windowHandle == IntPtr.Zero ||
+            !GetCursorPos(out var cursor) ||
+            !GetWindowRect(windowHandle, out var windowRect))
+        {
+            return false;
+        }
+
+        origin = new WindowDragOrigin(
+            cursor.X,
+            cursor.Y,
+            windowRect.Left,
+            windowRect.Top);
+        return true;
+    }
+
+    public static bool TryMoveWindow(
+        IntPtr windowHandle,
+        WindowDragOrigin origin)
+    {
+        if (windowHandle == IntPtr.Zero || !GetCursorPos(out var cursor))
+        {
+            return false;
+        }
+
+        return SetWindowPos(
+            windowHandle,
+            IntPtr.Zero,
+            origin.WindowLeft + cursor.X - origin.CursorLeft,
+            origin.WindowTop + cursor.Y - origin.CursorTop,
+            0,
+            0,
+            MoveWindowWithoutResizeOrActivation);
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     private struct NativePoint
     {
@@ -116,6 +200,16 @@ public static class WindowsWindowBounds
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetCursorPos(out NativePoint point);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetWindowRect(
+        IntPtr windowHandle,
+        out WindowRect windowRect);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetWindowPos(
         IntPtr windowHandle,
         IntPtr insertAfter,
@@ -124,4 +218,13 @@ public static class WindowsWindowBounds
         int width,
         int height,
         uint flags);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly struct WindowRect
+    {
+        public readonly int Left;
+        public readonly int Top;
+        public readonly int Right;
+        public readonly int Bottom;
+    }
 }

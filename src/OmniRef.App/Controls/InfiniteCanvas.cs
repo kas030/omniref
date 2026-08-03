@@ -51,6 +51,12 @@ public sealed class InfiniteCanvas : Canvas
         typeof(InfiniteCanvas),
         new FrameworkPropertyMetadata(false));
 
+    public static readonly DependencyProperty IsCanvasLockedProperty = DependencyProperty.Register(
+        nameof(IsCanvasLocked),
+        typeof(bool),
+        typeof(InfiniteCanvas),
+        new FrameworkPropertyMetadata(false, OnCanvasLockChanged));
+
     private readonly SpatialHashIndex<BoardItemViewModel> _index = new(512);
     private readonly HashSet<BoardItemViewModel> _subscribedItems = [];
     private WorldPoint _origin;
@@ -113,6 +119,30 @@ public sealed class InfiniteCanvas : Canvas
         set => SetValue(SnapToGridProperty, value);
     }
 
+    public bool IsCanvasLocked
+    {
+        get => (bool)GetValue(IsCanvasLockedProperty);
+        set => SetValue(IsCanvasLockedProperty, value);
+    }
+
+    private static void OnCanvasLockChanged(
+        DependencyObject dependencyObject,
+        DependencyPropertyChangedEventArgs eventArgs)
+    {
+        if (dependencyObject is not InfiniteCanvas canvas)
+        {
+            return;
+        }
+
+        if ((bool)eventArgs.NewValue)
+        {
+            canvas.CancelActiveInteraction();
+            canvas._hoveredItem = null;
+        }
+
+        canvas.InvalidateVisual();
+    }
+
     public WorldPoint ViewportCenter => ScreenToWorld(new Point(ActualWidth / 2, ActualHeight / 2));
 
     public event EventHandler<CanvasPasteEventArgs>? PasteRequested;
@@ -138,7 +168,7 @@ public sealed class InfiniteCanvas : Canvas
 
     public void BeginTextEdit(BoardItemViewModel item)
     {
-        if (Workspace?.IsReadOnly == true || item.Model.Content is not TextContent text)
+        if (IsCanvasLocked || Workspace?.IsReadOnly == true || item.Model.Content is not TextContent text)
         {
             return;
         }
@@ -363,7 +393,7 @@ public sealed class InfiniteCanvas : Canvas
             return;
         }
 
-        var isHovered = ReferenceEquals(_hoveredItem, item);
+        var isHovered = !IsCanvasLocked && ReferenceEquals(_hoveredItem, item);
 
         var background = GetCardBackground(item);
         var borderBrush = item.IsMissing
@@ -410,7 +440,7 @@ public sealed class InfiniteCanvas : Canvas
                 item.IsSelected || item.IsMissing ? SelectedBorderThickness : isHovered ? 1.35 : 1),
             rect);
 
-        if (item.IsSelected && Workspace?.SelectedItems.Count == 1)
+        if (!IsCanvasLocked && item.IsSelected && Workspace?.SelectedItems.Count == 1)
         {
             DrawResizeHandles(context, rect);
         }
@@ -459,7 +489,7 @@ public sealed class InfiniteCanvas : Canvas
             new Pen(stroke, item.IsSelected ? SelectedBorderThickness : 1),
             screenRect);
 
-        if (item.IsSelected && Workspace?.SelectedItems.Count == 1)
+        if (!IsCanvasLocked && item.IsSelected && Workspace?.SelectedItems.Count == 1)
         {
             DrawResizeHandles(context, screenRect);
         }
@@ -793,7 +823,7 @@ public sealed class InfiniteCanvas : Canvas
         TakeKeyboardFocus();
         _mouseDownScreen = eventArgs.GetPosition(this);
         _mouseDownWorld = ScreenToWorld(_mouseDownScreen);
-        if (eventArgs.ClickCount == 2)
+        if (eventArgs.ClickCount == 2 && !IsCanvasLocked)
         {
             var doubleClicked = HitTestItem(_mouseDownWorld);
             if (doubleClicked is not null)
@@ -817,10 +847,17 @@ public sealed class InfiniteCanvas : Canvas
             return;
         }
 
+        if (IsCanvasLocked)
+        {
+            eventArgs.Handled = true;
+            return;
+        }
+
         var selectedItem = Workspace.SelectedItems.Count == 1
             ? Workspace.SelectedItems[0]
             : null;
-        if (!Workspace.IsReadOnly &&
+        if (!IsCanvasLocked &&
+            !Workspace.IsReadOnly &&
             selectedItem is not null &&
             TryGetResizeCorner(ToScreenRect(selectedItem.Bounds), _mouseDownScreen, out var resizeCorner))
         {
@@ -847,7 +884,7 @@ public sealed class InfiniteCanvas : Canvas
                 Workspace.SelectOnly(hit);
             }
 
-            if (!Workspace.IsReadOnly && hit.IsSelected)
+            if (!IsCanvasLocked && !Workspace.IsReadOnly && hit.IsSelected)
             {
                 var movable = Workspace.GetMovableSelection();
                 _layoutBefore = Workspace.CaptureLayout(movable);
@@ -879,7 +916,10 @@ public sealed class InfiniteCanvas : Canvas
         var currentScreen = eventArgs.GetPosition(this);
         if (_interaction == InteractionMode.None)
         {
-            UpdateHoveredItem(currentScreen);
+            if (!IsCanvasLocked)
+            {
+                UpdateHoveredItem(currentScreen);
+            }
             return;
         }
 
@@ -1068,6 +1108,17 @@ public sealed class InfiniteCanvas : Canvas
         ResetInteraction();
     }
 
+    private void CancelActiveInteraction()
+    {
+        if (Workspace is not null && _layoutBefore is not null)
+        {
+            Workspace.CancelInteraction(_layoutBefore);
+        }
+
+        CommitTextEditor(save: true);
+        ResetInteraction();
+    }
+
     private void ResetInteraction()
     {
         _interaction = InteractionMode.None;
@@ -1090,6 +1141,16 @@ public sealed class InfiniteCanvas : Canvas
         {
             _spacePressed = true;
             Cursor = Cursors.Hand;
+            eventArgs.Handled = true;
+            return;
+        }
+        if (IsCanvasLocked)
+        {
+            if ((Keyboard.Modifiers & ModifierKeys.Control) != 0 &&
+                eventArgs.Key is Key.D0 or Key.NumPad0)
+            {
+                ResetViewport();
+            }
             eventArgs.Handled = true;
             return;
         }
@@ -1292,8 +1353,9 @@ public sealed class InfiniteCanvas : Canvas
 
     private void OnDragOver(object sender, DragEventArgs eventArgs)
     {
-        eventArgs.Effects = eventArgs.Data.GetDataPresent(DataFormats.FileDrop) ||
-                             eventArgs.Data.GetDataPresent(DataFormats.UnicodeText)
+        eventArgs.Effects = !IsCanvasLocked &&
+                            (eventArgs.Data.GetDataPresent(DataFormats.FileDrop) ||
+                             eventArgs.Data.GetDataPresent(DataFormats.UnicodeText))
             ? DragDropEffects.Copy
             : DragDropEffects.None;
         eventArgs.Handled = true;
@@ -1301,7 +1363,7 @@ public sealed class InfiniteCanvas : Canvas
 
     private void OnDrop(object sender, DragEventArgs eventArgs)
     {
-        if (Workspace is null || Workspace.IsReadOnly)
+        if (Workspace is null || IsCanvasLocked || Workspace.IsReadOnly)
         {
             return;
         }

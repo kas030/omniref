@@ -39,10 +39,10 @@ public static class WindowsWindowAnimation
         }
     }
 
-    public static void RefreshSystemWindowFrame(IntPtr windowHandle)
+    public static void RefreshSystemWindowFrame(IntPtr windowHandle, int frameThickness = 1)
     {
         SetWindowRgn(windowHandle, IntPtr.Zero, redraw: true);
-        var margins = new DwmMargins(1);
+        var margins = new DwmMargins(Math.Max(0, frameThickness));
         DwmExtendFrameIntoClientArea(windowHandle, ref margins);
         SetRoundedCorners(windowHandle, enabled: true);
         SetWindowPos(

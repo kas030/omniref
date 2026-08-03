@@ -637,14 +637,24 @@
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <ContentPresenter Grid.Column="0"
+                            <icons:FluentIcon x:Name="CheckmarkIcon"
+                                              Grid.Column="0"
+                                              Width="18"
+                                              Height="18"
+                                              Margin="0,0,8,0"
+                                              FontSize="18"
+                                              Icon="Checkmark"
+                                              Foreground="{TemplateBinding Foreground}"
+                                              Visibility="Hidden" />
+                            <ContentPresenter Grid.Column="1"
                                               Margin="0,0,8,0"
                                               VerticalAlignment="Center"
                                               ContentSource="Icon"
                                               RecognizesAccessKey="False" />
-                            <ContentPresenter Grid.Column="1"
+                            <ContentPresenter Grid.Column="2"
                                               VerticalAlignment="Center"
                                               ContentSource="Header"
                                               RecognizesAccessKey="True" />
@@ -658,6 +668,11 @@
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Root" Property="Opacity" Value="0.45" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="CheckmarkIcon"
+                                    Property="Visibility"
+                                    Value="Visible" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
