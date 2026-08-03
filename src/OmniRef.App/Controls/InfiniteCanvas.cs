@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Markup;
 using System.Windows.Media;
@@ -39,6 +40,8 @@ public sealed class InfiniteCanvas : Canvas
     private const double CardVerticalPadding = 12;
     private const double TextEditorIntrinsicHorizontalInset = 2;
     private const double TextLineHeightMultiplier = 1.35;
+    private const double MinimumTextEditorFontSize = 12;
+    private const double MinimumTextEditorScreenHeight = 90;
 
     public static readonly DependencyProperty WorkspaceProperty = DependencyProperty.Register(
         nameof(Workspace),
@@ -196,6 +199,7 @@ public sealed class InfiniteCanvas : Canvas
         Workspace?.SelectOnly(item);
         _editingItem = item;
         _editingOriginal = text.Text;
+        EnsureTextEditingZoom(item, text);
         var rect = GetTextEditorScreenRect(item.Bounds);
         _textEditor = new TextBox
         {
@@ -214,21 +218,26 @@ public sealed class InfiniteCanvas : Canvas
             Background = Brushes.Transparent,
             BorderBrush = Brushes.Transparent,
             BorderThickness = new Thickness(0),
-            Padding = GetTextEditorPadding(),
+            Padding = new Thickness(0),
             VerticalContentAlignment = VerticalAlignment.Top,
             TextAlignment = GetTextAlignment(text),
             FocusVisualStyle = null,
             Tag = item.Id
         };
+        if (TryFindResource("TextEditorScrollBar") is Style textEditorScrollBarStyle)
+        {
+            _textEditor.Resources[typeof(ScrollBar)] = textEditorScrollBarStyle;
+        }
         TextOptions.SetTextFormattingMode(_textEditor, TextFormattingMode.Ideal);
         _textEditor.KeyDown += OnEditorKeyDown;
         _textEditor.LostKeyboardFocus += OnEditorLostKeyboardFocus;
+        _textEditor.AddHandler(
+            MouseWheelEvent,
+            new MouseWheelEventHandler(OnEditorMouseWheel),
+            handledEventsToo: true);
         AutomationProperties.SetName(_textEditor, "OmniRef text editor");
         Children.Add(_textEditor);
-        SetLeft(_textEditor, rect.Left);
-        SetTop(_textEditor, rect.Top);
-        _textEditor.Width = Math.Max(80, rect.Width);
-        _textEditor.Height = Math.Max(60, rect.Height);
+        ArrangeTextEditor(_textEditor, rect);
         Panel.SetZIndex(_textEditor, int.MaxValue);
         var editor = _textEditor;
         _ = Dispatcher.BeginInvoke(
@@ -1415,6 +1424,14 @@ public sealed class InfiniteCanvas : Canvas
         }
     }
 
+    private static void OnEditorMouseWheel(object sender, MouseWheelEventArgs eventArgs)
+    {
+        // The nested ScrollViewer handles wheel input while it can scroll. At either
+        // extent WPF leaves the event unhandled, so consume it here before it reaches
+        // the canvas zoom handler and moves keyboard focus out of the editor.
+        eventArgs.Handled = true;
+    }
+
     private void CommitTextEditor(bool save)
     {
         if (_textEditor is null || _editingItem is null)
@@ -1430,6 +1447,9 @@ public sealed class InfiniteCanvas : Canvas
         _editingOriginal = null;
         editor.KeyDown -= OnEditorKeyDown;
         editor.LostKeyboardFocus -= OnEditorLostKeyboardFocus;
+        editor.RemoveHandler(
+            MouseWheelEvent,
+            new MouseWheelEventHandler(OnEditorMouseWheel));
         Children.Remove(editor);
         if (save)
         {
@@ -1451,21 +1471,44 @@ public sealed class InfiniteCanvas : Canvas
             return;
         }
         var rect = GetTextEditorScreenRect(_editingItem.Bounds);
-        SetLeft(_textEditor, rect.Left);
-        SetTop(_textEditor, rect.Top);
-        _textEditor.Width = Math.Max(80, rect.Width);
-        _textEditor.Height = Math.Max(60, rect.Height);
         if (_editingItem.Model.Content is TextContent text)
         {
             _textEditor.FontSize = GetTextEditorFontSize(text);
-            _textEditor.Padding = GetTextEditorPadding();
         }
+        ArrangeTextEditor(_textEditor, rect);
     }
 
     private static double GetTextWorldFontSize(TextContent text) =>
         double.IsFinite(text.FontSize) && text.FontSize > 0 ? text.FontSize : 18;
 
     private double GetTextEditorFontSize(TextContent text) => GetTextWorldFontSize(text) * _zoom;
+
+    private void EnsureTextEditingZoom(BoardItemViewModel item, TextContent text)
+    {
+        var targetZoom = ViewportMath.ZoomForMinimumScreenExtent(
+            _zoom,
+            GetTextWorldFontSize(text),
+            MinimumTextEditorFontSize);
+        targetZoom = ViewportMath.ZoomForMinimumScreenExtent(
+            targetZoom,
+            item.Bounds.Height,
+            MinimumTextEditorScreenHeight);
+        if (targetZoom <= _zoom)
+        {
+            return;
+        }
+
+        var cardCenter = WorldToScreen(item.Bounds.Center);
+        var result = ViewportMath.ZoomAt(
+            new WorldPoint(cardCenter.X, cardCenter.Y),
+            _origin,
+            _zoom,
+            targetZoom);
+        _origin = result.Origin;
+        _zoom = result.Zoom;
+        Workspace?.SetViewport(_origin, _zoom, interactionComplete: true);
+        InvalidateVisual();
+    }
 
     private double GetMinimumTextCardHeight(TextContent text)
     {
@@ -1475,24 +1518,30 @@ public sealed class InfiniteCanvas : Canvas
         return Math.Max(60, lineHeight + (CardVerticalPadding * 2));
     }
 
-    private Thickness GetTextEditorPadding()
+    private static void ArrangeTextEditor(TextBox editor, Rect rect)
     {
-        // WPF's TextBoxView adds a fixed two-DIP horizontal inset of its own.
-        var horizontal = Math.Max(
-            0,
-            (CardHorizontalPadding * _zoom) - TextEditorIntrinsicHorizontalInset);
-        var vertical = CardVerticalPadding * _zoom;
-        return new Thickness(horizontal, vertical, horizontal, vertical);
+        SetLeft(editor, rect.Left);
+        SetTop(editor, rect.Top);
+        editor.Width = rect.Width;
+        editor.Height = rect.Height;
     }
 
     private Rect GetTextEditorScreenRect(WorldRect bounds)
     {
         var rect = ToScreenRect(bounds);
-        var horizontalOverflow = Math.Max(
-            0,
-            TextEditorIntrinsicHorizontalInset - (CardHorizontalPadding * _zoom));
-        rect.Inflate(horizontalOverflow, 0);
-        return rect;
+        var horizontalInset = CardHorizontalPadding * _zoom;
+        var verticalInset = CardVerticalPadding * _zoom;
+
+        // Keep PART_ContentHost unpadded and place the entire editor in the card's
+        // content area instead. This gives its ScrollViewer a complete, bounded
+        // arrange slot at every zoom level, so the scrollbar cannot be clipped by
+        // padding extending past the TextBox. Compensate for TextBoxView's fixed
+        // horizontal inset to preserve the rendered text alignment.
+        return new Rect(
+            rect.Left + horizontalInset - TextEditorIntrinsicHorizontalInset,
+            rect.Top + verticalInset,
+            Math.Max(1, rect.Width - (horizontalInset * 2) + (TextEditorIntrinsicHorizontalInset * 2)),
+            Math.Max(1, rect.Height - (verticalInset * 2)));
     }
 
     private static TextAlignment GetTextAlignment(TextContent text) => text.Alignment switch

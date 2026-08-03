@@ -13,6 +13,20 @@ public static class ViewportMath
     public static WorldPoint WorldToScreen(WorldPoint world, WorldPoint origin, double zoom) =>
         new((world.X - origin.X) * zoom, (world.Y - origin.Y) * zoom);
 
+    public static double ZoomForMinimumScreenExtent(
+        double currentZoom,
+        double worldExtent,
+        double minimumScreenExtent)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(worldExtent, 0);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(minimumScreenExtent, 0);
+
+        return Math.Clamp(
+            Math.Max(currentZoom, minimumScreenExtent / worldExtent),
+            MinimumZoom,
+            MaximumZoom);
+    }
+
     public static (WorldPoint Origin, double Zoom) ZoomAt(
         WorldPoint screenAnchor,
         WorldPoint origin,

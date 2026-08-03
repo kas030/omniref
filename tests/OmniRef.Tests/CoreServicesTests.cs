@@ -22,6 +22,24 @@ public sealed class CoreServicesTests
     }
 
     [Theory]
+    [InlineData(0.25, 18, 12, 2.0 / 3.0)]
+    [InlineData(1, 18, 12, 1)]
+    [InlineData(0.1, 1, 12, 8)]
+    public void ZoomForMinimumScreenExtent_ProvidesReadableScale(
+        double currentZoom,
+        double worldExtent,
+        double minimumScreenExtent,
+        double expectedZoom)
+    {
+        var zoom = ViewportMath.ZoomForMinimumScreenExtent(
+            currentZoom,
+            worldExtent,
+            minimumScreenExtent);
+
+        Assert.Equal(expectedZoom, zoom, 8);
+    }
+
+    [Theory]
     [InlineData(0.1, 256)]
     [InlineData(0.25, 128)]
     [InlineData(0.5, 64)]
