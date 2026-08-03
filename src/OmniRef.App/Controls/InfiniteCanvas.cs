@@ -303,6 +303,19 @@ public sealed class InfiniteCanvas : Canvas
         workspace.VisualInvalidated += OnVisualInvalidated;
         workspace.FocusItemRequested += OnFocusItemRequested;
         RebuildIndex();
+        _ = Dispatcher.BeginInvoke(
+            DispatcherPriority.ContextIdle,
+            new Action(
+                () =>
+                {
+                    if (!ReferenceEquals(Workspace, workspace))
+                    {
+                        return;
+                    }
+
+                    RequestVisiblePreviews();
+                    InvalidateVisual();
+                }));
     }
 
     private void DetachWorkspace(WorkspaceViewModel? workspace)
@@ -345,6 +358,37 @@ public sealed class InfiniteCanvas : Canvas
     }
 
     private void OnItemsChanged(object? sender, EventArgs eventArgs) => RebuildIndex();
+
+    private void RequestVisiblePreviews()
+    {
+        if (Workspace is null || ActualWidth <= 0 || ActualHeight <= 0)
+        {
+            return;
+        }
+
+        var visible = VisibleWorldRect().Inflate(220 / _zoom);
+        foreach (var item in _index.Query(visible))
+        {
+            Rect previewRect;
+            switch (item.Model.Content)
+            {
+                case ImageContent:
+                    previewRect = ToScreenRect(item.Bounds);
+                    break;
+                case FileContent:
+                case FolderContent:
+                    var inner = GetCardInnerWorldRect(item.Bounds);
+                    var iconSize = Math.Min(inner.Height * 0.56, Math.Min(inner.Width * 0.35, 88));
+                    var screenIconSize = iconSize * _zoom;
+                    previewRect = new Rect(0, 0, screenIconSize, screenIconSize);
+                    break;
+                default:
+                    continue;
+            }
+
+            RequestPreview(item, previewRect);
+        }
+    }
 
     private void OnVisualInvalidated(object? sender, EventArgs eventArgs) => InvalidateVisual();
 
