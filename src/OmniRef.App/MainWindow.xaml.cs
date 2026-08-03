@@ -778,6 +778,17 @@ public partial class MainWindow : Window
         };
         lockCanvas.Click += (_, _) => IsCanvasLocked = !IsCanvasLocked;
         menu.Items.Add(lockCanvas);
+
+        AddMenuSeparator(menu);
+        var exitIcon = CreateMenuIcon(Symbol.SignOut);
+        exitIcon.SetResourceReference(Control.ForegroundProperty, "DangerBrush");
+        var exit = new MenuItem
+        {
+            Header = _viewModel.Localization["Exit"],
+            Icon = exitIcon
+        };
+        exit.Click += (_, _) => _ = RequestExitAsync();
+        menu.Items.Add(exit);
         menu.IsOpen = true;
     }
 
