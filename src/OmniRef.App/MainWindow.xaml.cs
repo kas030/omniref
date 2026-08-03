@@ -774,7 +774,7 @@ public partial class MainWindow : Window
             Header = _viewModel.Localization["LockCanvas"],
             IsCheckable = true,
             IsChecked = IsCanvasLocked,
-            Icon = CreateMenuIcon(Symbol.TableLock)
+            Icon = CreateMenuIcon(Symbol.WhiteboardOff)
         };
         lockCanvas.Click += (_, _) => IsCanvasLocked = !IsCanvasLocked;
         menu.Items.Add(lockCanvas);
