@@ -681,7 +681,7 @@ public sealed class InfiniteCanvas : Canvas
         Brush foreground,
         Brush background)
     {
-        const double indicatorHeight = 24;
+        const double indicatorHeight = 16;
         var fadeHeight = Math.Min(textRect.Height, indicatorHeight * 1.6);
         var fadeRect = new Rect(
             textRect.X,
@@ -701,27 +701,33 @@ public sealed class InfiniteCanvas : Canvas
             context.DrawRectangle(fade, null, fadeRect);
         }
 
-        const double indicatorWidth = 32;
+        const double indicatorWidth = 28;
         var indicatorRect = new Rect(
             textRect.Right - indicatorWidth,
             textRect.Bottom - indicatorHeight,
             indicatorWidth,
             indicatorHeight);
         context.DrawRoundedRectangle(
-            background,
-            new Pen(WithOpacity(foreground, 0.22), 1 / _zoom),
+            WithOpacity(foreground, 0.14),
+            null,
             indicatorRect,
             indicatorHeight / 2,
             indicatorHeight / 2);
-        DrawFormattedText(
-            context,
-            "\u2026",
-            indicatorRect,
-            15,
-            foreground,
-            FontWeights.SemiBold,
-            TextAlignment.Center,
-            verticalCenter: true);
+
+        const double dotRadius = 1.5;
+        const double dotSpacing = 5;
+        var center = new Point(
+            indicatorRect.Left + (indicatorRect.Width / 2),
+            indicatorRect.Top + (indicatorRect.Height / 2));
+        for (var index = -1; index <= 1; index++)
+        {
+            context.DrawEllipse(
+                foreground,
+                null,
+                new Point(center.X + (index * dotSpacing), center.Y),
+                dotRadius,
+                dotRadius);
+        }
     }
 
     private void DrawUrlCard(DrawingContext context, BoardItemViewModel item, Rect inner)
