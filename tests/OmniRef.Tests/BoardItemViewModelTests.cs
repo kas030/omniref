@@ -83,6 +83,19 @@ public sealed class BoardItemViewModelTests
     }
 
     [Fact]
+    public void Url_ExposesUrlContentForPropertiesPanel()
+    {
+        var viewModel = new BoardItemViewModel(new BoardItem
+        {
+            Kind = ItemKind.Url,
+            Content = new UrlContent("https://example.com/reference")
+        });
+
+        Assert.True(viewModel.IsUrl);
+        Assert.Equal("https://example.com/reference", viewModel.Url);
+    }
+
+    [Fact]
     public void FileType_UsesUppercaseExtensionWithoutLeadingDot()
     {
         var viewModel = new BoardItemViewModel(new BoardItem

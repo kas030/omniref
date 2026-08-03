@@ -800,6 +800,18 @@
                                         <TextBox Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"
                                                  IsReadOnly="{Binding DataContext.SelectedWorkspace.IsReadOnly, RelativeSource={RelativeSource AncestorType=Window}}"
                                                  Margin="0,0,0,12" />
+                                        <StackPanel Visibility="{Binding IsUrl, Converter={StaticResource BoolToVisibility}}"
+                                                    Margin="0,0,0,12">
+                                            <TextBlock Text="URL"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       Margin="0,0,0,4" />
+                                            <TextBox Text="{Binding Url, Mode=OneWay}"
+                                                     IsReadOnly="True"
+                                                     TextWrapping="Wrap"
+                                                     VerticalScrollBarVisibility="Auto"
+                                                     MaxHeight="72"
+                                                     ToolTip="{Binding Url}" />
+                                        </StackPanel>
                                         <TextBlock Text="{Binding DataContext.Localization[Tags], RelativeSource={RelativeSource AncestorType=Window}}"
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                    Margin="0,0,0,4" />

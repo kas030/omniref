@@ -486,8 +486,8 @@ public sealed class InfiniteCanvas : Canvas
                 case TextContent text when !ReferenceEquals(item, _editingItem):
                     DrawTextCard(context, item, inner, text);
                     break;
-                case UrlContent url:
-                    DrawUrlCard(context, item, inner, url);
+                case UrlContent:
+                    DrawUrlCard(context, item, inner);
                     break;
             }
         }
@@ -715,7 +715,7 @@ public sealed class InfiniteCanvas : Canvas
             verticalCenter: true);
     }
 
-    private void DrawUrlCard(DrawingContext context, BoardItemViewModel item, Rect inner, UrlContent url)
+    private void DrawUrlCard(DrawingContext context, BoardItemViewModel item, Rect inner)
     {
         var iconSize = Math.Max(1, Math.Min(52, Math.Min(inner.Width * 0.25, inner.Height)));
         var glyphRect = new Rect(
@@ -741,16 +741,8 @@ public sealed class InfiniteCanvas : Canvas
             cardForeground,
             FontWeights.SemiBold,
             TextAlignment.Left,
-            maxLines: 1);
-        DrawFormattedText(
-            context,
-            url.Url,
-            new Rect(textRect.X, textRect.Y + Math.Min(32, textRect.Height * 0.5), textRect.Width, textRect.Height * 0.45),
-            11,
-            WithOpacity(cardForeground, 0.62),
-            FontWeights.Normal,
-            TextAlignment.Left,
-            maxLines: 2);
+            maxLines: 1,
+            verticalCenter: true);
     }
 
     private void DrawFluentIcon(
