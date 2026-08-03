@@ -1027,81 +1027,14 @@ public sealed class InfiniteCanvas : Canvas
                 InvalidateVisual();
                 break;
             case InteractionMode.Move when _layoutBefore is not null:
-                var deltaX = currentWorld.X - _mouseDownWorld.X;
-                var deltaY = currentWorld.Y - _mouseDownWorld.Y;
-                if (IsGridSnappingActive)
-                {
-                    var selectionBounds = WorldRect.Union(_layoutBefore.Values.Select(state => state.Bounds));
-                    var snappedDelta = GridMath.SnapTranslation(selectionBounds, deltaX, deltaY);
-                    deltaX = snappedDelta.X;
-                    deltaY = snappedDelta.Y;
-                }
-                foreach (var item in Workspace.Items)
-                {
-                    if (_layoutBefore.TryGetValue(item.Id, out var before))
-                    {
-                        item.UpdateBounds(before.Bounds.Translate(deltaX, deltaY));
-                    }
-                }
+                UpdateMoveInteraction(currentWorld, IsGridSnappingActive);
                 break;
             case InteractionMode.Resize when
                 _layoutBefore is not null &&
                 _resizeItem is not null &&
                 _resizeCorner is { } resizeCorner:
                 {
-                    if (_layoutBefore.TryGetValue(_resizeItem.Id, out var initial))
-                    {
-                        var minWidth = _resizeItem.Kind == ItemKind.Frame ? 240 : 80;
-                        var minHeight = _resizeItem.Kind switch
-                        {
-                            ItemKind.Frame => 160,
-                            ItemKind.Text when _resizeItem.Model.Content is TextContent text =>
-                                GetMinimumTextCardHeight(text),
-                            _ => 60
-                        };
-                        var isLeft = resizeCorner is ResizeCorner.TopLeft or ResizeCorner.BottomLeft;
-                        var isTop = resizeCorner is ResizeCorner.TopLeft or ResizeCorner.TopRight;
-                        var draggedX = (isLeft ? initial.Bounds.Left : initial.Bounds.Right) +
-                                       (currentWorld.X - _mouseDownWorld.X);
-                        var draggedY = (isTop ? initial.Bounds.Top : initial.Bounds.Bottom) +
-                                       (currentWorld.Y - _mouseDownWorld.Y);
-                        if (IsGridSnappingActive)
-                        {
-                            draggedX = GridMath.Snap(draggedX);
-                            draggedY = GridMath.Snap(draggedY);
-                        }
-                        var fixedX = isLeft ? initial.Bounds.Right : initial.Bounds.Left;
-                        var fixedY = isTop ? initial.Bounds.Bottom : initial.Bounds.Top;
-                        var requestedSize = new WorldSize(
-                            isLeft ? fixedX - draggedX : draggedX - fixedX,
-                            isTop ? fixedY - draggedY : draggedY - fixedY);
-                        WorldSize size;
-                        if (_resizeItem.Kind == ItemKind.Image &&
-                            (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
-                        {
-                            // The bounds captured at mouse-down are the stable aspect-ratio
-                            // source for this gesture. Preview loading must not change the
-                            // ratio underneath the pointer and cause the first move to jump.
-                            var aspectSize = new WorldSize(
-                                initial.Bounds.Width,
-                                initial.Bounds.Height);
-                            size = ResizeMath.ConstrainToAspectRatio(
-                                aspectSize,
-                                requestedSize,
-                                new WorldSize(minWidth, minHeight));
-                        }
-                        else
-                        {
-                            size = new WorldSize(
-                                Math.Max(minWidth, requestedSize.Width),
-                                Math.Max(minHeight, requestedSize.Height));
-                        }
-                        _resizeItem.UpdateBounds(new(
-                            isLeft ? fixedX - size.Width : fixedX,
-                            isTop ? fixedY - size.Height : fixedY,
-                            size.Width,
-                            size.Height));
-                    }
+                    UpdateResizeInteraction(currentWorld, resizeCorner, IsGridSnappingActive);
                     break;
                 }
             case InteractionMode.SelectBox:
@@ -1110,6 +1043,95 @@ public sealed class InfiniteCanvas : Canvas
                 break;
         }
         eventArgs.Handled = true;
+    }
+
+    private void UpdateMoveInteraction(WorldPoint currentWorld, bool snapToGrid)
+    {
+        if (Workspace is null || _layoutBefore is null)
+        {
+            return;
+        }
+
+        var deltaX = currentWorld.X - _mouseDownWorld.X;
+        var deltaY = currentWorld.Y - _mouseDownWorld.Y;
+        if (snapToGrid)
+        {
+            var selectionBounds = WorldRect.Union(_layoutBefore.Values.Select(state => state.Bounds));
+            var snappedDelta = GridMath.SnapTranslation(selectionBounds, deltaX, deltaY);
+            deltaX = snappedDelta.X;
+            deltaY = snappedDelta.Y;
+        }
+
+        foreach (var item in Workspace.Items)
+        {
+            if (_layoutBefore.TryGetValue(item.Id, out var before))
+            {
+                item.UpdateBounds(before.Bounds.Translate(deltaX, deltaY));
+            }
+        }
+    }
+
+    private void UpdateResizeInteraction(
+        WorldPoint currentWorld,
+        ResizeCorner resizeCorner,
+        bool snapToGrid)
+    {
+        if (_layoutBefore is null || _resizeItem is null ||
+            !_layoutBefore.TryGetValue(_resizeItem.Id, out var initial))
+        {
+            return;
+        }
+
+        var minWidth = _resizeItem.Kind == ItemKind.Frame ? 240 : 80;
+        var minHeight = _resizeItem.Kind switch
+        {
+            ItemKind.Frame => 160,
+            ItemKind.Text when _resizeItem.Model.Content is TextContent text =>
+                GetMinimumTextCardHeight(text),
+            _ => 60
+        };
+        var isLeft = resizeCorner is ResizeCorner.TopLeft or ResizeCorner.BottomLeft;
+        var isTop = resizeCorner is ResizeCorner.TopLeft or ResizeCorner.TopRight;
+        var draggedX = (isLeft ? initial.Bounds.Left : initial.Bounds.Right) +
+                       (currentWorld.X - _mouseDownWorld.X);
+        var draggedY = (isTop ? initial.Bounds.Top : initial.Bounds.Bottom) +
+                       (currentWorld.Y - _mouseDownWorld.Y);
+        if (snapToGrid)
+        {
+            draggedX = GridMath.Snap(draggedX);
+            draggedY = GridMath.Snap(draggedY);
+        }
+        var fixedX = isLeft ? initial.Bounds.Right : initial.Bounds.Left;
+        var fixedY = isTop ? initial.Bounds.Bottom : initial.Bounds.Top;
+        var requestedSize = new WorldSize(
+            isLeft ? fixedX - draggedX : draggedX - fixedX,
+            isTop ? fixedY - draggedY : draggedY - fixedY);
+        WorldSize size;
+        if (_resizeItem.Kind == ItemKind.Image &&
+            (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
+        {
+            // The bounds captured at mouse-down are the stable aspect-ratio
+            // source for this gesture. Preview loading must not change the
+            // ratio underneath the pointer and cause the first move to jump.
+            var aspectSize = new WorldSize(
+                initial.Bounds.Width,
+                initial.Bounds.Height);
+            size = ResizeMath.ConstrainToAspectRatio(
+                aspectSize,
+                requestedSize,
+                new WorldSize(minWidth, minHeight));
+        }
+        else
+        {
+            size = new WorldSize(
+                Math.Max(minWidth, requestedSize.Width),
+                Math.Max(minHeight, requestedSize.Height));
+        }
+        _resizeItem.UpdateBounds(new(
+            isLeft ? fixedX - size.Width : fixedX,
+            isTop ? fixedY - size.Height : fixedY,
+            size.Width,
+            size.Height));
     }
 
     private void OnMouseLeave(object sender, MouseEventArgs eventArgs)
@@ -1328,6 +1350,11 @@ public sealed class InfiniteCanvas : Canvas
 
     private void OnKeyUp(object sender, KeyEventArgs eventArgs)
     {
+        if (eventArgs.Key is Key.LeftCtrl or Key.RightCtrl && SnapToGrid)
+        {
+            RefreshActiveGridSnap();
+        }
+
         if (eventArgs.Key == Key.Space)
         {
             _spacePressed = false;
@@ -1336,6 +1363,23 @@ public sealed class InfiniteCanvas : Canvas
                 Cursor = Cursors.Arrow;
             }
             eventArgs.Handled = true;
+        }
+    }
+
+    private void RefreshActiveGridSnap()
+    {
+        var currentWorld = ScreenToWorld(Mouse.GetPosition(this));
+        switch (_interaction)
+        {
+            case InteractionMode.Move when _layoutBefore is not null:
+                UpdateMoveInteraction(currentWorld, snapToGrid: true);
+                break;
+            case InteractionMode.Resize when
+                _layoutBefore is not null &&
+                _resizeItem is not null &&
+                _resizeCorner is { } resizeCorner:
+                UpdateResizeInteraction(currentWorld, resizeCorner, snapToGrid: true);
+                break;
         }
     }
 
