@@ -7,6 +7,8 @@ using System.Windows.Input;
 using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Threading;
+using FluentIcons.Common;
+using FluentIcons.Wpf;
 using OmniRef.App.ViewModels;
 using OmniRef.Core.Models;
 using OmniRef.Core.Services;
@@ -19,6 +21,10 @@ public sealed class InfiniteCanvas : Canvas
     private static readonly Color DefaultCardBackgroundColor = Color.FromArgb(0xFF, 0x25, 0x29, 0x32);
     private static readonly Color DefaultCardForegroundColor = Color.FromArgb(0xFF, 0xF5, 0xF7, 0xFA);
     private static readonly Color DefaultTextBackgroundColor = Color.FromArgb(0xFF, 0x2E, 0x34, 0x40);
+    private static readonly FluentIconGlyph ImageFilledGlyph = CreateFluentIconGlyph(Icon.Image);
+    private static readonly FluentIconGlyph FolderFilledGlyph = CreateFluentIconGlyph(Icon.Folder);
+    private static readonly FluentIconGlyph DocumentTextFilledGlyph = CreateFluentIconGlyph(Icon.DocumentText);
+    private static readonly FluentIconGlyph LinkFilledGlyph = CreateFluentIconGlyph(Icon.Link);
     private static readonly ResizeCorner[] ResizeCorners =
     [
         ResizeCorner.TopLeft,
@@ -518,41 +524,30 @@ public sealed class InfiniteCanvas : Canvas
         }
         else
         {
-            DrawCenteredGlyph(
+            DrawFluentIcon(
                 context,
                 destination,
-                "▧",
-                GetCardForeground(item));
+                ImageFilledGlyph,
+                GetPreviewPlaceholderForeground(item));
             RequestPreview(item, previewDestination);
         }
-
     }
 
     private void DrawFileCard(DrawingContext context, BoardItemViewModel item, Rect inner, bool isFolder)
     {
         var iconSize = Math.Min(inner.Height * 0.56, Math.Min(inner.Width * 0.35, 88));
         var iconRect = new Rect(inner.X, inner.Y + ((inner.Height - iconSize) / 2), iconSize, iconSize);
-        var iconCorner = Math.Min(10, iconSize / 2);
-        context.DrawRoundedRectangle(
-            FindBrush("CardIconSurfaceBrush", FindBrush("SurfaceRaisedBrush", Brushes.DimGray)),
-            null,
-            iconRect,
-            iconCorner,
-            iconCorner);
         if (item.Preview is not null)
         {
-            DrawImageFit(
-                context,
-                item.Preview,
-                new Rect(iconRect.X + 5, iconRect.Y + 5, Math.Max(1, iconRect.Width - 10), Math.Max(1, iconRect.Height - 10)));
+            DrawImageFit(context, item.Preview, iconRect);
         }
         else
         {
-            DrawCenteredGlyph(
+            DrawFluentIcon(
                 context,
                 iconRect,
-                isFolder ? "▰" : "▤",
-                GetCardAccent(item));
+                isFolder ? FolderFilledGlyph : DocumentTextFilledGlyph,
+                GetPreviewPlaceholderForeground(item));
             RequestPreview(item, ToScreenRect(iconRect));
         }
 
@@ -584,6 +579,17 @@ public sealed class InfiniteCanvas : Canvas
             FontWeights.Normal,
             TextAlignment.Left,
             maxLines: 2);
+    }
+
+    private Brush GetPreviewPlaceholderForeground(BoardItemViewModel item)
+    {
+        if (item.IsMissing)
+        {
+            return FindBrush("DangerBrush", Brushes.OrangeRed);
+        }
+
+        var accent = GetCardAccent(item);
+        return item.PreviewLoading ? WithOpacity(accent, 0.58) : accent;
     }
 
     private void DrawTextCard(
@@ -659,7 +665,12 @@ public sealed class InfiniteCanvas : Canvas
 
     private void DrawUrlCard(DrawingContext context, BoardItemViewModel item, Rect inner, UrlContent url)
     {
-        var glyphRect = new Rect(inner.X, inner.Y, Math.Max(1, Math.Min(52, inner.Width * 0.25)), inner.Height);
+        var iconSize = Math.Max(1, Math.Min(52, Math.Min(inner.Width * 0.25, inner.Height)));
+        var glyphRect = new Rect(
+            inner.X,
+            inner.Y + ((inner.Height - iconSize) / 2),
+            iconSize,
+            iconSize);
         var glyphCorner = Math.Min(10, Math.Min(glyphRect.Width, glyphRect.Height) / 2);
         context.DrawRoundedRectangle(
             FindBrush("CardIconSurfaceBrush", FindBrush("SurfaceRaisedBrush", Brushes.DimGray)),
@@ -668,7 +679,7 @@ public sealed class InfiniteCanvas : Canvas
             glyphCorner,
             glyphCorner);
         var cardForeground = GetCardForeground(item);
-        DrawCenteredGlyph(context, glyphRect, "↗", cardForeground);
+        DrawFluentIcon(context, glyphRect, LinkFilledGlyph, cardForeground);
         var textRect = new Rect(glyphRect.Right + 10, inner.Y, Math.Max(1, inner.Right - glyphRect.Right - 10), inner.Height);
         DrawFormattedText(
             context,
@@ -690,16 +701,40 @@ public sealed class InfiniteCanvas : Canvas
             maxLines: 2);
     }
 
-    private void DrawCenteredGlyph(DrawingContext context, Rect rect, string glyph, Brush? foreground = null) =>
-        DrawFormattedText(
-            context,
-            glyph,
-            rect,
-            Math.Max(1, Math.Min(rect.Width, rect.Height) * 0.46),
-            foreground ?? TryFindResource("TextSecondaryBrush") as Brush ?? Brushes.LightGray,
-            FontWeights.Normal,
-            TextAlignment.Center,
-            verticalCenter: true);
+    private void DrawFluentIcon(
+        DrawingContext context,
+        Rect destination,
+        FluentIconGlyph icon,
+        Brush foreground)
+    {
+        var availableSize = Math.Min(destination.Width, destination.Height);
+        if (availableSize <= 0 || string.IsNullOrEmpty(icon.GlyphText))
+        {
+            return;
+        }
+
+        var iconSize = Math.Min(availableSize * 0.72, 64);
+        var iconRect = new Rect(
+            destination.X + ((destination.Width - iconSize) / 2),
+            destination.Y + ((destination.Height - iconSize) / 2),
+            iconSize,
+            iconSize);
+        var formatted = new FormattedText(
+            icon.GlyphText,
+            CultureInfo.CurrentUICulture,
+            FlowDirection.LeftToRight,
+            icon.GlyphTypeface,
+            iconSize,
+            foreground,
+            VisualTreeHelper.GetDpi(this).PixelsPerDip)
+        {
+            MaxTextWidth = iconSize,
+            TextAlignment = TextAlignment.Center,
+            Trimming = TextTrimming.None
+        };
+        var y = iconRect.Y + Math.Max(0, (iconRect.Height - formatted.Height) / 2);
+        context.DrawText(formatted, new Point(iconRect.X, y));
+    }
 
     private void DrawBadge(DrawingContext context, Rect cardRect, string text, Brush background)
     {
@@ -1603,6 +1638,20 @@ public sealed class InfiniteCanvas : Canvas
         clone.Opacity = opacity;
         clone.Freeze();
         return clone;
+    }
+
+    private static FluentIconGlyph CreateFluentIconGlyph(Icon icon) => new()
+    {
+        Icon = icon,
+        IconSize = IconSize.Size48,
+        IconVariant = IconVariant.Filled
+    };
+
+    private sealed class FluentIconGlyph : FluentIcon
+    {
+        public string GlyphText => IconText;
+
+        public Typeface GlyphTypeface => IconFont;
     }
 
     private void TakeKeyboardFocus()
