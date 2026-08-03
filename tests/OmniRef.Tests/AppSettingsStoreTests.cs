@@ -19,6 +19,7 @@ public sealed class AppSettingsStoreTests : IDisposable
         Assert.False(settings.ShowCanvasGrid);
         Assert.False(settings.SnapToGrid);
         Assert.False(settings.CanvasOnlyMode);
+        Assert.False(settings.HideTaskbarIcon);
     }
 
     [Fact]
@@ -29,7 +30,8 @@ public sealed class AppSettingsStoreTests : IDisposable
         {
             ShowCanvasGrid = true,
             SnapToGrid = true,
-            CanvasOnlyMode = true
+            CanvasOnlyMode = true,
+            HideTaskbarIcon = true
         };
 
         store.Save(settings);
@@ -38,6 +40,7 @@ public sealed class AppSettingsStoreTests : IDisposable
         Assert.True(loaded.ShowCanvasGrid);
         Assert.True(loaded.SnapToGrid);
         Assert.True(loaded.CanvasOnlyMode);
+        Assert.True(loaded.HideTaskbarIcon);
     }
 
     [Fact]
@@ -52,6 +55,7 @@ public sealed class AppSettingsStoreTests : IDisposable
 
         Assert.True(settings.AlwaysOnTop);
         Assert.False(settings.CanvasOnlyMode);
+        Assert.False(settings.HideTaskbarIcon);
     }
 
     public void Dispose()

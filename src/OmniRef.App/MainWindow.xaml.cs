@@ -179,6 +179,7 @@ public partial class MainWindow : Window
         _viewModel.Workspaces.CollectionChanged += Workspaces_CollectionChanged;
 
         IsCanvasOnlyMode = settings.CanvasOnlyMode;
+        ShowInTaskbar = !settings.HideTaskbarIcon;
         RestoreWindowState();
         Topmost = settings.AlwaysOnTop;
         ShowCanvasGrid = settings.ShowCanvasGrid;
@@ -731,6 +732,21 @@ public partial class MainWindow : Window
         };
         restoreInterface.Click += (_, _) => SetCanvasOnlyMode(false);
         menu.Items.Add(restoreInterface);
+
+        var hideTaskbarIcon = new MenuItem
+        {
+            Header = _viewModel.Localization["HideTaskbarIcon"],
+            IsCheckable = true,
+            IsChecked = !ShowInTaskbar,
+            Icon = CreateMenuIcon(Symbol.DesktopOff)
+        };
+        hideTaskbarIcon.Click += (_, _) =>
+        {
+            ShowInTaskbar = !ShowInTaskbar;
+            _settings.HideTaskbarIcon = !ShowInTaskbar;
+            SaveSettings(cleanExit: false);
+        };
+        menu.Items.Add(hideTaskbarIcon);
         AddMenuSeparator(menu);
 
         var alwaysOnTop = new MenuItem
