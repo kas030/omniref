@@ -441,14 +441,6 @@
                                   AutomationProperties.Name="{Binding Localization[GridSnap]}">
                         <Path Style="{StaticResource ToolbarMagnetIcon}" />
                     </ToggleButton>
-                    <ToggleButton Style="{StaticResource ToolbarToggleButton}"
-                                  IsChecked="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}, Mode=OneWay}"
-                                  Click="CanvasLock_Click"
-                                  ToolTip="{Binding Localization[LockCanvas]}"
-                                  AutomationProperties.Name="{Binding Localization[LockCanvas]}">
-                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
-                                          Icon="TableLock" />
-                    </ToggleButton>
                     <Separator Style="{StaticResource ToolbarSeparator}" />
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="Open_Click"
@@ -474,7 +466,6 @@
                     <Separator Style="{StaticResource ToolbarSeparator}" />
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="AddFiles_Click"
-                            IsEnabled="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
                             ToolTip="{Binding Localization[AddFiles]}"
                             AutomationProperties.Name="{Binding Localization[AddFiles]}">
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
@@ -482,7 +473,6 @@
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="AddFolder_Click"
-                            IsEnabled="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
                             ToolTip="{Binding Localization[AddFolder]}"
                             AutomationProperties.Name="{Binding Localization[AddFolder]}">
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
@@ -490,7 +480,6 @@
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="AddText_Click"
-                            IsEnabled="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
                             ToolTip="{Binding Localization[AddText]}"
                             AutomationProperties.Name="{Binding Localization[AddText]}">
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
@@ -498,7 +487,6 @@
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="AddFrame_Click"
-                            IsEnabled="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
                             ToolTip="{Binding Localization[AddFrame]}"
                             AutomationProperties.Name="{Binding Localization[AddFrame]}">
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
@@ -507,7 +495,6 @@
                     <Separator Style="{StaticResource ToolbarSeparator}" />
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="Undo_Click"
-                            IsEnabled="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
                             ToolTip="{Binding Localization[Undo]}"
                             AutomationProperties.Name="{Binding Localization[Undo]}">
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
@@ -515,7 +502,6 @@
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="Redo_Click"
-                            IsEnabled="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
                             ToolTip="{Binding Localization[Redo]}"
                             AutomationProperties.Name="{Binding Localization[Redo]}">
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
@@ -523,7 +509,6 @@
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}"
                             Click="Paste_Click"
-                            IsEnabled="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
                             ToolTip="{Binding Localization[Paste]}"
                             AutomationProperties.Name="{Binding Localization[Paste]}">
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
@@ -532,7 +517,6 @@
                     <Button Style="{StaticResource ToolbarButton}"
                             Foreground="{DynamicResource DangerBrush}"
                             Click="Delete_Click"
-                            IsEnabled="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
                             ToolTip="{Binding Localization[Delete]}"
                             AutomationProperties.Name="{Binding Localization[Delete]}">
                         <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
@@ -641,7 +625,6 @@
                     Panel.ZIndex="1"
                     UseLayoutRounding="True"
                     SnapsToDevicePixels="True"
-                    IsEnabled="{Binding IsCanvasLocked, RelativeSource={RelativeSource AncestorType={x:Type Window}}, Converter={StaticResource InverseBool}}"
                     Padding="12"
                     Background="{DynamicResource SurfaceBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"

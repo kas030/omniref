@@ -752,6 +752,16 @@ public partial class MainWindow : Window
         };
         lockWindow.Click += (_, _) => IsWindowLocked = !IsWindowLocked;
         menu.Items.Add(lockWindow);
+
+        var lockCanvas = new MenuItem
+        {
+            Header = _viewModel.Localization["LockCanvas"],
+            IsCheckable = true,
+            IsChecked = IsCanvasLocked,
+            Icon = CreateMenuIcon(Symbol.TableLock)
+        };
+        lockCanvas.Click += (_, _) => IsCanvasLocked = !IsCanvasLocked;
+        menu.Items.Add(lockCanvas);
         menu.IsOpen = true;
     }
 
@@ -1549,21 +1559,17 @@ public partial class MainWindow : Window
         SetCanvasOnlyMode(!IsCanvasOnlyMode);
     }
 
-    private void CanvasLock_Click(object sender, RoutedEventArgs eventArgs)
-    {
-        IsCanvasLocked = !IsCanvasLocked;
-    }
-
     private void SetCanvasOnlyMode(bool enabled)
     {
-        if (IsCanvasOnlyMode == enabled)
-        {
-            return;
-        }
-
         if (!enabled)
         {
             IsWindowLocked = false;
+            IsCanvasLocked = false;
+        }
+
+        if (IsCanvasOnlyMode == enabled)
+        {
+            return;
         }
 
         IsCanvasOnlyMode = enabled;

@@ -138,6 +138,7 @@ public sealed class InfiniteCanvas : Canvas
         {
             canvas.CancelActiveInteraction();
             canvas._hoveredItem = null;
+            canvas._spacePressed = false;
         }
 
         canvas.InvalidateVisual();
@@ -151,6 +152,11 @@ public sealed class InfiniteCanvas : Canvas
 
     public void CenterOn(BoardItemViewModel item)
     {
+        if (IsCanvasLocked)
+        {
+            return;
+        }
+
         _origin = new WorldPoint(
             item.Bounds.Center.X - ((ActualWidth / 2) / _zoom),
             item.Bounds.Center.Y - ((ActualHeight / 2) / _zoom));
@@ -160,6 +166,11 @@ public sealed class InfiniteCanvas : Canvas
 
     public void ResetViewport()
     {
+        if (IsCanvasLocked)
+        {
+            return;
+        }
+
         _origin = new WorldPoint(-120, -90);
         _zoom = 1;
         Workspace?.SetViewport(_origin, _zoom, interactionComplete: true);
@@ -786,8 +797,9 @@ public sealed class InfiniteCanvas : Canvas
 
     private void OnMouseWheel(object sender, MouseWheelEventArgs eventArgs)
     {
-        if (Workspace is null)
+        if (Workspace is null || IsCanvasLocked)
         {
+            eventArgs.Handled = IsCanvasLocked;
             return;
         }
         TakeKeyboardFocus();
@@ -1054,14 +1066,22 @@ public sealed class InfiniteCanvas : Canvas
 
     private void OnAnyMouseDown(object sender, MouseButtonEventArgs eventArgs)
     {
-        if (eventArgs.ChangedButton == MouseButton.Middle && Workspace is not null)
+        if (eventArgs.ChangedButton != MouseButton.Middle)
         {
-            TakeKeyboardFocus();
-            _mouseDownScreen = eventArgs.GetPosition(this);
-            _mouseDownWorld = ScreenToWorld(_mouseDownScreen);
-            BeginPan();
-            eventArgs.Handled = true;
+            return;
         }
+
+        if (Workspace is null || IsCanvasLocked)
+        {
+            eventArgs.Handled = true;
+            return;
+        }
+
+        TakeKeyboardFocus();
+        _mouseDownScreen = eventArgs.GetPosition(this);
+        _mouseDownWorld = ScreenToWorld(_mouseDownScreen);
+        BeginPan();
+        eventArgs.Handled = true;
     }
 
     private void OnAnyMouseUp(object sender, MouseButtonEventArgs eventArgs)
@@ -1137,20 +1157,15 @@ public sealed class InfiniteCanvas : Canvas
         {
             return;
         }
+        if (IsCanvasLocked)
+        {
+            eventArgs.Handled = true;
+            return;
+        }
         if (eventArgs.Key == Key.Space)
         {
             _spacePressed = true;
             Cursor = Cursors.Hand;
-            eventArgs.Handled = true;
-            return;
-        }
-        if (IsCanvasLocked)
-        {
-            if ((Keyboard.Modifiers & ModifierKeys.Control) != 0 &&
-                eventArgs.Key is Key.D0 or Key.NumPad0)
-            {
-                ResetViewport();
-            }
             eventArgs.Handled = true;
             return;
         }
