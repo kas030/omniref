@@ -20,6 +20,11 @@ public sealed class BoardItemViewModel : ObservableObject
     public Guid Id => Model.Id;
     public ItemKind Kind => Model.Kind;
     public bool IsText => Kind == ItemKind.Text;
+    public bool IsFile => Kind == ItemKind.File;
+
+    public string FileType => Model.Content is FileContent file
+        ? file.Extension?.TrimStart('.').ToUpperInvariant() ?? string.Empty
+        : string.Empty;
 
     public bool HasSourcePath => !string.IsNullOrWhiteSpace(SourcePath);
 
@@ -223,6 +228,7 @@ public sealed class BoardItemViewModel : ObservableObject
         Preview = null;
         OnPropertyChanged(nameof(HasSourcePath));
         OnPropertyChanged(nameof(SourcePath));
+        OnPropertyChanged(nameof(FileType));
         OnPropertyChanged(nameof(SecondaryText));
         OnPropertyChanged(nameof(SecondaryPreviewText));
         VisualChanged?.Invoke(this, EventArgs.Empty);
@@ -245,6 +251,7 @@ public sealed class BoardItemViewModel : ObservableObject
         OnPropertyChanged(nameof(TagsText));
         OnPropertyChanged(nameof(HasSourcePath));
         OnPropertyChanged(nameof(SourcePath));
+        OnPropertyChanged(nameof(FileType));
         OnPropertyChanged(nameof(SecondaryText));
         OnPropertyChanged(nameof(SecondaryPreviewText));
         OnPropertyChanged(nameof(TextFontSize));

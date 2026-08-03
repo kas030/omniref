@@ -81,4 +81,24 @@ public sealed class BoardItemViewModelTests
         Assert.False(viewModel.HasSourcePath);
         Assert.Equal(string.Empty, viewModel.SourcePath);
     }
+
+    [Fact]
+    public void FileType_UsesUppercaseExtensionWithoutLeadingDot()
+    {
+        var viewModel = new BoardItemViewModel(new BoardItem
+        {
+            Kind = ItemKind.File,
+            Content = new FileContent(new SourceDescriptor(
+                @"C:\assets\reference.pdf",
+                null,
+                AssetMode.ExternalReference,
+                null,
+                "reference.pdf",
+                null,
+                null), ".pdf")
+        });
+
+        Assert.True(viewModel.IsFile);
+        Assert.Equal("PDF", viewModel.FileType);
+    }
 }

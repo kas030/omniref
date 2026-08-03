@@ -610,7 +610,13 @@ public sealed class InfiniteCanvas : Canvas
             GetCardForeground(item),
             FontWeights.SemiBold,
             TextAlignment.Left,
-            maxLines: 2);
+            maxLines: 2,
+            verticalCenter: !isFolder);
+        if (!isFolder)
+        {
+            return;
+        }
+
         var secondaryRect = new Rect(
             textRect.X,
             textRect.Y + Math.Min(textRect.Height * 0.55, 42),

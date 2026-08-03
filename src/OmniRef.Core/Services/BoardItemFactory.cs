@@ -28,7 +28,11 @@ public static class BoardItemFactory
         return new BoardItem
         {
             Kind = isFolder ? ItemKind.Folder : isImage ? ItemKind.Image : ItemKind.File,
-            Title = isFolder ? new DirectoryInfo(fullPath).Name : Path.GetFileNameWithoutExtension(fullPath),
+            Title = isFolder
+                ? new DirectoryInfo(fullPath).Name
+                : isImage
+                    ? Path.GetFileNameWithoutExtension(fullPath)
+                    : Path.GetFileName(fullPath),
             Bounds = new(position.X, position.Y, isImage ? 300 : 240, isImage ? 220 : 150),
             ZIndex = zIndex,
             Content = isFolder

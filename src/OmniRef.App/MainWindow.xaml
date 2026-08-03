@@ -807,6 +807,14 @@
                                                  IsReadOnly="{Binding DataContext.SelectedWorkspace.IsReadOnly, RelativeSource={RelativeSource AncestorType=Window}}"
                                                  ToolTip="{Binding DataContext.Localization[TagsHint], RelativeSource={RelativeSource AncestorType=Window}}"
                                                  Margin="0,0,0,12" />
+                                        <StackPanel Visibility="{Binding IsFile, Converter={StaticResource BoolToVisibility}}"
+                                                    Margin="0,0,0,12">
+                                            <TextBlock Text="{Binding DataContext.Localization[Type], RelativeSource={RelativeSource AncestorType=Window}}"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       Margin="0,0,0,4" />
+                                            <TextBox Text="{Binding FileType, Mode=OneWay}"
+                                                     IsReadOnly="True" />
+                                        </StackPanel>
                                         <StackPanel Visibility="{Binding HasSourcePath, Converter={StaticResource BoolToVisibility}}"
                                                     Margin="0,0,0,12">
                                             <TextBlock Text="{Binding DataContext.Localization[Path], RelativeSource={RelativeSource AncestorType=Window}}"
