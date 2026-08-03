@@ -1807,14 +1807,8 @@ public partial class MainWindow : Window
         var item = new MenuItem
         {
             Header = _viewModel.Localization[localizationKey],
-            Icon = new FluentIcon
-            {
-                Icon = (Icon)Symbol.Checkmark,
-                Width = 18,
-                Height = 18,
-                FontSize = 18,
-                Visibility = isSelected ? Visibility.Visible : Visibility.Hidden
-            }
+            IsCheckable = true,
+            IsChecked = isSelected
         };
         item.Click += (_, _) =>
         {
