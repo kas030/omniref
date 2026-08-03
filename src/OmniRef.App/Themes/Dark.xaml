@@ -20,6 +20,7 @@
     <Color x:Key="TextSecondaryColor">#FFAEB6C5</Color>
     <Color x:Key="AccentColor">#FF8391FF</Color>
     <Color x:Key="AccentHoverColor">#FF9AA5FF</Color>
+    <Color x:Key="WarningColor">#FFFFC85C</Color>
     <Color x:Key="DangerColor">#FFFF6B76</Color>
     <Color x:Key="DangerSurfaceColor">#FF9F2F3C</Color>
     <Color x:Key="ScrollBarThumbColor">#FF484E5A</Color>
@@ -45,6 +46,7 @@
     <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}" />
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
     <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}" />
+    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
     <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}" />
     <SolidColorBrush x:Key="DangerSurfaceBrush" Color="{StaticResource DangerSurfaceColor}" />
     <SolidColorBrush x:Key="ScrollBarThumbBrush" Color="{StaticResource ScrollBarThumbColor}" />

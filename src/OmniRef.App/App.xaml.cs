@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using OmniRef.App.Controls;
+using OmniRef.App.Dialogs;
 using OmniRef.App.Services;
 using OmniRef.App.ViewModels;
 using OmniRef.Core.Services;
@@ -48,11 +49,14 @@ public partial class App : Application
         catch (Exception exception)
         {
             _logger?.Error("Application startup failed.", exception);
-            MessageBox.Show(
+            var localization = GetLocalization();
+            DialogService.Show(
+                _window,
+                localization,
+                localization["StartupFailedTitle"],
                 exception.ToString(),
-                "OmniRef startup failed",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+                DialogButtons.Ok,
+                DialogIcon.Error);
             Shutdown(1);
         }
     }
@@ -157,12 +161,13 @@ public partial class App : Application
         _window.Show();
         if (!previousExitWasClean)
         {
-            MessageBox.Show(
+            DialogService.Show(
                 _window,
+                localization,
+                localization["RecoveryNoticeTitle"],
                 localization["RecoveryNotice"],
-                "OmniRef",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                DialogButtons.Ok,
+                DialogIcon.Information);
         }
     }
 
@@ -192,11 +197,14 @@ public partial class App : Application
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs eventArgs)
     {
         _logger?.Error("Unhandled UI exception.", eventArgs.Exception);
-        MessageBox.Show(
+        var localization = GetLocalization();
+        DialogService.Show(
+            _window,
+            localization,
+            localization["UnexpectedErrorTitle"],
             eventArgs.Exception.Message,
-            "OmniRef",
-            MessageBoxButton.OK,
-            MessageBoxImage.Error);
+            DialogButtons.Ok,
+            DialogIcon.Error);
         eventArgs.Handled = true;
     }
 
@@ -206,5 +214,17 @@ public partial class App : Application
         {
             _logger?.Error("Unhandled application exception.", exception);
         }
+    }
+
+    private LocalizationService GetLocalization()
+    {
+        if (_viewModel is not null)
+        {
+            return _viewModel.Localization;
+        }
+
+        var localization = new LocalizationService();
+        localization.SetLanguage(_settings?.Language ?? "auto");
+        return localization;
     }
 }

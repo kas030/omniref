@@ -17,6 +17,7 @@ using FluentIcons.Common;
 using FluentIcons.Wpf;
 using Microsoft.Win32;
 using OmniRef.App.Controls;
+using OmniRef.App.Dialogs;
 using OmniRef.App.Services;
 using OmniRef.App.ViewModels;
 using OmniRef.Core.Interfaces;
@@ -240,13 +241,14 @@ public partial class MainWindow : Window
 
         if (flushFailed)
         {
-            var result = MessageBox.Show(
+            var result = DialogService.Show(
                 this,
+                _viewModel.Localization,
+                _viewModel.Localization["ConfirmCloseTitle"],
                 _viewModel.Localization["ConfirmCloseDirty"],
-                "OmniRef",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
-            if (result != MessageBoxResult.Yes)
+                DialogButtons.YesNo,
+                DialogIcon.Warning);
+            if (result != DialogChoice.Yes)
             {
                 return;
             }
@@ -1492,13 +1494,14 @@ public partial class MainWindow : Window
         var closed = await _viewModel.CloseAsync(workspace, force: false);
         if (!closed)
         {
-            var result = MessageBox.Show(
+            var result = DialogService.Show(
                 this,
+                _viewModel.Localization,
+                _viewModel.Localization["ConfirmCloseTitle"],
                 _viewModel.Localization["ConfirmCloseDirty"],
-                "OmniRef",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
-            if (result == MessageBoxResult.Yes)
+                DialogButtons.YesNo,
+                DialogIcon.Warning);
+            if (result == DialogChoice.Yes)
             {
                 await _viewModel.CloseAsync(workspace, force: true);
             }
@@ -1852,5 +1855,11 @@ public partial class MainWindow : Window
     };
 
     private void ShowError(string message) =>
-        MessageBox.Show(this, message, "OmniRef", MessageBoxButton.OK, MessageBoxImage.Warning);
+        DialogService.Show(
+            this,
+            _viewModel.Localization,
+            _viewModel.Localization["ErrorDialogTitle"],
+            message,
+            DialogButtons.Ok,
+            DialogIcon.Warning);
 }

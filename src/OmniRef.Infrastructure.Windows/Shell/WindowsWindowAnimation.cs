@@ -67,6 +67,34 @@ public static class WindowsWindowAnimation
             sizeof(int));
     }
 
+    public static void ApplyRoundedWindowRegion(IntPtr windowHandle, int cornerRadius)
+    {
+        if (windowHandle == IntPtr.Zero || cornerRadius <= 0 ||
+            !GetWindowRect(windowHandle, out var windowRect))
+        {
+            return;
+        }
+
+        var width = windowRect.Right - windowRect.Left;
+        var height = windowRect.Bottom - windowRect.Top;
+        if (width <= 0 || height <= 0)
+        {
+            return;
+        }
+
+        var diameter = cornerRadius * 2;
+        var region = CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter);
+        if (region == IntPtr.Zero)
+        {
+            return;
+        }
+
+        if (!SetWindowRgn(windowHandle, region, redraw: true))
+        {
+            DeleteObject(region);
+        }
+    }
+
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
     private static extern IntPtr GetWindowLongPtr(IntPtr windowHandle, int index);
 
@@ -82,6 +110,25 @@ public static class WindowsWindowAnimation
         IntPtr windowHandle,
         IntPtr regionHandle,
         [MarshalAs(UnmanagedType.Bool)] bool redraw);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetWindowRect(
+        IntPtr windowHandle,
+        out WindowRect windowRect);
+
+    [DllImport("gdi32.dll")]
+    private static extern IntPtr CreateRoundRectRgn(
+        int left,
+        int top,
+        int right,
+        int bottom,
+        int ellipseWidth,
+        int ellipseHeight);
+
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeleteObject(IntPtr objectHandle);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -113,5 +160,14 @@ public static class WindowsWindowAnimation
         public readonly int Right = thickness;
         public readonly int Top = thickness;
         public readonly int Bottom = thickness;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly struct WindowRect
+    {
+        public readonly int Left;
+        public readonly int Top;
+        public readonly int Right;
+        public readonly int Bottom;
     }
 }
