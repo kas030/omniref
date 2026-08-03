@@ -91,6 +91,7 @@ public sealed class InfiniteCanvas : Canvas
         AllowDrop = true;
         Background = Brushes.Transparent;
         SnapsToDevicePixels = true;
+        RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.HighQuality);
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Ideal);
 
         MouseWheel += OnMouseWheel;
