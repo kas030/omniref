@@ -37,6 +37,7 @@ public sealed class InfiniteCanvas : Canvas
     private const double SelectedBorderThickness = 1.5;
     private const double CardHorizontalPadding = 14;
     private const double CardVerticalPadding = 12;
+    private const double TextEditorIntrinsicHorizontalInset = 2;
     private const double TextLineHeightMultiplier = 1.35;
 
     public static readonly DependencyProperty WorkspaceProperty = DependencyProperty.Register(
@@ -194,7 +195,7 @@ public sealed class InfiniteCanvas : Canvas
         Workspace?.SelectOnly(item);
         _editingItem = item;
         _editingOriginal = text.Text;
-        var rect = ToScreenRect(item.Bounds);
+        var rect = GetTextEditorScreenRect(item.Bounds);
         _textEditor = new TextBox
         {
             Text = text.Text,
@@ -1406,7 +1407,7 @@ public sealed class InfiniteCanvas : Canvas
         {
             return;
         }
-        var rect = ToScreenRect(_editingItem.Bounds);
+        var rect = GetTextEditorScreenRect(_editingItem.Bounds);
         SetLeft(_textEditor, rect.Left);
         SetTop(_textEditor, rect.Top);
         _textEditor.Width = Math.Max(80, rect.Width);
@@ -1433,9 +1434,22 @@ public sealed class InfiniteCanvas : Canvas
 
     private Thickness GetTextEditorPadding()
     {
-        var horizontal = CardHorizontalPadding * _zoom;
+        // WPF's TextBoxView adds a fixed two-DIP horizontal inset of its own.
+        var horizontal = Math.Max(
+            0,
+            (CardHorizontalPadding * _zoom) - TextEditorIntrinsicHorizontalInset);
         var vertical = CardVerticalPadding * _zoom;
         return new Thickness(horizontal, vertical, horizontal, vertical);
+    }
+
+    private Rect GetTextEditorScreenRect(WorldRect bounds)
+    {
+        var rect = ToScreenRect(bounds);
+        var horizontalOverflow = Math.Max(
+            0,
+            TextEditorIntrinsicHorizontalInset - (CardHorizontalPadding * _zoom));
+        rect.Inflate(horizontalOverflow, 0);
+        return rect;
     }
 
     private static TextAlignment GetTextAlignment(TextContent text) => text.Alignment switch
