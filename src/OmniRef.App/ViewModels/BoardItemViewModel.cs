@@ -22,6 +22,45 @@ public sealed class BoardItemViewModel : ObservableObject
     public bool IsText => Kind == ItemKind.Text;
     public bool IsFile => Kind == ItemKind.File;
     public bool IsUrl => Kind == ItemKind.Url;
+    public bool IsImage => Kind == ItemKind.Image;
+    public bool IsFolder => Kind == ItemKind.Folder;
+    public bool IsFrame => Kind == ItemKind.Frame;
+
+    public bool HasSource => GetSourceDescriptor() is not null;
+    public bool IsEmbedded => GetSourceDescriptor()?.Mode == AssetMode.EmbeddedCopy;
+    public bool IsExternalReference => GetSourceDescriptor()?.Mode == AssetMode.ExternalReference;
+    public bool CanEmbed =>
+        IsExternalReference && Kind is ItemKind.Image or ItemKind.File;
+    public bool CanReveal => IsExternalReference && !IsMissing;
+
+    public string SourceFileName => GetSourceDescriptor()?.OriginalFileName ?? string.Empty;
+
+    public string SourceSizeText
+    {
+        get
+        {
+            var size = GetSourceDescriptor()?.Size;
+            if (!size.HasValue)
+            {
+                return string.Empty;
+            }
+
+            string[] units = ["B", "KB", "MB", "GB"];
+            var value = (double)size.Value;
+            var unitIndex = 0;
+            while (value >= 1024 && unitIndex < units.Length - 1)
+            {
+                value /= 1024;
+                unitIndex++;
+            }
+
+            return unitIndex == 0
+                ? $"{size.Value} {units[unitIndex]}"
+                : $"{value:0.#} {units[unitIndex]}";
+        }
+    }
+
+    public bool HasSourceSize => !string.IsNullOrEmpty(SourceSizeText);
 
     public string Url => Model.Content is UrlContent url ? url.Url : string.Empty;
 
@@ -131,7 +170,13 @@ public sealed class BoardItemViewModel : ObservableObject
     public bool IsMissing
     {
         get => _isMissing;
-        set => SetProperty(ref _isMissing, value);
+        set
+        {
+            if (SetProperty(ref _isMissing, value))
+            {
+                OnPropertyChanged(nameof(CanReveal));
+            }
+        }
     }
 
     public ImageSource? Preview
@@ -231,6 +276,14 @@ public sealed class BoardItemViewModel : ObservableObject
         Preview = null;
         OnPropertyChanged(nameof(HasSourcePath));
         OnPropertyChanged(nameof(SourcePath));
+        OnPropertyChanged(nameof(HasSource));
+        OnPropertyChanged(nameof(IsEmbedded));
+        OnPropertyChanged(nameof(IsExternalReference));
+        OnPropertyChanged(nameof(CanEmbed));
+        OnPropertyChanged(nameof(CanReveal));
+        OnPropertyChanged(nameof(SourceFileName));
+        OnPropertyChanged(nameof(SourceSizeText));
+        OnPropertyChanged(nameof(HasSourceSize));
         OnPropertyChanged(nameof(FileType));
         OnPropertyChanged(nameof(Url));
         OnPropertyChanged(nameof(SecondaryText));
@@ -255,6 +308,14 @@ public sealed class BoardItemViewModel : ObservableObject
         OnPropertyChanged(nameof(TagsText));
         OnPropertyChanged(nameof(HasSourcePath));
         OnPropertyChanged(nameof(SourcePath));
+        OnPropertyChanged(nameof(HasSource));
+        OnPropertyChanged(nameof(IsEmbedded));
+        OnPropertyChanged(nameof(IsExternalReference));
+        OnPropertyChanged(nameof(CanEmbed));
+        OnPropertyChanged(nameof(CanReveal));
+        OnPropertyChanged(nameof(SourceFileName));
+        OnPropertyChanged(nameof(SourceSizeText));
+        OnPropertyChanged(nameof(HasSourceSize));
         OnPropertyChanged(nameof(FileType));
         OnPropertyChanged(nameof(Url));
         OnPropertyChanged(nameof(SecondaryText));

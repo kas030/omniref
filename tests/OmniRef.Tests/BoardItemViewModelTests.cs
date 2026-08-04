@@ -114,4 +114,60 @@ public sealed class BoardItemViewModelTests
         Assert.True(viewModel.IsFile);
         Assert.Equal("PDF", viewModel.FileType);
     }
+
+    [Fact]
+    public void EmbeddedFile_ExposesStorageMetadataAndApplicableActions()
+    {
+        var viewModel = new BoardItemViewModel(new BoardItem
+        {
+            Kind = ItemKind.File,
+            Content = new FileContent(new SourceDescriptor(
+                @"C:\assets\reference.pdf",
+                "assets/reference.pdf",
+                AssetMode.EmbeddedCopy,
+                Guid.NewGuid(),
+                "reference.pdf",
+                1_572_864,
+                null), ".pdf")
+        });
+
+        Assert.True(viewModel.HasSource);
+        Assert.True(viewModel.IsEmbedded);
+        Assert.False(viewModel.IsExternalReference);
+        Assert.False(viewModel.CanEmbed);
+        Assert.False(viewModel.CanReveal);
+        Assert.Equal("reference.pdf", viewModel.SourceFileName);
+        Assert.Equal("1.5 MB", viewModel.SourceSizeText);
+    }
+
+    [Fact]
+    public void ReplacingExternalSourceWithEmbeddedSource_NotifiesStorageProperties()
+    {
+        var external = new SourceDescriptor(
+            @"C:\assets\reference.pdf",
+            null,
+            AssetMode.ExternalReference,
+            null,
+            "reference.pdf",
+            1024,
+            null);
+        var viewModel = new BoardItemViewModel(new BoardItem
+        {
+            Kind = ItemKind.File,
+            Content = new FileContent(external, ".pdf")
+        });
+        var changedProperties = new List<string?>();
+        viewModel.PropertyChanged += (_, eventArgs) => changedProperties.Add(eventArgs.PropertyName);
+
+        viewModel.ReplaceContent(new FileContent(external with
+        {
+            Mode = AssetMode.EmbeddedCopy,
+            EmbeddedAssetId = Guid.NewGuid()
+        }, ".pdf"));
+
+        Assert.Contains(nameof(BoardItemViewModel.IsEmbedded), changedProperties);
+        Assert.Contains(nameof(BoardItemViewModel.IsExternalReference), changedProperties);
+        Assert.Contains(nameof(BoardItemViewModel.CanEmbed), changedProperties);
+        Assert.Contains(nameof(BoardItemViewModel.CanReveal), changedProperties);
+    }
 }

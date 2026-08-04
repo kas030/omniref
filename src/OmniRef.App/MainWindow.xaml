@@ -90,6 +90,64 @@
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibility" />
         <converters:NonEmptyStringToVisibilityConverter x:Key="NonEmptyStringToVisibility" />
         <converters:NullToVisibilityConverter x:Key="NullToVisibility" />
+
+        <Style x:Key="PropertySectionCard" TargetType="{x:Type Border}">
+            <Setter Property="Margin" Value="0,0,0,16" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+        </Style>
+
+        <Style x:Key="PropertySectionHeader" TargetType="{x:Type TextBlock}">
+            <Setter Property="Margin" Value="2,0,0,8" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+        </Style>
+
+        <Style x:Key="PropertyFieldLabel" TargetType="{x:Type TextBlock}">
+            <Setter Property="Margin" Value="0,0,0,5" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+        </Style>
+
+        <Style x:Key="PropertyActionButton"
+               TargetType="{x:Type Button}"
+               BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Border" Property="Opacity" Value="0.75" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Border" Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Border x:Name="WindowFrame"
@@ -632,7 +690,7 @@
                     ClipToBounds="True">
                 <Border.Style>
                     <Style TargetType="{x:Type Border}">
-                        <Setter Property="Width" Value="286" />
+                        <Setter Property="Width" Value="320" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding SidebarVisible}" Value="False">
                                 <Setter Property="Width" Value="0" />
@@ -642,7 +700,7 @@
                                     <BeginStoryboard>
                                         <Storyboard>
                                             <DoubleAnimation Storyboard.TargetProperty="Width"
-                                                             From="286"
+                                                             From="320"
                                                              To="0"
                                                              Duration="0:0:0.12">
                                                 <DoubleAnimation.EasingFunction>
@@ -661,7 +719,7 @@
                                         <Storyboard>
                                             <DoubleAnimation Storyboard.TargetProperty="Width"
                                                              From="0"
-                                                             To="286"
+                                                             To="320"
                                                              Duration="0:0:0.12">
                                                 <DoubleAnimation.EasingFunction>
                                                     <CubicEase EasingMode="EaseOut" />
@@ -790,122 +848,275 @@
                             <ContentControl.ContentTemplate>
                                 <DataTemplate>
                                     <StackPanel>
-                                        <TextBlock Text="{Binding DataContext.Localization[Properties], RelativeSource={RelativeSource AncestorType=Window}}"
-                                                   FontSize="15"
-                                                   FontWeight="SemiBold"
-                                                   Margin="0,0,0,12" />
-                                        <TextBlock Text="{Binding DataContext.Localization[Title], RelativeSource={RelativeSource AncestorType=Window}}"
-                                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                                   Margin="0,0,0,4" />
-                                        <TextBox Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"
-                                                 IsReadOnly="{Binding DataContext.SelectedWorkspace.IsReadOnly, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                 Margin="0,0,0,12" />
-                                        <StackPanel Visibility="{Binding IsUrl, Converter={StaticResource BoolToVisibility}}"
-                                                    Margin="0,0,0,12">
-                                            <TextBlock Text="URL"
-                                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                                       Margin="0,0,0,4" />
-                                            <TextBox Text="{Binding Url, Mode=OneWay}"
-                                                     IsReadOnly="True"
-                                                     TextWrapping="Wrap"
-                                                     VerticalScrollBarVisibility="Auto"
-                                                     MaxHeight="72"
-                                                     ToolTip="{Binding Url}" />
-                                        </StackPanel>
-                                        <TextBlock Text="{Binding DataContext.Localization[Tags], RelativeSource={RelativeSource AncestorType=Window}}"
-                                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                                   Margin="0,0,0,4" />
-                                        <TextBox Text="{Binding TagsText, UpdateSourceTrigger=LostFocus}"
-                                                 IsReadOnly="{Binding DataContext.SelectedWorkspace.IsReadOnly, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                 ToolTip="{Binding DataContext.Localization[TagsHint], RelativeSource={RelativeSource AncestorType=Window}}"
-                                                 Margin="0,0,0,12" />
-                                        <StackPanel Visibility="{Binding IsFile, Converter={StaticResource BoolToVisibility}}"
-                                                    Margin="0,0,0,12">
-                                            <TextBlock Text="{Binding DataContext.Localization[Type], RelativeSource={RelativeSource AncestorType=Window}}"
-                                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                                       Margin="0,0,0,4" />
-                                            <TextBox Text="{Binding FileType, Mode=OneWay}"
-                                                     IsReadOnly="True" />
-                                        </StackPanel>
-                                        <StackPanel Visibility="{Binding HasSourcePath, Converter={StaticResource BoolToVisibility}}"
-                                                    Margin="0,0,0,12">
-                                            <TextBlock Text="{Binding DataContext.Localization[Path], RelativeSource={RelativeSource AncestorType=Window}}"
-                                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                                       Margin="0,0,0,4" />
-                                            <TextBox Text="{Binding SourcePath, Mode=OneWay}"
-                                                     IsReadOnly="True"
-                                                     TextWrapping="Wrap"
-                                                     VerticalScrollBarVisibility="Auto"
-                                                     MaxHeight="72"
-                                                     ToolTip="{Binding SourcePath}" />
-                                        </StackPanel>
+                                        <Grid Margin="2,0,2,18">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding DataContext.Localization[Properties], RelativeSource={RelativeSource AncestorType=Window}}"
+                                                           FontSize="18"
+                                                           FontWeight="SemiBold" />
+                                                <Grid Margin="0,3,0,0">
+                                                    <TextBlock Text="{Binding DataContext.Localization[ImageItem], RelativeSource={RelativeSource AncestorType=Window}}"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               Visibility="{Binding IsImage, Converter={StaticResource BoolToVisibility}}" />
+                                                    <TextBlock Text="{Binding DataContext.Localization[FileItem], RelativeSource={RelativeSource AncestorType=Window}}"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               Visibility="{Binding IsFile, Converter={StaticResource BoolToVisibility}}" />
+                                                    <TextBlock Text="{Binding DataContext.Localization[FolderItem], RelativeSource={RelativeSource AncestorType=Window}}"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               Visibility="{Binding IsFolder, Converter={StaticResource BoolToVisibility}}" />
+                                                    <TextBlock Text="{Binding DataContext.Localization[TextItem], RelativeSource={RelativeSource AncestorType=Window}}"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               Visibility="{Binding IsText, Converter={StaticResource BoolToVisibility}}" />
+                                                    <TextBlock Text="{Binding DataContext.Localization[UrlItem], RelativeSource={RelativeSource AncestorType=Window}}"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               Visibility="{Binding IsUrl, Converter={StaticResource BoolToVisibility}}" />
+                                                    <TextBlock Text="{Binding DataContext.Localization[FrameItem], RelativeSource={RelativeSource AncestorType=Window}}"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               Visibility="{Binding IsFrame, Converter={StaticResource BoolToVisibility}}" />
+                                                </Grid>
+                                            </StackPanel>
+                                            <Border Grid.Column="1"
+                                                    Width="36"
+                                                    Height="36"
+                                                    Background="{DynamicResource SurfaceRaisedBrush}"
+                                                    CornerRadius="8">
+                                                <icons:FluentIcon Width="18"
+                                                                  Height="18"
+                                                                  HorizontalAlignment="Center"
+                                                                  VerticalAlignment="Center"
+                                                                  FontSize="18"
+                                                                  Foreground="{DynamicResource AccentBrush}"
+                                                                  Icon="Info" />
+                                            </Border>
+                                        </Grid>
+
+                                        <TextBlock Style="{StaticResource PropertySectionHeader}"
+                                                   Text="{Binding DataContext.Localization[General], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                        <Border Style="{StaticResource PropertySectionCard}">
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource PropertyFieldLabel}"
+                                                           Text="{Binding DataContext.Localization[Title], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                <TextBox Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"
+                                                         IsReadOnly="{Binding DataContext.SelectedWorkspace.IsReadOnly, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                         Margin="0,0,0,12" />
+                                                <TextBlock Style="{StaticResource PropertyFieldLabel}"
+                                                           Text="{Binding DataContext.Localization[Tags], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                <TextBox Text="{Binding TagsText, UpdateSourceTrigger=LostFocus}"
+                                                         IsReadOnly="{Binding DataContext.SelectedWorkspace.IsReadOnly, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                         ToolTip="{Binding DataContext.Localization[TagsHint], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                <StackPanel Margin="0,12,0,0"
+                                                            Visibility="{Binding IsUrl, Converter={StaticResource BoolToVisibility}}">
+                                                    <TextBlock Style="{StaticResource PropertyFieldLabel}" Text="URL" />
+                                                    <TextBox Text="{Binding Url, Mode=OneWay}"
+                                                             IsReadOnly="True"
+                                                             TextWrapping="Wrap"
+                                                             VerticalScrollBarVisibility="Auto"
+                                                             MaxHeight="72"
+                                                             ToolTip="{Binding Url}" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+
                                         <StackPanel Visibility="{Binding IsText, Converter={StaticResource BoolToVisibility}}"
-                                                    IsEnabled="{Binding DataContext.SelectedWorkspace.IsReadOnly, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
-                                                    Margin="0,0,0,12">
-                                            <TextBlock Text="{Binding DataContext.Localization[TextStyle], RelativeSource={RelativeSource AncestorType=Window}}"
-                                                       FontWeight="SemiBold"
-                                                       Margin="0,0,0,8" />
-                                            <Grid Margin="0,0,0,8">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="76" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0"
-                                                           VerticalAlignment="Center"
-                                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           Text="{Binding DataContext.Localization[FontSize], RelativeSource={RelativeSource AncestorType=Window}}" />
-                                                <TextBox Grid.Column="1"
-                                                         Text="{Binding TextFontSize, UpdateSourceTrigger=LostFocus}" />
-                                            </Grid>
-                                            <TextBlock Foreground="{DynamicResource TextSecondaryBrush}"
-                                                       Text="{Binding DataContext.Localization[TextColor], RelativeSource={RelativeSource AncestorType=Window}}"
-                                                       Margin="0,0,0,4" />
-                                            <TextBox Text="{Binding TextForeground, UpdateSourceTrigger=LostFocus}"
-                                                     Margin="0,0,0,8" />
-                                            <TextBlock Foreground="{DynamicResource TextSecondaryBrush}"
-                                                       Text="{Binding DataContext.Localization[CardColor], RelativeSource={RelativeSource AncestorType=Window}}"
-                                                       Margin="0,0,0,4" />
-                                            <TextBox Text="{Binding TextBackground, UpdateSourceTrigger=LostFocus}"
-                                                     Margin="0,0,0,8" />
-                                            <WrapPanel>
-                                                <Button Style="{StaticResource ToolbarButton}"
-                                                        Tag="Left"
-                                                        Click="TextAlignment_Click"
-                                                        ToolTip="{Binding DataContext.Localization[TextAlignLeft], RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        AutomationProperties.Name="{Binding DataContext.Localization[TextAlignLeft], RelativeSource={RelativeSource AncestorType=Window}}">
-                                                    <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
-                                                                      Icon="TextAlignLeft" />
-                                                </Button>
-                                                <Button Style="{StaticResource ToolbarButton}"
-                                                        Tag="Center"
-                                                        Click="TextAlignment_Click"
-                                                        ToolTip="{Binding DataContext.Localization[TextAlignCenter], RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        AutomationProperties.Name="{Binding DataContext.Localization[TextAlignCenter], RelativeSource={RelativeSource AncestorType=Window}}">
-                                                    <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
-                                                                      Icon="TextAlignCenter" />
-                                                </Button>
-                                                <Button Style="{StaticResource ToolbarButton}"
-                                                        Tag="Right"
-                                                        Click="TextAlignment_Click"
-                                                        ToolTip="{Binding DataContext.Localization[TextAlignRight], RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        AutomationProperties.Name="{Binding DataContext.Localization[TextAlignRight], RelativeSource={RelativeSource AncestorType=Window}}">
-                                                    <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
-                                                                      Icon="TextAlignRight" />
-                                                </Button>
-                                            </WrapPanel>
+                                                    IsEnabled="{Binding DataContext.SelectedWorkspace.IsReadOnly, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}">
+                                            <TextBlock Style="{StaticResource PropertySectionHeader}"
+                                                       Text="{Binding DataContext.Localization[Appearance], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                            <Border Style="{StaticResource PropertySectionCard}">
+                                                <StackPanel>
+                                                    <Grid Margin="0,0,0,12">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="76" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0"
+                                                                   VerticalAlignment="Center"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                   Text="{Binding DataContext.Localization[FontSize], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                        <TextBox Grid.Column="1"
+                                                                 Text="{Binding TextFontSize, UpdateSourceTrigger=LostFocus}" />
+                                                    </Grid>
+                                                    <TextBlock Style="{StaticResource PropertyFieldLabel}"
+                                                               Text="{Binding DataContext.Localization[TextColor], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                    <TextBox Text="{Binding TextForeground, UpdateSourceTrigger=LostFocus}"
+                                                             Margin="0,0,0,12" />
+                                                    <TextBlock Style="{StaticResource PropertyFieldLabel}"
+                                                               Text="{Binding DataContext.Localization[CardColor], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                    <TextBox Text="{Binding TextBackground, UpdateSourceTrigger=LostFocus}"
+                                                             Margin="0,0,0,12" />
+                                                    <WrapPanel>
+                                                        <Button Style="{StaticResource ToolbarButton}"
+                                                                Tag="Left"
+                                                                Click="TextAlignment_Click"
+                                                                ToolTip="{Binding DataContext.Localization[TextAlignLeft], RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                AutomationProperties.Name="{Binding DataContext.Localization[TextAlignLeft], RelativeSource={RelativeSource AncestorType=Window}}">
+                                                            <icons:FluentIcon Style="{StaticResource ToolbarIcon}" Icon="TextAlignLeft" />
+                                                        </Button>
+                                                        <Button Style="{StaticResource ToolbarButton}"
+                                                                Tag="Center"
+                                                                Click="TextAlignment_Click"
+                                                                ToolTip="{Binding DataContext.Localization[TextAlignCenter], RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                AutomationProperties.Name="{Binding DataContext.Localization[TextAlignCenter], RelativeSource={RelativeSource AncestorType=Window}}">
+                                                            <icons:FluentIcon Style="{StaticResource ToolbarIcon}" Icon="TextAlignCenter" />
+                                                        </Button>
+                                                        <Button Style="{StaticResource ToolbarButton}"
+                                                                Tag="Right"
+                                                                Click="TextAlignment_Click"
+                                                                ToolTip="{Binding DataContext.Localization[TextAlignRight], RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                AutomationProperties.Name="{Binding DataContext.Localization[TextAlignRight], RelativeSource={RelativeSource AncestorType=Window}}">
+                                                            <icons:FluentIcon Style="{StaticResource ToolbarIcon}" Icon="TextAlignRight" />
+                                                        </Button>
+                                                    </WrapPanel>
+                                                </StackPanel>
+                                            </Border>
                                         </StackPanel>
-                                        <WrapPanel>
-                                            <Button Content="{Binding DataContext.Localization[Embed], RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    IsEnabled="{Binding DataContext.SelectedWorkspace.IsReadOnly, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
-                                                    Click="Embed_Click" />
-                                            <Button Content="{Binding DataContext.Localization[Export], RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    Click="Export_Click" />
-                                            <Button Content="{Binding DataContext.Localization[Relink], RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    IsEnabled="{Binding DataContext.SelectedWorkspace.IsReadOnly, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
-                                                    Click="Relink_Click" />
-                                            <Button Content="{Binding DataContext.Localization[Reveal], RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    Click="Reveal_Click" />
-                                        </WrapPanel>
+
+                                        <StackPanel Visibility="{Binding HasSource, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Style="{StaticResource PropertySectionHeader}"
+                                                       Text="{Binding DataContext.Localization[Storage], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                            <Border Style="{StaticResource PropertySectionCard}">
+                                                <StackPanel>
+                                                    <Grid Margin="0,0,0,12">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="36" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Border Width="32"
+                                                                Height="32"
+                                                                HorizontalAlignment="Left"
+                                                                VerticalAlignment="Top"
+                                                                Background="{DynamicResource SurfaceBrush}"
+                                                                CornerRadius="7">
+                                                            <icons:FluentIcon Width="17"
+                                                                              Height="17"
+                                                                              HorizontalAlignment="Center"
+                                                                              VerticalAlignment="Center"
+                                                                              FontSize="17"
+                                                                              Foreground="{DynamicResource AccentBrush}"
+                                                                              Icon="Storage" />
+                                                        </Border>
+                                                        <Grid Grid.Column="1" Margin="8,0,0,0">
+                                                            <StackPanel Visibility="{Binding IsExternalReference, Converter={StaticResource BoolToVisibility}}">
+                                                                <TextBlock FontWeight="SemiBold"
+                                                                           Text="{Binding DataContext.Localization[ExternalReference], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                                <TextBlock Margin="0,2,0,0"
+                                                                           FontSize="12"
+                                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                           TextWrapping="Wrap"
+                                                                           Text="{Binding DataContext.Localization[ExternalReferenceDescription], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                            </StackPanel>
+                                                            <StackPanel Visibility="{Binding IsEmbedded, Converter={StaticResource BoolToVisibility}}">
+                                                                <TextBlock FontWeight="SemiBold"
+                                                                           Text="{Binding DataContext.Localization[EmbeddedCopy], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                                <TextBlock Margin="0,2,0,0"
+                                                                           FontSize="12"
+                                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                           TextWrapping="Wrap"
+                                                                           Text="{Binding DataContext.Localization[EmbeddedCopyDescription], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Grid>
+
+                                                    <Border Margin="0,0,0,12"
+                                                            Padding="10"
+                                                            Background="{DynamicResource SurfaceBrush}"
+                                                            BorderBrush="{DynamicResource DangerBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="7"
+                                                            Visibility="{Binding IsMissing, Converter={StaticResource BoolToVisibility}}">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="24" />
+                                                                <ColumnDefinition Width="*" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <icons:FluentIcon Width="16"
+                                                                              Height="16"
+                                                                              VerticalAlignment="Top"
+                                                                              FontSize="16"
+                                                                              Foreground="{DynamicResource DangerBrush}"
+                                                                              Icon="Warning" />
+                                                            <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                                                <TextBlock FontWeight="SemiBold"
+                                                                           Foreground="{DynamicResource DangerBrush}"
+                                                                           Text="{Binding DataContext.Localization[MissingSourceTitle], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                                <TextBlock Margin="0,2,0,0"
+                                                                           FontSize="12"
+                                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                           TextWrapping="Wrap"
+                                                                           Text="{Binding DataContext.Localization[MissingSource], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+
+                                                    <TextBlock Style="{StaticResource PropertyFieldLabel}"
+                                                               Text="{Binding DataContext.Localization[FileName], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                    <TextBox Text="{Binding SourceFileName, Mode=OneWay}"
+                                                             IsReadOnly="True"
+                                                             ToolTip="{Binding SourceFileName}"
+                                                             Margin="0,0,0,12" />
+
+                                                    <StackPanel Margin="0,0,0,12"
+                                                                Visibility="{Binding HasSourceSize, Converter={StaticResource BoolToVisibility}}">
+                                                        <TextBlock Style="{StaticResource PropertyFieldLabel}"
+                                                                   Text="{Binding DataContext.Localization[FileSize], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                        <TextBlock Text="{Binding SourceSizeText}" />
+                                                    </StackPanel>
+
+                                                    <StackPanel Margin="0,0,0,8"
+                                                                Visibility="{Binding IsExternalReference, Converter={StaticResource BoolToVisibility}}">
+                                                        <TextBlock Style="{StaticResource PropertyFieldLabel}"
+                                                                   Text="{Binding DataContext.Localization[Path], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                        <TextBox Text="{Binding SourcePath, Mode=OneWay}"
+                                                                 IsReadOnly="True"
+                                                                 TextWrapping="Wrap"
+                                                                 VerticalScrollBarVisibility="Auto"
+                                                                 MaxHeight="84"
+                                                                 ToolTip="{Binding SourcePath}" />
+                                                    </StackPanel>
+
+                                                    <Button Style="{StaticResource PropertyActionButton}"
+                                                            Visibility="{Binding CanEmbed, Converter={StaticResource BoolToVisibility}}"
+                                                            IsEnabled="{Binding DataContext.SelectedWorkspace.IsReadOnly, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
+                                                            Click="Embed_Click">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <icons:FluentIcon Width="17" Height="17" Margin="0,0,8,0" FontSize="17" Icon="Save" />
+                                                            <TextBlock VerticalAlignment="Center"
+                                                                       Text="{Binding DataContext.Localization[Embed], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                        </StackPanel>
+                                                    </Button>
+                                                    <Button Style="{StaticResource PropertyActionButton}"
+                                                            Visibility="{Binding IsEmbedded, Converter={StaticResource BoolToVisibility}}"
+                                                            Click="Export_Click">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <icons:FluentIcon Width="17" Height="17" Margin="0,0,8,0" FontSize="17" Icon="SaveEdit" />
+                                                            <TextBlock VerticalAlignment="Center"
+                                                                       Text="{Binding DataContext.Localization[Export], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                        </StackPanel>
+                                                    </Button>
+                                                    <Button Style="{StaticResource PropertyActionButton}"
+                                                            Visibility="{Binding IsExternalReference, Converter={StaticResource BoolToVisibility}}"
+                                                            IsEnabled="{Binding DataContext.SelectedWorkspace.IsReadOnly, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
+                                                            Click="Relink_Click">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <icons:FluentIcon Width="17" Height="17" Margin="0,0,8,0" FontSize="17" Icon="FolderOpen" />
+                                                            <TextBlock VerticalAlignment="Center"
+                                                                       Text="{Binding DataContext.Localization[Relink], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                        </StackPanel>
+                                                    </Button>
+                                                    <Button Style="{StaticResource PropertyActionButton}"
+                                                            Visibility="{Binding CanReveal, Converter={StaticResource BoolToVisibility}}"
+                                                            Click="Reveal_Click">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <icons:FluentIcon Width="17" Height="17" Margin="0,0,8,0" FontSize="17" Icon="FolderOpen" />
+                                                            <TextBlock VerticalAlignment="Center"
+                                                                       Text="{Binding DataContext.Localization[Reveal], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                        </StackPanel>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
                                     </StackPanel>
                                 </DataTemplate>
                             </ContentControl.ContentTemplate>
