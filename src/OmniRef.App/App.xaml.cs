@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Threading;
 using OmniRef.App.Controls;
 using OmniRef.App.Dialogs;
@@ -16,6 +17,13 @@ namespace OmniRef.App;
 
 public partial class App : Application
 {
+    static App()
+    {
+        ToolTipService.InitialShowDelayProperty.OverrideMetadata(
+            typeof(FrameworkElement),
+            new FrameworkPropertyMetadata(250));
+    }
+
     private AppSettingsStore? _settingsStore;
     private AppSettings? _settings;
     private RollingFileLogger? _logger;
