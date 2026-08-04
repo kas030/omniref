@@ -1975,18 +1975,15 @@ public partial class MainWindow : Window
 
     private async void Compact_Click(object sender, RoutedEventArgs eventArgs)
     {
-        var workspace = _viewModel.SelectedWorkspace;
-        if (workspace is null || workspace.IsReadOnly)
+        if (_viewModel.SelectedWorkspace is not { } workspace)
         {
             return;
         }
-        await workspace.FlushAsync();
-        if (workspace.IsBackingFileMissing)
-        {
-            return;
-        }
-        await _workspaceStore.CompactAsync(workspace.Path);
+        await workspace.CompactAsync();
     }
+
+    private void CompactionNotificationClose_Click(object sender, RoutedEventArgs eventArgs) =>
+        _viewModel.SelectedWorkspace?.DismissCompactionNotification();
 
     private async void RetrySave_Click(object sender, RoutedEventArgs eventArgs)
     {

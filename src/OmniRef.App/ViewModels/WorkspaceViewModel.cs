@@ -20,6 +20,14 @@ public enum WorkspaceSaveState
     ReadOnly
 }
 
+public enum CompactionNotificationState
+{
+    None,
+    Running,
+    Completed,
+    Failed
+}
+
 public sealed record ItemLayoutState(WorldRect Bounds, Guid? ParentFrameId);
 
 public enum AlignmentKind
@@ -50,6 +58,8 @@ public enum SearchSortMode
 public sealed class WorkspaceViewModel : ObservableObject, IDisposable
 {
     private const int InitialImagePreviewPixels = 512;
+    private const long CompactionRecommendationMinimumBytes = 32L * 1024 * 1024;
+    private const double CompactionRecommendationMinimumRatio = 0.10;
     private const double RepeatedCreationOffset = 28;
     private static readonly WorldSize ImportedImageCardMaximum = new(300, 220);
     private static readonly WorldSize PastedImageCardMaximum = new(320, 240);
@@ -74,6 +84,14 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     private int _savedVersion;
     private bool _requiresFullSave;
     private int _interactionDepth;
+    private long _workspaceFileSize;
+    private long _estimatedReclaimableBytes;
+    private int _unreferencedAssetCount;
+    private bool _isCompacting;
+    private WorkspaceCompactionResult? _lastCompactionResult;
+    private CompactionNotificationState _compactionNotificationState;
+    private bool _isCompactionNotificationVisible;
+    private string? _compactionFailureDetail;
     private bool _disposed;
 
     public WorkspaceViewModel(
@@ -103,6 +121,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         _saveState = openMode == WorkspaceOpenMode.ReadOnly
             ? WorkspaceSaveState.ReadOnly
             : WorkspaceSaveState.Saved;
+        _workspaceFileSize = TryGetWorkspaceFileSize();
 
         foreach (var item in document.Items.OrderBy(item => item.ZIndex))
         {
@@ -132,6 +151,92 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     public bool CanUndo => _history.CanUndo;
     public bool CanRedo => _history.CanRedo;
     public string ZoomPercentText => $"{Document.Zoom * 100:0}%";
+    public bool IsCompacting
+    {
+        get => _isCompacting;
+        private set
+        {
+            if (SetProperty(ref _isCompacting, value))
+            {
+                OnPropertyChanged(nameof(CanCompact));
+                OnPropertyChanged(nameof(StorageToolTip));
+                OnPropertyChanged(nameof(CompactionButtonToolTip));
+            }
+        }
+    }
+
+    public bool CanCompact => !IsReadOnly && !IsCompacting && !IsBackingFileMissing;
+
+    public bool IsCompactionRecommended =>
+        _estimatedReclaimableBytes >= CompactionRecommendationMinimumBytes &&
+        _workspaceFileSize > 0 &&
+        (double)_estimatedReclaimableBytes / _workspaceFileSize >=
+        CompactionRecommendationMinimumRatio;
+
+    public string StorageSizeText => FormatFileSize(_workspaceFileSize);
+
+    public string StorageToolTip => string.Format(
+        System.Globalization.CultureInfo.CurrentCulture,
+        _localization["WorkspaceSize"],
+        FormatFileSize(_workspaceFileSize));
+
+    public bool IsCompactionNotificationVisible
+    {
+        get => _isCompactionNotificationVisible;
+        private set => SetProperty(ref _isCompactionNotificationVisible, value);
+    }
+
+    public string CompactionNotificationTitle => _compactionNotificationState switch
+    {
+        CompactionNotificationState.Running => _localization["CompactionRunningTitle"],
+        CompactionNotificationState.Completed => _localization["CompactionCompleteTitle"],
+        CompactionNotificationState.Failed => _localization["CompactionFailedTitle"],
+        _ => _localization["Compact"]
+    };
+
+    public string CompactionNotificationMessage
+    {
+        get
+        {
+            if (_compactionNotificationState == CompactionNotificationState.Running)
+            {
+                return _localization["CompactionRunningMessage"];
+            }
+            if (_compactionNotificationState == CompactionNotificationState.Completed &&
+                _lastCompactionResult is { } result)
+            {
+                var reclaimedPercent = result.SizeBefore > 0
+                    ? (double)result.ReclaimedBytes / result.SizeBefore * 100
+                    : 0;
+                return string.Format(
+                    System.Globalization.CultureInfo.CurrentCulture,
+                    result.RemovedAssetCount > 0
+                        ? _localization["CompactionCompleteMessageWithAssets"]
+                        : _localization["CompactionCompleteMessage"],
+                    FormatFileSize(result.SizeBefore),
+                    FormatFileSize(result.SizeAfter),
+                    FormatFileSize(result.ReclaimedBytes),
+                    reclaimedPercent,
+                    result.RemovedAssetCount);
+            }
+            if (_compactionNotificationState == CompactionNotificationState.Failed)
+            {
+                return string.Format(
+                    System.Globalization.CultureInfo.CurrentCulture,
+                    _localization["CompactionFailedMessage"],
+                    _compactionFailureDetail ?? _localization["WorkspaceError"]);
+            }
+            return string.Empty;
+        }
+    }
+
+    public string CompactionButtonToolTip => IsCompactionRecommended
+        ? string.Format(
+            System.Globalization.CultureInfo.CurrentCulture,
+            _localization["CompactRecommended"],
+            FormatFileSize(_estimatedReclaimableBytes),
+            _unreferencedAssetCount)
+        : _localization["Compact"];
 
     public string DisplayTitle
     {
@@ -375,6 +480,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
                 "image/png",
                 cancellationToken)
             .ConfigureAwait(true);
+        RefreshWorkspaceFileSize();
         var source = new SourceDescriptor(
             null,
             null,
@@ -1030,6 +1136,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
 
         await FlushAsync(cancellationToken).ConfigureAwait(true);
         var asset = await _store.ImportEmbeddedAssetAsync(_path, resolved, cancellationToken).ConfigureAwait(true);
+        RefreshWorkspaceFileSize();
         var oldContent = item.Model.Content;
         var nextSource = source with
         {
@@ -1132,6 +1239,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsRecovery));
         OnPropertyChanged(nameof(IsBackingFileMissing));
         OnPropertyChanged(nameof(DisplayTitle));
+        await RefreshStorageInfoAsync(cancellationToken).ConfigureAwait(true);
         previousFileLease.Dispose();
         if (wasRecovery && !string.Equals(previousPath, destinationFullPath, StringComparison.OrdinalIgnoreCase))
         {
@@ -1148,6 +1256,74 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         }
         await SaveNowAsync(cancellationToken).ConfigureAwait(true);
     }
+
+    public async Task RefreshStorageInfoAsync(CancellationToken cancellationToken = default)
+    {
+        if (IsBackingFileMissing || !File.Exists(_path))
+        {
+            return;
+        }
+
+        try
+        {
+            var info = await _store.AnalyzeCompactionAsync(_path, cancellationToken).ConfigureAwait(true);
+            _workspaceFileSize = info.FileSize;
+            _estimatedReclaimableBytes = info.EstimatedReclaimableBytes;
+            _unreferencedAssetCount = info.UnreferencedAssetCount;
+            RaiseStorageStateChanged();
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or InvalidDataException or
+                Microsoft.Data.Sqlite.SqliteException or System.Text.Json.JsonException or FormatException)
+        {
+            _workspaceFileSize = TryGetWorkspaceFileSize();
+            RaiseStorageStateChanged();
+            _logger.Error($"Could not analyze workspace storage {_path}.", exception);
+        }
+    }
+
+    public async Task CompactAsync(CancellationToken cancellationToken = default)
+    {
+        if (!CanCompact)
+        {
+            return;
+        }
+
+        SetCompactionNotification(CompactionNotificationState.Running);
+        IsCompacting = true;
+        try
+        {
+            await FlushAsync(cancellationToken).ConfigureAwait(true);
+            if (IsBackingFileMissing || SaveState == WorkspaceSaveState.Failed)
+            {
+                _compactionFailureDetail = SaveError ?? _localization["SaveFailed"];
+                SetCompactionNotification(CompactionNotificationState.Failed);
+                return;
+            }
+
+            _lastCompactionResult = await _store.CompactAsync(_path, cancellationToken).ConfigureAwait(true);
+            _workspaceFileSize = _lastCompactionResult.SizeAfter;
+            _estimatedReclaimableBytes = 0;
+            _unreferencedAssetCount = 0;
+            RaiseStorageStateChanged();
+            SetCompactionNotification(CompactionNotificationState.Completed);
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or InvalidDataException or
+                Microsoft.Data.Sqlite.SqliteException)
+        {
+            _compactionFailureDetail = exception.Message;
+            RefreshWorkspaceFileSize();
+            SetCompactionNotification(CompactionNotificationState.Failed);
+            _logger.Error($"Could not compact workspace {_path}.", exception);
+        }
+        finally
+        {
+            IsCompacting = false;
+        }
+    }
+
+    public void DismissCompactionNotification() => IsCompactionNotificationVisible = false;
 
     public void Focus(BoardItemViewModel item)
     {
@@ -1178,6 +1354,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         SaveState = WorkspaceSaveState.Failed;
         SaveError = _localization["WorkspaceFileMissing"];
         OnPropertyChanged(nameof(IsBackingFileMissing));
+        RaiseStorageStateChanged();
         return false;
     }
 
@@ -1219,6 +1396,8 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
                     ? WorkspaceSaveState.Unsaved
                     : WorkspaceSaveState.Saved;
             OnPropertyChanged(nameof(IsBackingFileMissing));
+            RaiseStorageStateChanged();
+            await RefreshStorageInfoAsync(cancellationToken).ConfigureAwait(true);
             if (IsDirty && !IsReadOnly)
             {
                 RestartSaveTimer();
@@ -1336,10 +1515,75 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(SaveStatusText));
         OnPropertyChanged(nameof(DisplayTitle));
+        OnPropertyChanged(nameof(StorageSizeText));
+        OnPropertyChanged(nameof(StorageToolTip));
+        OnPropertyChanged(nameof(CompactionButtonToolTip));
+        OnPropertyChanged(nameof(CompactionNotificationTitle));
+        OnPropertyChanged(nameof(CompactionNotificationMessage));
         if (IsBackingFileMissing)
         {
             SaveError = _localization["WorkspaceFileMissing"];
         }
+    }
+
+    private long TryGetWorkspaceFileSize()
+    {
+        try
+        {
+            return File.Exists(_path) ? new FileInfo(_path).Length : 0;
+        }
+        catch (IOException)
+        {
+            return 0;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return 0;
+        }
+    }
+
+    private void RefreshWorkspaceFileSize()
+    {
+        _workspaceFileSize = TryGetWorkspaceFileSize();
+        RaiseStorageStateChanged();
+    }
+
+    private void RaiseStorageStateChanged()
+    {
+        OnPropertyChanged(nameof(StorageSizeText));
+        OnPropertyChanged(nameof(StorageToolTip));
+        OnPropertyChanged(nameof(CompactionButtonToolTip));
+        OnPropertyChanged(nameof(IsCompactionRecommended));
+        OnPropertyChanged(nameof(CanCompact));
+    }
+
+    private void SetCompactionNotification(CompactionNotificationState state)
+    {
+        _compactionNotificationState = state;
+        if (state != CompactionNotificationState.Failed)
+        {
+            _compactionFailureDetail = null;
+        }
+        IsCompactionNotificationVisible = true;
+        OnPropertyChanged(nameof(CompactionNotificationTitle));
+        OnPropertyChanged(nameof(CompactionNotificationMessage));
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        var value = Math.Max(0, bytes);
+        var unitIndex = 0;
+        var displayValue = (double)value;
+        while (displayValue >= 1024 && unitIndex < units.Length - 1)
+        {
+            displayValue /= 1024;
+            unitIndex++;
+        }
+
+        return unitIndex == 0
+            ? $"{value} {units[unitIndex]}"
+            : $"{displayValue:0.#} {units[unitIndex]}";
     }
 
     private void SelectIds(IReadOnlySet<Guid> ids)
@@ -1542,6 +1786,14 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
                 {
                     SaveState = WorkspaceSaveState.Unsaved;
                     RestartSaveTimer();
+                }
+                if (requiresFullSave)
+                {
+                    await RefreshStorageInfoAsync(cancellationToken).ConfigureAwait(true);
+                }
+                else
+                {
+                    RefreshWorkspaceFileSize();
                 }
             }
             catch (Exception exception) when (

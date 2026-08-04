@@ -372,6 +372,53 @@
         </Setter>
     </Style>
 
+    <Style x:Key="FluentIndeterminateProgressBar" TargetType="{x:Type ProgressBar}">
+        <Setter Property="Height" Value="4" />
+        <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="IsIndeterminate" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ProgressBar}">
+                    <Grid ClipToBounds="True" SnapsToDevicePixels="True">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="2" />
+                        <Border x:Name="Indicator"
+                                Width="88"
+                                HorizontalAlignment="Left"
+                                Background="{TemplateBinding Foreground}"
+                                CornerRadius="2"
+                                Visibility="Collapsed">
+                            <Border.RenderTransform>
+                                <TranslateTransform X="-88" />
+                            </Border.RenderTransform>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsIndeterminate" Value="True">
+                            <Setter TargetName="Indicator" Property="Visibility" Value="Visible" />
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Indicator"
+                                                         Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                         From="-88"
+                                                         To="380"
+                                                         Duration="0:0:1.35"
+                                                         RepeatBehavior="Forever">
+                                            <DoubleAnimation.EasingFunction>
+                                                <SineEase EasingMode="EaseInOut" />
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="ScrollBarPageButton" TargetType="{x:Type RepeatButton}">
         <Setter Property="Focusable" Value="False" />
         <Setter Property="IsTabStop" Value="False" />

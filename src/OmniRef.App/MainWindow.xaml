@@ -995,12 +995,14 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource TextSecondaryBrush}"
                            Text="{Binding SelectedWorkspace.SaveStatusText}" />
                 <Button Grid.Column="1"
+                        Height="24"
                         Padding="6,1"
                         Margin="2"
                         Background="Transparent"
@@ -1008,22 +1010,161 @@
                         Content="{Binding SelectedWorkspace.ZoomPercentText}"
                         Click="ResetZoom_Click"
                         ToolTip="{Binding Localization[ZoomReset]}" />
-                <Button Grid.Column="2"
+                <Grid Grid.Column="2"
+                      Height="24"
+                      Margin="8,2,2,2"
+                      VerticalAlignment="Center"
+                      ToolTip="{Binding SelectedWorkspace.StorageToolTip}">
+                    <TextBlock VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               Text="{Binding SelectedWorkspace.StorageSizeText}" />
+                </Grid>
+                <Button Grid.Column="3"
                         Style="{StaticResource ToolbarButton}"
                         MinWidth="28"
                         MinHeight="24"
+                        Height="24"
                         Padding="8,1"
                         Margin="2"
                         Click="Compact_Click"
-                        ToolTip="{Binding Localization[Compact]}"
+                        IsEnabled="{Binding SelectedWorkspace.CanCompact}"
+                        ToolTip="{Binding SelectedWorkspace.CompactionButtonToolTip}"
                         AutomationProperties.Name="{Binding Localization[Compact]}">
-                    <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
-                                      Width="16"
-                                      Height="16"
-                                      FontSize="16"
-                                      IconSize="Size16"
-                                      Icon="Storage" />
+                    <Grid>
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Width="16"
+                                          Height="16"
+                                          FontSize="16"
+                                          IconSize="Size16"
+                                          Icon="Storage" />
+                        <Ellipse Width="6"
+                                 Height="6"
+                                 HorizontalAlignment="Right"
+                                 VerticalAlignment="Top"
+                                 Margin="0,-2,-3,0"
+                                 Fill="{DynamicResource WarningBrush}"
+                                 Visibility="{Binding SelectedWorkspace.IsCompactionRecommended, Converter={StaticResource BoolToVisibility}}" />
+                    </Grid>
                 </Button>
+            </Grid>
+        </Border>
+
+        <Border Grid.RowSpan="4"
+                Panel.ZIndex="900"
+                MaxWidth="380"
+                Margin="16,16,16,44"
+                Padding="16"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Bottom"
+                Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="10"
+                AutomationProperties.LiveSetting="Polite"
+                AutomationProperties.Name="{Binding SelectedWorkspace.CompactionNotificationTitle}">
+            <Border.Style>
+                <Style TargetType="{x:Type Border}">
+                    <Setter Property="Opacity" Value="0" />
+                    <Setter Property="IsHitTestVisible" Value="False" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding SelectedWorkspace.IsCompactionNotificationVisible}"
+                                     Value="True">
+                            <Setter Property="IsHitTestVisible" Value="True" />
+                            <DataTrigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                         From="0"
+                                                         To="1"
+                                                         Duration="0:0:0.18">
+                                            <DoubleAnimation.EasingFunction>
+                                                <CubicEase EasingMode="EaseOut" />
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.EnterActions>
+                            <DataTrigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                         From="1"
+                                                         To="0"
+                                                         Duration="0:0:0.16">
+                                            <DoubleAnimation.EasingFunction>
+                                                <CubicEase EasingMode="EaseIn" />
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.ExitActions>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0"
+                            Width="32"
+                            Height="32"
+                            Margin="0,0,12,0"
+                            VerticalAlignment="Top"
+                            Background="{DynamicResource SurfaceRaisedBrush}"
+                            CornerRadius="8">
+                        <icons:FluentIcon Width="18"
+                                          Height="18"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Foreground="{DynamicResource AccentBrush}"
+                                          IconSize="Size20"
+                                          Icon="Storage" />
+                    </Border>
+                    <TextBlock Grid.Column="1"
+                               VerticalAlignment="Center"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Text="{Binding SelectedWorkspace.CompactionNotificationTitle}"
+                               TextWrapping="Wrap" />
+                    <Button Grid.Column="2"
+                            Style="{StaticResource ToolbarButton}"
+                            Width="28"
+                            Height="28"
+                            MinWidth="28"
+                            MinHeight="28"
+                            Margin="8,-4,-4,0"
+                            Padding="5"
+                            VerticalAlignment="Top"
+                            Click="CompactionNotificationClose_Click"
+                            ToolTip="{Binding Localization[CloseNotification]}"
+                            AutomationProperties.Name="{Binding Localization[CloseNotification]}">
+                        <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
+                                          Width="16"
+                                          Height="16"
+                                          FontSize="16"
+                                          IconSize="Size16"
+                                          Icon="Dismiss" />
+                    </Button>
+                </Grid>
+                <TextBlock Grid.Row="1"
+                           Margin="44,10,4,0"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           LineHeight="20"
+                           Text="{Binding SelectedWorkspace.CompactionNotificationMessage}"
+                           TextWrapping="Wrap" />
+                <ProgressBar Grid.Row="2"
+                             Style="{StaticResource FluentIndeterminateProgressBar}"
+                             Margin="44,14,4,0"
+                             Visibility="{Binding SelectedWorkspace.IsCompacting, Converter={StaticResource BoolToVisibility}}" />
             </Grid>
         </Border>
 

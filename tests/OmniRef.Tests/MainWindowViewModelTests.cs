@@ -387,6 +387,37 @@ public sealed class MainWindowViewModelTests : IDisposable
         Assert.Equal(0, _store.ViewportSaveCount);
     }
 
+    [Fact]
+    public async Task Compact_ShowsPersistentDetailedNotificationWhileStorageTextRemainsSizeOnly()
+    {
+        _store.CompactionResult = new WorkspaceCompactionResult(
+            1024L * 1024 * 1024,
+            512L * 1024 * 1024,
+            3);
+        var workspace = await _viewModel.CreateNewAsync(includeWelcomeContent: false);
+
+        await workspace.CompactAsync();
+
+        Assert.True(workspace.IsCompactionNotificationVisible);
+        Assert.Equal("Workspace compacted", workspace.CompactionNotificationTitle);
+        Assert.Contains("1 GB → 512 MB", workspace.CompactionNotificationMessage);
+        Assert.Contains("Unused embedded assets removed: 3", workspace.CompactionNotificationMessage);
+        Assert.Equal("512 MB", workspace.StorageSizeText);
+
+        _store.CompactionResult = new WorkspaceCompactionResult(
+            512L * 1024 * 1024,
+            256L * 1024 * 1024,
+            0);
+        await workspace.CompactAsync();
+
+        Assert.DoesNotContain("unused embedded", workspace.CompactionNotificationMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("256 MB", workspace.StorageSizeText);
+
+        workspace.DismissCompactionNotification();
+
+        Assert.False(workspace.IsCompactionNotificationVisible);
+    }
+
     public void Dispose()
     {
         _viewModel.Dispose();

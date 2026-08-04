@@ -103,6 +103,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             isRecovery: true,
             WorkspaceOpenMode.ReadWrite,
             _store.AcquireFileLease(path));
+        await workspace.RefreshStorageInfoAsync(cancellationToken).ConfigureAwait(true);
         Workspaces.Add(workspace);
         SelectedWorkspace = workspace;
         return workspace;
@@ -131,6 +132,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                     System.IO.Path.GetFullPath(_settingsStore.RecoveryDirectory),
                     StringComparison.OrdinalIgnoreCase);
                 var workspace = CreateWorkspace(result.Document, fullPath, isRecovery, result.Mode, fileLease);
+                await workspace.RefreshStorageInfoAsync(cancellationToken).ConfigureAwait(true);
                 Workspaces.Add(workspace);
                 SelectedWorkspace = workspace;
                 return workspace;
