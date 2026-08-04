@@ -72,6 +72,18 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         set => SetProperty(ref _sidebarVisible, value);
     }
 
+    public void ToggleSidebar(SidebarPage page)
+    {
+        if (SidebarVisible && SelectedSidebarPage == page)
+        {
+            SidebarVisible = false;
+            return;
+        }
+
+        SelectedSidebarPage = page;
+        SidebarVisible = true;
+    }
+
     public SidebarPage SelectedSidebarPage
     {
         get => _selectedSidebarPage;

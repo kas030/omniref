@@ -53,6 +53,30 @@ public sealed class MainWindowViewModelTests : IDisposable
     }
 
     [Fact]
+    public void SidebarNavigation_ClickSelectedPageTogglesVisibility()
+    {
+        _viewModel.ToggleSidebar(SidebarPage.Search);
+
+        Assert.False(_viewModel.SidebarVisible);
+
+        _viewModel.ToggleSidebar(SidebarPage.Search);
+
+        Assert.True(_viewModel.SidebarVisible);
+        Assert.Equal(SidebarPage.Search, _viewModel.SelectedSidebarPage);
+    }
+
+    [Fact]
+    public void SidebarNavigation_ClickAnotherPageSelectsAndOpensSidebar()
+    {
+        _viewModel.SidebarVisible = false;
+
+        _viewModel.ToggleSidebar(SidebarPage.Properties);
+
+        Assert.True(_viewModel.SidebarVisible);
+        Assert.Equal(SidebarPage.Properties, _viewModel.SelectedSidebarPage);
+    }
+
+    [Fact]
     public async Task CloseSelectedWorkspace_SelectsTabToTheRightBeforeSelectorProcessesRemoval()
     {
         var first = await _viewModel.CreateNewAsync(includeWelcomeContent: false);

@@ -1806,6 +1806,15 @@ public partial class MainWindow : Window
         menu.IsOpen = true;
     }
 
+    private void SidebarNavigation_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs eventArgs)
+    {
+        if (sender is RadioButton { Tag: string pageName } &&
+            Enum.TryParse<SidebarPage>(pageName, out var page))
+        {
+            _viewModel.ToggleSidebar(page);
+        }
+    }
+
     private void SearchClear_Click(object sender, RoutedEventArgs eventArgs)
     {
         if (_viewModel.SelectedWorkspace is not { } workspace)
