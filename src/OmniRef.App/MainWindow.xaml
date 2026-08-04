@@ -135,10 +135,11 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillHoverBrush}" />
+                                <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Border" Property="Opacity" Value="0.75" />
+                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillPressedBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Border" Property="Opacity" Value="0.4" />
@@ -181,14 +182,14 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="NavigationSurface"
                                         Property="Background"
-                                        Value="{DynamicResource SurfaceRaisedBrush}" />
+                                        Value="{DynamicResource SubtleFillHoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
                                 <Setter TargetName="SelectionIndicator" Property="Opacity" Value="1" />
                                 <Setter TargetName="NavigationSurface"
                                         Property="Background"
-                                        Value="{DynamicResource SurfaceRaisedBrush}" />
+                                        Value="{DynamicResource SurfaceBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.4" />
@@ -234,7 +235,7 @@
 
         <Border x:Name="TitleBar"
                 Grid.Row="0"
-                Background="{DynamicResource SurfaceBrush}"
+                Background="{DynamicResource WindowBackgroundBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,0,0,1"
                 MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"
@@ -282,7 +283,7 @@
                             Height="36"
                             HorizontalAlignment="Left"
                             VerticalAlignment="Bottom"
-                            Background="{DynamicResource SurfaceBrush}"
+                            Background="{DynamicResource WindowBackgroundBrush}"
                             Visibility="{Binding Visibility, ElementName=WorkspaceTabsScrollLeftButton}">
                         <RepeatButton x:Name="WorkspaceTabsScrollLeftButton"
                                       Style="{StaticResource ToolbarScrollButton}"
@@ -328,7 +329,7 @@
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="{x:Type ListBoxItem}">
                             <Setter Property="shell:WindowChrome.IsHitTestVisibleInChrome" Value="True" />
-                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
                             <Setter Property="Background" Value="{DynamicResource WorkspaceTabInactiveBrush}" />
                             <Setter Property="Width"
                                     Value="{Binding WorkspaceTabWidth, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
@@ -341,15 +342,15 @@
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="{x:Type ListBoxItem}">
-                                        <Border Background="Transparent">
+                                        <Grid Background="Transparent">
                                             <Border x:Name="Root"
                                                     Margin="0,4"
                                                     Padding="{TemplateBinding Padding}"
                                                     Background="{TemplateBinding Background}"
-                                                    CornerRadius="7">
+                                                    CornerRadius="5">
                                                 <ContentPresenter />
                                             </Border>
-                                        </Border>
+                                        </Grid>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="local:MainWindow.IsWorkspaceTabPointerOver"
                                                      Value="True">
@@ -361,6 +362,8 @@
                                                 <Setter TargetName="Root"
                                                         Property="Background"
                                                         Value="{DynamicResource WorkspaceTabActiveBrush}" />
+                                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                                                <Setter Property="FontWeight" Value="SemiBold" />
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
@@ -408,7 +411,7 @@
                             Height="36"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Bottom"
-                            Background="{DynamicResource SurfaceBrush}"
+                            Background="{DynamicResource WindowBackgroundBrush}"
                             Visibility="{Binding Visibility, ElementName=WorkspaceTabsScrollRightButton}">
                         <RepeatButton x:Name="WorkspaceTabsScrollRightButton"
                                       Style="{StaticResource ToolbarScrollButton}"
@@ -525,9 +528,12 @@
                                 Width="32"
                                 HorizontalAlignment="Left"
                                 Background="{DynamicResource SurfaceBrush}"
+                                CornerRadius="10,0,0,10"
+                                ClipToBounds="True"
                                 Visibility="{Binding Visibility, ElementName=ToolbarScrollLeftButton}">
                             <RepeatButton x:Name="ToolbarScrollLeftButton"
                                           Style="{StaticResource ToolbarScrollButton}"
+                                          HorizontalAlignment="Left"
                                           Visibility="Collapsed"
                                           Click="ToolbarScrollLeft_Click"
                                           ToolTip="{Binding Localization[ScrollToolbarLeft]}"
@@ -544,10 +550,11 @@
                             </RepeatButton>
                         </Border>
                         <ScrollViewer x:Name="ToolbarScrollViewer"
+                                      Margin="3,0"
                                       HorizontalScrollBarVisibility="Hidden"
                                       VerticalScrollBarVisibility="Disabled"
                                       ScrollChanged="ToolbarScrollViewer_ScrollChanged">
-                            <StackPanel Orientation="Horizontal" Margin="6,3">
+                            <StackPanel Orientation="Horizontal" Margin="0,3">
                         <ToggleButton Style="{StaticResource ToolbarToggleButton}"
                                       IsChecked="{Binding SidebarVisible, Mode=TwoWay}"
                                       ToolTip="{Binding Localization[Sidebar]}"
@@ -681,9 +688,12 @@
                                 Width="32"
                                 HorizontalAlignment="Right"
                                 Background="{DynamicResource SurfaceBrush}"
+                                CornerRadius="0,10,10,0"
+                                ClipToBounds="True"
                                 Visibility="{Binding Visibility, ElementName=ToolbarScrollRightButton}">
                             <RepeatButton x:Name="ToolbarScrollRightButton"
                                           Style="{StaticResource ToolbarScrollButton}"
+                                          HorizontalAlignment="Right"
                                           Visibility="Collapsed"
                                           Click="ToolbarScrollRight_Click"
                                           ToolTip="{Binding Localization[ScrollToolbarRight]}"
@@ -1318,7 +1328,7 @@
 
         <Border x:Name="StatusBar"
                 Grid.Row="2"
-                Background="{DynamicResource SurfaceBrush}"
+                Background="{DynamicResource WindowBackgroundBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,1,0,0">
             <Grid Margin="10,0">

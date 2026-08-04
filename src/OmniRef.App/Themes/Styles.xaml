@@ -37,10 +37,10 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource SubtleFillHoverBrush}" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Root" Property="Opacity" Value="0.68" />
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource SubtleFillPressedBrush}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -83,7 +83,7 @@
 
     <Style TargetType="{x:Type Button}">
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-        <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+        <Setter Property="Background" Value="{DynamicResource ControlFillBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="12,7" />
@@ -104,10 +104,11 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillHoverBrush}" />
+                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Border" Property="Opacity" Value="0.75" />
+                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillPressedBrush}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Border" Property="Opacity" Value="0.4" />
@@ -123,6 +124,31 @@
         <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Foreground" Value="White" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Border x:Name="Border"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="7"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          RecognizesAccessKey="True" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentHoverBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Border" Property="Opacity" Value="0.82" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Border" Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style x:Key="ErrorBannerButton" TargetType="{x:Type Button}">
@@ -267,10 +293,10 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Border"
                                     Property="Background"
-                                    Value="{DynamicResource SurfaceRaisedBrush}" />
+                                    Value="{DynamicResource SubtleFillHoverBrush}" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Border" Property="Opacity" Value="0.68" />
+                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource SubtleFillPressedBrush}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Border" Property="Opacity" Value="0.38" />
@@ -310,10 +336,10 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Border"
                                     Property="Background"
-                                    Value="{DynamicResource SurfaceRaisedBrush}" />
+                                    Value="{DynamicResource SubtleFillHoverBrush}" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Border" Property="Opacity" Value="0.68" />
+                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource SubtleFillPressedBrush}" />
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentBrush}" />
@@ -330,7 +356,7 @@
 
     <Style x:Key="ToolbarScrollButton" TargetType="{x:Type RepeatButton}">
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-        <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+        <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Width" Value="24" />
@@ -358,10 +384,10 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Border"
                                     Property="Background"
-                                    Value="{DynamicResource WorkspaceTabHoverBrush}" />
+                                    Value="{DynamicResource SubtleFillHoverBrush}" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Border" Property="Opacity" Value="0.68" />
+                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource SubtleFillPressedBrush}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Border" Property="Opacity" Value="0.38" />
@@ -375,7 +401,7 @@
 
     <Style x:Key="FluentIndeterminateProgressBar" TargetType="{x:Type ProgressBar}">
         <Setter Property="Height" Value="4" />
-        <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+        <Setter Property="Background" Value="{DynamicResource ControlFillBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
         <Setter Property="IsIndeterminate" Value="True" />
         <Setter Property="Template">
@@ -578,7 +604,7 @@
 
     <Style TargetType="{x:Type TextBox}">
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-        <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+        <Setter Property="Background" Value="{DynamicResource ControlFillBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         <Setter Property="CaretBrush" Value="{DynamicResource AccentBrush}" />
         <Setter Property="BorderThickness" Value="1" />
@@ -601,6 +627,13 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Border" Property="Opacity" Value="0.4" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillHoverBrush}" />
+                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -642,21 +675,25 @@
                                 CornerRadius="7">
                             <ContentPresenter />
                         </Border>
-                        <Border x:Name="SelectionBorder"
+                        <Border x:Name="SelectionIndicator"
                                 Panel.ZIndex="1"
-                                BorderBrush="{DynamicResource AccentBrush}"
-                                BorderThickness="1"
-                                CornerRadius="7"
+                                Width="3"
+                                Height="16"
+                                Margin="2,0,0,0"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
+                                Background="{DynamicResource AccentBrush}"
+                                CornerRadius="2"
                                 IsHitTestVisible="False"
                                 Opacity="0" />
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource SubtleFillHoverBrush}" />
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Root" Property="Background" Value="Transparent" />
-                            <Setter TargetName="SelectionBorder" Property="Opacity" Value="1" />
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource SelectionFillBrush}" />
+                            <Setter TargetName="SelectionIndicator" Property="Opacity" Value="1" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -772,7 +809,7 @@
                         <Trigger Property="IsHighlighted" Value="True">
                             <Setter TargetName="Root"
                                     Property="Background"
-                                    Value="{DynamicResource WorkspaceTabHoverBrush}" />
+                                    Value="{DynamicResource SubtleFillHoverBrush}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Root" Property="Opacity" Value="0.45" />
