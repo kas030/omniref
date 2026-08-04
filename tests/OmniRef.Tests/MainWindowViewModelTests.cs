@@ -239,6 +239,32 @@ public sealed class MainWindowViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task OpenFolder_RecordsAccessOnlyWhenShellOpenSucceeds()
+    {
+        var folderPath = Path.Combine(_directory, "Referenced folder");
+        Directory.CreateDirectory(folderPath);
+        var workspacePath = Path.Combine(_directory, "Folder access.omniref");
+        var originalAccess = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var model = BoardItemFactory.FromPath(workspacePath, folderPath, new WorldPoint(0, 0), 0);
+        model.LastAccessedUtc = originalAccess;
+        _store.RestoredDocument = new WorkspaceDocument { Items = [model] };
+
+        var workspace = await _viewModel.OpenAsync(workspacePath);
+        Assert.NotNull(workspace);
+        var item = Assert.Single(workspace.Items);
+
+        _shell.OpenSucceeds = false;
+        await workspace.OpenItemAsync(item);
+        Assert.Equal(originalAccess, item.Model.LastAccessedUtc);
+
+        _shell.OpenSucceeds = true;
+        await workspace.OpenItemAsync(item);
+
+        Assert.True(item.Model.LastAccessedUtc > originalAccess);
+        Assert.True(workspace.IsDirty);
+    }
+
+    [Fact]
     public async Task AddFirstItem_StartsZIndexAtZero()
     {
         var workspace = await _viewModel.CreateNewAsync(includeWelcomeContent: false);

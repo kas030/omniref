@@ -54,7 +54,11 @@ public sealed class WindowsPlatformShell : IPlatformShell
     {
         try
         {
-            return Process.Start(startInfo) is not null;
+            // ShellExecute can successfully hand a folder (or URL) to an
+            // already-running Explorer/browser process and return no Process
+            // object. The absence of a new process is not a failed open.
+            Process.Start(startInfo);
+            return true;
         }
         catch (InvalidOperationException)
         {
