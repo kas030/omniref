@@ -1238,7 +1238,7 @@
                       ToolTip="{Binding SelectedWorkspace.StorageToolTip}">
                     <TextBlock VerticalAlignment="Center"
                                Foreground="{DynamicResource TextSecondaryBrush}"
-                               Text="{Binding SelectedWorkspace.StorageSizeText}" />
+                               Text="{Binding SelectedWorkspace.StorageSummaryText}" />
                 </Grid>
                 <Button Grid.Column="3"
                         Style="{StaticResource ToolbarButton}"

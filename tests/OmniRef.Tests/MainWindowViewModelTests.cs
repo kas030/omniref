@@ -501,7 +501,7 @@ public sealed class MainWindowViewModelTests : IDisposable
         Assert.Equal("Workspace compacted", workspace.CompactionNotificationTitle);
         Assert.Contains("1 GB → 512 MB", workspace.CompactionNotificationMessage);
         Assert.Contains("Unused embedded assets removed: 3", workspace.CompactionNotificationMessage);
-        Assert.Equal("512 MB", workspace.StorageSizeText);
+        Assert.Equal("512 MB · 0% compressible", workspace.StorageSummaryText);
 
         _store.CompactionResult = new WorkspaceCompactionResult(
             512L * 1024 * 1024,
@@ -510,11 +510,31 @@ public sealed class MainWindowViewModelTests : IDisposable
         await workspace.CompactAsync();
 
         Assert.DoesNotContain("unused embedded", workspace.CompactionNotificationMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal("256 MB", workspace.StorageSizeText);
+        Assert.Equal("256 MB · 0% compressible", workspace.StorageSummaryText);
 
         workspace.DismissCompactionNotification();
 
         Assert.False(workspace.IsCompactionNotificationVisible);
+    }
+
+    [Fact]
+    public async Task StorageSummary_ShowsLocalizedReclaimablePercentage()
+    {
+        _store.CompactionInfo = new WorkspaceCompactionInfo(
+            800L * 1024 * 1024,
+            100L * 1024 * 1024,
+            1);
+        _store.RestoredDocument = new WorkspaceDocument();
+        Directory.CreateDirectory(_directory);
+        var workspacePath = Path.Combine(_directory, "Storage.omniref");
+        await File.WriteAllBytesAsync(workspacePath, [0]);
+        var workspace = await _viewModel.OpenAsync(workspacePath);
+        Assert.NotNull(workspace);
+
+        await workspace.RefreshStorageInfoAsync();
+
+        Assert.Equal("800 MB · 13% compressible", workspace.StorageSummaryText);
+        Assert.Equal("Workspace size: 800 MB", workspace.StorageToolTip);
     }
 
     public void Dispose()
@@ -543,6 +563,7 @@ public sealed class MainWindowViewModelTests : IDisposable
         public int SaveCount { get; private set; }
         public int ViewportSaveCount { get; private set; }
         public IReadOnlyCollection<Guid> LastProtectedAssetIds { get; private set; } = [];
+        public WorkspaceCompactionInfo CompactionInfo { get; set; } = new(0, 0, 0);
         public WorkspaceDocument? RestoredDocument { get; set; }
         public WorkspaceCompactionResult CompactionResult { get; set; } = new(0, 0, 0);
 
@@ -622,7 +643,7 @@ public sealed class MainWindowViewModelTests : IDisposable
             IReadOnlyCollection<Guid>? protectedAssetIds = null)
         {
             LastProtectedAssetIds = protectedAssetIds?.ToList() ?? [];
-            return Task.FromResult(new WorkspaceCompactionInfo(0, 0, 0));
+            return Task.FromResult(CompactionInfo);
         }
 
         public Task<WorkspaceCompactionResult> CompactAsync(

@@ -173,7 +173,16 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         (double)_estimatedReclaimableBytes / _workspaceFileSize >=
         CompactionRecommendationMinimumRatio;
 
-    public string StorageSizeText => FormatFileSize(_workspaceFileSize);
+    public string StorageSummaryText => string.Format(
+        System.Globalization.CultureInfo.CurrentCulture,
+        _localization["WorkspaceStorageSummary"],
+        FormatFileSize(_workspaceFileSize),
+        _workspaceFileSize <= 0
+            ? 0
+            : Math.Clamp(
+                (double)_estimatedReclaimableBytes / _workspaceFileSize * 100,
+                0,
+                100));
 
     public string StorageToolTip => string.Format(
         System.Globalization.CultureInfo.CurrentCulture,
@@ -1577,7 +1586,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(SaveStatusText));
         OnPropertyChanged(nameof(DisplayTitle));
-        OnPropertyChanged(nameof(StorageSizeText));
+        OnPropertyChanged(nameof(StorageSummaryText));
         OnPropertyChanged(nameof(StorageToolTip));
         OnPropertyChanged(nameof(CompactionButtonToolTip));
         OnPropertyChanged(nameof(CompactionNotificationTitle));
@@ -1612,7 +1621,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
 
     private void RaiseStorageStateChanged()
     {
-        OnPropertyChanged(nameof(StorageSizeText));
+        OnPropertyChanged(nameof(StorageSummaryText));
         OnPropertyChanged(nameof(StorageToolTip));
         OnPropertyChanged(nameof(CompactionButtonToolTip));
         OnPropertyChanged(nameof(IsCompactionRecommended));
