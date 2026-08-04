@@ -236,7 +236,6 @@ public partial class MainWindow : Window
 
         var hiddenRow = new GridLength(0);
         TitleBarRow.Height = canvasOnly ? hiddenRow : new GridLength(42);
-        ToolbarRow.Height = canvasOnly ? hiddenRow : new GridLength(46);
         StatusRow.Height = canvasOnly ? hiddenRow : new GridLength(28);
         TitleBar.Visibility = canvasOnly ? Visibility.Collapsed : Visibility.Visible;
         ToolbarBar.Visibility = canvasOnly ? Visibility.Collapsed : Visibility.Visible;

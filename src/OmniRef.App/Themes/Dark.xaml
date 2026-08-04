@@ -51,4 +51,10 @@
     <SolidColorBrush x:Key="DangerSurfaceBrush" Color="{StaticResource DangerSurfaceColor}" />
     <SolidColorBrush x:Key="ScrollBarThumbBrush" Color="{StaticResource ScrollBarThumbColor}" />
     <SolidColorBrush x:Key="ScrollBarThumbHoverBrush" Color="{StaticResource ScrollBarThumbHoverColor}" />
+    <DropShadowEffect x:Key="FloatingToolbarShadowEffect"
+                      BlurRadius="20"
+                      Direction="270"
+                      ShadowDepth="3"
+                      Color="#FF000000"
+                      Opacity="0.48" />
 </ResourceDictionary>
