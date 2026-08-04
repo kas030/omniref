@@ -88,6 +88,80 @@ public sealed class SqliteWorkspaceStoreTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task AnalyzeAndCompact_ReportAndRemoveUnreferencedEmbeddedAsset()
+    {
+        var path = Path.Combine(_directory, "compact.omniref");
+        var bytes = new byte[1024 * 1024];
+        Random.Shared.NextBytes(bytes);
+        using var store = new SqliteWorkspaceStore();
+        await store.SaveAsync(path, CreateDocument());
+        await using (var input = new MemoryStream(bytes))
+        {
+            await store.ImportEmbeddedAssetAsync(
+                path,
+                input,
+                "unused.bin",
+                "application/octet-stream");
+        }
+
+        var analysis = await store.AnalyzeCompactionAsync(path);
+        var result = await store.CompactAsync(path);
+        var after = await store.AnalyzeCompactionAsync(path);
+
+        Assert.Equal(1, analysis.UnreferencedAssetCount);
+        Assert.True(analysis.EstimatedReclaimableBytes >= bytes.Length);
+        Assert.Equal(analysis.FileSize, result.SizeBefore);
+        Assert.Equal(1, result.RemovedAssetCount);
+        Assert.True(result.ReclaimedBytes > 0);
+        Assert.Equal(result.SizeAfter, after.FileSize);
+        Assert.Equal(0, after.UnreferencedAssetCount);
+    }
+
+    [Fact]
+    public async Task ReferencedEmbeddedAsset_DoesNotLeaveBlobSizedFreePages()
+    {
+        var path = Path.Combine(_directory, "embedded-space.omniref");
+        var bytes = new byte[4 * 1024 * 1024];
+        Random.Shared.NextBytes(bytes);
+        var document = CreateDocument();
+        using var store = new SqliteWorkspaceStore();
+        await store.SaveAsync(path, document);
+        EmbeddedAssetInfo asset;
+        await using (var input = new MemoryStream(bytes))
+        {
+            asset = await store.ImportEmbeddedAssetAsync(
+                path,
+                input,
+                "large.bin",
+                "application/octet-stream");
+        }
+
+        var fileItem = document.Items.Single(item => item.Kind == ItemKind.File);
+        var fileContent = Assert.IsType<FileContent>(fileItem.Content);
+        fileItem.Content = fileContent with
+        {
+            Source = fileContent.Source with
+            {
+                Mode = AssetMode.EmbeddedCopy,
+                EmbeddedAssetId = asset.Id,
+                AbsolutePath = null,
+                RelativePath = null
+            }
+        };
+        await store.SaveAsync(path, document);
+
+        var analysis = await store.AnalyzeCompactionAsync(path);
+
+        Assert.Equal(0, analysis.UnreferencedAssetCount);
+        Assert.True(
+            analysis.EstimatedReclaimableBytes < bytes.Length / 20,
+            $"Expected little reclaimable space, but found {analysis.EstimatedReclaimableBytes} bytes.");
+        Assert.True(
+            analysis.FileSize < bytes.Length + (512 * 1024),
+            $"Expected one BLOB allocation, but workspace size was {analysis.FileSize} bytes.");
+    }
+
+    [Fact]
     public async Task SaveAs_DoesNotModifySourceWorkspace()
     {
         var source = Path.Combine(_directory, "a.omniref");

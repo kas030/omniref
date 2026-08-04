@@ -413,6 +413,7 @@ public sealed class MainWindowViewModelTests : IDisposable
         public int SaveCount { get; private set; }
         public int ViewportSaveCount { get; private set; }
         public WorkspaceDocument? RestoredDocument { get; set; }
+        public WorkspaceCompactionResult CompactionResult { get; set; } = new(0, 0, 0);
 
         public IWorkspaceFileLease AcquireFileLease(string path)
         {
@@ -484,10 +485,15 @@ public sealed class MainWindowViewModelTests : IDisposable
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
-        public Task CompactAsync(
+        public Task<WorkspaceCompactionInfo> AnalyzeCompactionAsync(
             string workspacePath,
             CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
+            Task.FromResult(new WorkspaceCompactionInfo(0, 0, 0));
+
+        public Task<WorkspaceCompactionResult> CompactAsync(
+            string workspacePath,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(CompactionResult);
     }
 
     private sealed class TestWorkspaceFileLease(string path) : IWorkspaceFileLease

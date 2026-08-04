@@ -257,15 +257,39 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
         }
     }
 
-    public async Task CompactAsync(string workspacePath, CancellationToken cancellationToken = default)
+    public async Task<WorkspaceCompactionInfo> AnalyzeCompactionAsync(
+        string workspacePath,
+        CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await Task.Run(
-                    () => CompactCore(Path.GetFullPath(workspacePath), cancellationToken),
+            return await Task.Run(
+                    () => AnalyzeCompactionCore(Path.GetFullPath(workspacePath), cancellationToken),
                     cancellationToken)
                 .ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task<WorkspaceCompactionResult> CompactAsync(
+        string workspacePath,
+        CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var fullPath = Path.GetFullPath(workspacePath);
+            var sizeBefore = new FileInfo(fullPath).Length;
+            var removedAssetCount = await Task.Run(
+                    () => CompactCore(fullPath, cancellationToken),
+                    cancellationToken)
+                .ConfigureAwait(false);
+            var sizeAfter = new FileInfo(fullPath).Length;
+            return new WorkspaceCompactionResult(sizeBefore, sizeAfter, removedAssetCount);
         }
         finally
         {
@@ -556,6 +580,10 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
             throw new InvalidOperationException("Embedded assets cannot exceed 512 MB.");
         }
 
+        var sourcePosition = source.Position;
+        var sha256 = ComputeSha256(source, cancellationToken);
+        source.Position = sourcePosition;
+
         using var connection = OpenConnection(workspacePath, readOnly: false);
         EnsureSchema(connection);
         using var transaction = connection.BeginTransaction();
@@ -567,18 +595,18 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
             insert.CommandText =
                 """
                 INSERT INTO embedded_assets(id, file_name, media_type, length, sha256, data)
-                VALUES($id, $name, $media, $length, '', zeroblob($length));
+                VALUES($id, $name, $media, $length, $hash, zeroblob($length));
                 SELECT rowid FROM embedded_assets WHERE id = $id;
                 """;
             insert.Parameters.AddWithValue("$id", assetId.ToString("D"));
             insert.Parameters.AddWithValue("$name", fileName);
             insert.Parameters.AddWithValue("$media", mediaType ?? (object)DBNull.Value);
             insert.Parameters.AddWithValue("$length", length);
+            insert.Parameters.AddWithValue("$hash", sha256);
             rowId = (long)(insert.ExecuteScalar()
                            ?? throw new InvalidOperationException("Could not allocate embedded asset."));
         }
 
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         using (var destination = new SqliteBlob(connection, "embedded_assets", "data", rowId, readOnly: false))
         {
             var buffer = ArrayPool<byte>.Shared.Rent(81920);
@@ -589,7 +617,6 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     destination.Write(buffer, 0, read);
-                    hash.AppendData(buffer, 0, read);
                 }
             }
             finally
@@ -598,18 +625,28 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
             }
         }
 
-        var sha256 = Convert.ToHexString(hash.GetHashAndReset());
-        using (var update = connection.CreateCommand())
-        {
-            update.Transaction = transaction;
-            update.CommandText = "UPDATE embedded_assets SET sha256 = $hash WHERE id = $id;";
-            update.Parameters.AddWithValue("$hash", sha256);
-            update.Parameters.AddWithValue("$id", assetId.ToString("D"));
-            update.ExecuteNonQuery();
-        }
-
         transaction.Commit();
         return new(assetId, fileName, mediaType, length, sha256);
+    }
+
+    private static string ComputeSha256(Stream source, CancellationToken cancellationToken)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer = ArrayPool<byte>.Shared.Rent(81920);
+        try
+        {
+            int read;
+            while ((read = source.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                hash.AppendData(buffer, 0, read);
+            }
+            return Convert.ToHexString(hash.GetHashAndReset());
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
     }
 
     private static void ExportCore(
@@ -674,9 +711,79 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
         return destination.ToArray();
     }
 
-    private void CompactCore(string workspacePath, CancellationToken cancellationToken)
+    private WorkspaceCompactionInfo AnalyzeCompactionCore(
+        string workspacePath,
+        CancellationToken cancellationToken)
+    {
+        using var connection = OpenConnection(workspacePath, readOnly: true);
+        var referencedAssets = ReadReferencedAssetIds(connection, cancellationToken);
+        long unreferencedBytes = 0;
+        var unreferencedAssetCount = 0;
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT id, length FROM embedded_assets;";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!referencedAssets.Contains(reader.GetString(0)))
+                {
+                    unreferencedAssetCount++;
+                    unreferencedBytes += reader.GetInt64(1);
+                }
+            }
+        }
+
+        var pageSize = ExecuteScalarInt64(connection, "PRAGMA page_size;");
+        var freePageCount = ExecuteScalarInt64(connection, "PRAGMA freelist_count;");
+        var estimatedReclaimableBytes = Math.Min(
+            new FileInfo(workspacePath).Length,
+            checked(unreferencedBytes + (pageSize * freePageCount)));
+        return new WorkspaceCompactionInfo(
+            new FileInfo(workspacePath).Length,
+            estimatedReclaimableBytes,
+            unreferencedAssetCount);
+    }
+
+    private int CompactCore(string workspacePath, CancellationToken cancellationToken)
     {
         using var connection = OpenConnection(workspacePath, readOnly: false);
+        var referencedAssets = ReadReferencedAssetIds(connection, cancellationToken);
+        var removedAssetCount = 0;
+        using (var transaction = connection.BeginTransaction())
+        using (var select = connection.CreateCommand())
+        {
+            select.Transaction = transaction;
+            select.CommandText = "SELECT id FROM embedded_assets;";
+            var allIds = new List<string>();
+            using (var reader = select.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    allIds.Add(reader.GetString(0));
+                }
+            }
+
+            foreach (var id in allIds.Where(id => !referencedAssets.Contains(id)))
+            {
+                using var delete = connection.CreateCommand();
+                delete.Transaction = transaction;
+                delete.CommandText = "DELETE FROM embedded_assets WHERE id = $id;";
+                delete.Parameters.AddWithValue("$id", id);
+                removedAssetCount += delete.ExecuteNonQuery();
+            }
+
+            transaction.Commit();
+        }
+
+        Execute(connection, null, "VACUUM;");
+        return removedAssetCount;
+    }
+
+    private HashSet<string> ReadReferencedAssetIds(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
         var referencedAssets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         using (var command = connection.CreateCommand())
         {
@@ -699,33 +806,14 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
             }
         }
 
-        using (var transaction = connection.BeginTransaction())
-        using (var select = connection.CreateCommand())
-        {
-            select.Transaction = transaction;
-            select.CommandText = "SELECT id FROM embedded_assets;";
-            var allIds = new List<string>();
-            using (var reader = select.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    allIds.Add(reader.GetString(0));
-                }
-            }
+        return referencedAssets;
+    }
 
-            foreach (var id in allIds.Where(id => !referencedAssets.Contains(id)))
-            {
-                using var delete = connection.CreateCommand();
-                delete.Transaction = transaction;
-                delete.CommandText = "DELETE FROM embedded_assets WHERE id = $id;";
-                delete.Parameters.AddWithValue("$id", id);
-                delete.ExecuteNonQuery();
-            }
-
-            transaction.Commit();
-        }
-
-        Execute(connection, null, "VACUUM;");
+    private static long ExecuteScalarInt64(SqliteConnection connection, string commandText)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = commandText;
+        return Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture);
     }
 
     private static SqliteConnection OpenConnection(string path, bool readOnly)

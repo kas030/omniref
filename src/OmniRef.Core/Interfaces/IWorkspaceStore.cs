@@ -33,7 +33,12 @@ public interface IWorkspaceStore
         string workspacePath,
         Guid assetId,
         CancellationToken cancellationToken = default);
-    Task CompactAsync(string workspacePath, CancellationToken cancellationToken = default);
+    Task<WorkspaceCompactionInfo> AnalyzeCompactionAsync(
+        string workspacePath,
+        CancellationToken cancellationToken = default);
+    Task<WorkspaceCompactionResult> CompactAsync(
+        string workspacePath,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IWorkspaceFileLease : IDisposable
