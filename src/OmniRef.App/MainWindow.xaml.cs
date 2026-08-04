@@ -131,6 +131,8 @@ public partial class MainWindow : Window
     private double _workspaceTabAutoScrollTargetVelocity;
     private TimeSpan? _workspaceTabAutoScrollLastRenderingTime;
     private bool _workspaceTabAutoScrollActive;
+    private WorkspaceViewModel? _workspaceTabDragWorkspace;
+    private bool _workspaceTabOrderChanged;
     private bool _workspaceTabDragStartAllowed = true;
     private ListBoxItem? _workspaceTabPointerOverItem;
     private Point _canvasOnlyDragStart;
@@ -165,7 +167,7 @@ public partial class MainWindow : Window
             CaptureWorkspaceTabOrder,
             UpdateWorkspaceTabAutoScroll,
             StopWorkspaceTabAutoScroll,
-            () => SaveSettings(cleanExit: false));
+            () => _workspaceTabOrderChanged = true);
         _workspaceTabDragHandler = new WorkspaceTabDragHandler(
             () => _workspaceTabDragStartAllowed,
             BeginWorkspaceTabDragOperation,
@@ -887,8 +889,16 @@ public partial class MainWindow : Window
         _workspaceTabPointerOverItem?.SetValue(IsWorkspaceTabPointerOverProperty, true);
     }
 
-    private void BeginWorkspaceTabDragOperation()
+    private void BeginWorkspaceTabDragOperation(IDragInfo dragInfo)
     {
+        _workspaceTabDragWorkspace = dragInfo.SourceItem as WorkspaceViewModel;
+        _workspaceTabOrderChanged = false;
+        if (_workspaceTabDragWorkspace is { } workspace)
+        {
+            _viewModel.SelectedWorkspace = workspace;
+            WorkspaceTabs.SelectedItem = workspace;
+        }
+
         if (FindVisualDescendant<ScrollViewer>(WorkspaceTabs) is { } scrollViewer)
         {
             SmoothScrollBehavior.Stop(scrollViewer);
@@ -900,8 +910,34 @@ public partial class MainWindow : Window
 
     private void EndWorkspaceTabDragOperation()
     {
+        var orderChanged = _workspaceTabOrderChanged;
+        _workspaceTabOrderChanged = false;
         StopWorkspaceTabAutoScroll();
         SetWorkspaceTabDragObstaclesHitTestVisible(true);
+        RestoreWorkspaceTabSelection();
+        if (orderChanged)
+        {
+            SaveSettings(cleanExit: false);
+        }
+    }
+
+    private void RestoreWorkspaceTabSelection()
+    {
+        var workspace = _workspaceTabDragWorkspace;
+        _workspaceTabDragWorkspace = null;
+        if (workspace is null || !_viewModel.Workspaces.Contains(workspace))
+        {
+            return;
+        }
+
+        // Moving an item can make ListBox temporarily select another item or clear selection.
+        _viewModel.SelectedWorkspace = workspace;
+        if (!ReferenceEquals(WorkspaceTabs.SelectedItem, workspace))
+        {
+            WorkspaceTabs.SelectedItem = workspace;
+        }
+
+        BringSelectedWorkspaceTabIntoView();
     }
 
     private void SetWorkspaceTabDragObstaclesHitTestVisible(bool isHitTestVisible)
