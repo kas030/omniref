@@ -35,10 +35,12 @@ public interface IWorkspaceStore
         CancellationToken cancellationToken = default);
     Task<WorkspaceCompactionInfo> AnalyzeCompactionAsync(
         string workspacePath,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        IReadOnlyCollection<Guid>? protectedAssetIds = null);
     Task<WorkspaceCompactionResult> CompactAsync(
         string workspacePath,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        IReadOnlyCollection<Guid>? protectedAssetIds = null);
 }
 
 public interface IWorkspaceFileLease : IDisposable

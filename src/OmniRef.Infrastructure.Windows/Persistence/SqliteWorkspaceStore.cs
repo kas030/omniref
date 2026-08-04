@@ -259,13 +259,18 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
 
     public async Task<WorkspaceCompactionInfo> AnalyzeCompactionAsync(
         string workspacePath,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyCollection<Guid>? protectedAssetIds = null)
     {
+        var protectedIds = NormalizeAssetIds(protectedAssetIds);
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             return await Task.Run(
-                    () => AnalyzeCompactionCore(Path.GetFullPath(workspacePath), cancellationToken),
+                    () => AnalyzeCompactionCore(
+                        Path.GetFullPath(workspacePath),
+                        protectedIds,
+                        cancellationToken),
                     cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -277,15 +282,17 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
 
     public async Task<WorkspaceCompactionResult> CompactAsync(
         string workspacePath,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyCollection<Guid>? protectedAssetIds = null)
     {
+        var protectedIds = NormalizeAssetIds(protectedAssetIds);
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             var fullPath = Path.GetFullPath(workspacePath);
             var sizeBefore = new FileInfo(fullPath).Length;
             var removedAssetCount = await Task.Run(
-                    () => CompactCore(fullPath, cancellationToken),
+                    () => CompactCore(fullPath, protectedIds, cancellationToken),
                     cancellationToken)
                 .ConfigureAwait(false);
             var sizeAfter = new FileInfo(fullPath).Length;
@@ -713,10 +720,12 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
 
     private WorkspaceCompactionInfo AnalyzeCompactionCore(
         string workspacePath,
+        IReadOnlySet<string> protectedAssetIds,
         CancellationToken cancellationToken)
     {
         using var connection = OpenConnection(workspacePath, readOnly: true);
         var referencedAssets = ReadReferencedAssetIds(connection, cancellationToken);
+        referencedAssets.UnionWith(protectedAssetIds);
         long unreferencedBytes = 0;
         var unreferencedAssetCount = 0;
         using (var command = connection.CreateCommand())
@@ -745,10 +754,14 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
             unreferencedAssetCount);
     }
 
-    private int CompactCore(string workspacePath, CancellationToken cancellationToken)
+    private int CompactCore(
+        string workspacePath,
+        IReadOnlySet<string> protectedAssetIds,
+        CancellationToken cancellationToken)
     {
         using var connection = OpenConnection(workspacePath, readOnly: false);
         var referencedAssets = ReadReferencedAssetIds(connection, cancellationToken);
+        referencedAssets.UnionWith(protectedAssetIds);
         var removedAssetCount = 0;
         using (var transaction = connection.BeginTransaction())
         using (var select = connection.CreateCommand())
@@ -779,6 +792,10 @@ public sealed class SqliteWorkspaceStore : IWorkspaceStore, IDisposable
         Execute(connection, null, "VACUUM;");
         return removedAssetCount;
     }
+
+    private static HashSet<string> NormalizeAssetIds(IReadOnlyCollection<Guid>? assetIds) =>
+        assetIds?.Select(id => id.ToString("D")).ToHashSet(StringComparer.OrdinalIgnoreCase) ??
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
     private HashSet<string> ReadReferencedAssetIds(
         SqliteConnection connection,

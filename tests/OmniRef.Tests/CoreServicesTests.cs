@@ -195,6 +195,34 @@ public sealed class CoreServicesTests
     }
 
     [Fact]
+    public void UndoHistory_TracksAssetsNeededByUndoAndRedoCommands()
+    {
+        var firstAssetId = Guid.NewGuid();
+        var secondAssetId = Guid.NewGuid();
+        var history = new UndoHistory(1);
+        history.Execute(new DelegateUndoableCommand(
+            "First",
+            () => { },
+            () => { },
+            [firstAssetId]));
+
+        Assert.Contains(firstAssetId, history.ProtectedAssetIds);
+
+        history.Undo();
+
+        Assert.Contains(firstAssetId, history.ProtectedAssetIds);
+
+        history.Execute(new DelegateUndoableCommand(
+            "Second",
+            () => { },
+            () => { },
+            [secondAssetId]));
+
+        Assert.DoesNotContain(firstAssetId, history.ProtectedAssetIds);
+        Assert.Contains(secondAssetId, history.ProtectedAssetIds);
+    }
+
+    [Fact]
     public void Search_FindsChineseTextPathsAndTags()
     {
         var items = new[]

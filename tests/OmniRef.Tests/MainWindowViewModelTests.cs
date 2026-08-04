@@ -381,6 +381,48 @@ public sealed class MainWindowViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Compact_ProtectsDeletedEmbeddedAssetNeededByUndo()
+    {
+        var embeddedAssetId = Guid.NewGuid();
+        _store.RestoredDocument = new WorkspaceDocument
+        {
+            Items =
+            [
+                new BoardItem
+                {
+                    Kind = ItemKind.File,
+                    Title = "Embedded reference",
+                    Content = new FileContent(new SourceDescriptor(
+                        null,
+                        null,
+                        AssetMode.EmbeddedCopy,
+                        embeddedAssetId,
+                        "reference.bin",
+                        128,
+                        null), ".bin")
+                }
+            ]
+        };
+        var workspace = await _viewModel.OpenAsync(Path.Combine(_directory, "Undo.omniref"));
+        Assert.NotNull(workspace);
+        workspace.SelectOnly(Assert.Single(workspace.Items));
+        workspace.RemoveSelected();
+        Assert.Empty(workspace.Items);
+
+        await workspace.CompactAsync();
+
+        Assert.Contains(embeddedAssetId, _store.LastProtectedAssetIds);
+        Assert.True(workspace.CanUndo);
+
+        workspace.Undo();
+
+        var restored = Assert.Single(workspace.Items);
+        var source = Assert.IsType<FileContent>(restored.Model.Content).Source;
+        Assert.Equal(embeddedAssetId, source.EmbeddedAssetId);
+        Assert.Equal(AssetMode.EmbeddedCopy, source.Mode);
+    }
+
+    [Fact]
     public async Task MissingBackingFile_StopsAutomaticSaveAndKeepsWorkspaceOpen()
     {
         var workspace = await _viewModel.CreateNewAsync(includeWelcomeContent: false);
@@ -500,6 +542,7 @@ public sealed class MainWindowViewModelTests : IDisposable
         public TestWorkspaceFileLease? LastLease { get; private set; }
         public int SaveCount { get; private set; }
         public int ViewportSaveCount { get; private set; }
+        public IReadOnlyCollection<Guid> LastProtectedAssetIds { get; private set; } = [];
         public WorkspaceDocument? RestoredDocument { get; set; }
         public WorkspaceCompactionResult CompactionResult { get; set; } = new(0, 0, 0);
 
@@ -575,13 +618,21 @@ public sealed class MainWindowViewModelTests : IDisposable
 
         public Task<WorkspaceCompactionInfo> AnalyzeCompactionAsync(
             string workspacePath,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(new WorkspaceCompactionInfo(0, 0, 0));
+            CancellationToken cancellationToken = default,
+            IReadOnlyCollection<Guid>? protectedAssetIds = null)
+        {
+            LastProtectedAssetIds = protectedAssetIds?.ToList() ?? [];
+            return Task.FromResult(new WorkspaceCompactionInfo(0, 0, 0));
+        }
 
         public Task<WorkspaceCompactionResult> CompactAsync(
             string workspacePath,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(CompactionResult);
+            CancellationToken cancellationToken = default,
+            IReadOnlyCollection<Guid>? protectedAssetIds = null)
+        {
+            LastProtectedAssetIds = protectedAssetIds?.ToList() ?? [];
+            return Task.FromResult(CompactionResult);
+        }
     }
 
     private sealed class TestWorkspaceFileLease(string path) : IWorkspaceFileLease

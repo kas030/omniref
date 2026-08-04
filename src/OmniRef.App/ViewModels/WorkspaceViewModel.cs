@@ -554,6 +554,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         var deleted = selected
             .Select(item => (Index: Items.IndexOf(item), Model: item.Model.DeepClone()))
             .ToList();
+        var protectedAssetIds = EmbeddedAssetIdsOf(deleted.Select(entry => entry.Model));
         var selectedIds = selected.Select(item => item.Id).ToHashSet();
         var affectedChildren = Items
             .Where(item => item.ParentFrameId.HasValue && selectedIds.Contains(item.ParentFrameId.Value))
@@ -587,7 +588,11 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
             RaiseCollectionState();
         }
 
-        _history.Execute(new DelegateUndoableCommand("Delete items", Execute, Undo));
+        _history.Execute(new DelegateUndoableCommand(
+            "Delete items",
+            Execute,
+            Undo,
+            protectedAssetIds));
         RaiseHistoryState();
     }
 
@@ -1151,7 +1156,8 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
             new DelegateUndoableCommand(
                 "Embed asset",
                 () => item.ReplaceContent(nextContent),
-                () => item.ReplaceContent(oldContent)));
+                () => item.ReplaceContent(oldContent),
+                EmbeddedAssetIdsOf(nextContent)));
         MarkDirty();
         RaiseHistoryState();
         return true;
@@ -1212,7 +1218,8 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
             new DelegateUndoableCommand(
                 "Relink embedded asset",
                 () => item.ReplaceContent(nextContent),
-                () => item.ReplaceContent(oldContent)));
+                () => item.ReplaceContent(oldContent),
+                EmbeddedAssetIdsOf(oldContent)));
         item.IsMissing = false;
         MarkDirty();
         RaiseHistoryState();
@@ -1308,7 +1315,11 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
 
         try
         {
-            var info = await _store.AnalyzeCompactionAsync(_path, cancellationToken).ConfigureAwait(true);
+            var info = await _store.AnalyzeCompactionAsync(
+                    _path,
+                    cancellationToken,
+                    _history.ProtectedAssetIds)
+                .ConfigureAwait(true);
             _workspaceFileSize = info.FileSize;
             _estimatedReclaimableBytes = info.EstimatedReclaimableBytes;
             _unreferencedAssetCount = info.UnreferencedAssetCount;
@@ -1343,7 +1354,11 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            _lastCompactionResult = await _store.CompactAsync(_path, cancellationToken).ConfigureAwait(true);
+            _lastCompactionResult = await _store.CompactAsync(
+                    _path,
+                    cancellationToken,
+                    _history.ProtectedAssetIds)
+                .ConfigureAwait(true);
             _workspaceFileSize = _lastCompactionResult.SizeAfter;
             _estimatedReclaimableBytes = 0;
             _unreferencedAssetCount = 0;
@@ -1482,6 +1497,7 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         }
         var snapshots = models.Select(model => model.DeepClone()).ToList();
         var ids = snapshots.Select(model => model.Id).ToHashSet();
+        var protectedAssetIds = EmbeddedAssetIdsOf(snapshots);
 
         void Execute()
         {
@@ -1507,7 +1523,11 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
             RaiseCollectionState();
         }
 
-        _history.Execute(new DelegateUndoableCommand(description, Execute, Undo));
+        _history.Execute(new DelegateUndoableCommand(
+            description,
+            Execute,
+            Undo,
+            protectedAssetIds));
         RaiseHistoryState();
     }
 
@@ -1944,6 +1964,18 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         FolderContent folder => folder.Source,
         _ => null
     };
+
+    private static IReadOnlySet<Guid> EmbeddedAssetIdsOf(ItemContent content)
+    {
+        var assetId = SourceOf(content)?.EmbeddedAssetId;
+        return assetId.HasValue ? new HashSet<Guid> { assetId.Value } : new HashSet<Guid>();
+    }
+
+    private static IReadOnlySet<Guid> EmbeddedAssetIdsOf(IEnumerable<BoardItem> items) =>
+        items.Select(item => SourceOf(item.Content)?.EmbeddedAssetId)
+            .Where(assetId => assetId.HasValue)
+            .Select(assetId => assetId!.Value)
+            .ToHashSet();
 
     private static ItemContent ReplaceSource(ItemContent content, SourceDescriptor source) => content switch
     {

@@ -118,6 +118,44 @@ public sealed class SqliteWorkspaceStoreTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Compact_PreservesUnreferencedAssetProtectedByUndoHistory()
+    {
+        var path = Path.Combine(_directory, "protected-asset.omniref");
+        var exported = Path.Combine(_directory, "restored.bin");
+        var bytes = new byte[256 * 1024];
+        Random.Shared.NextBytes(bytes);
+        using var store = new SqliteWorkspaceStore();
+        await store.SaveAsync(path, CreateDocument());
+        EmbeddedAssetInfo asset;
+        await using (var input = new MemoryStream(bytes))
+        {
+            asset = await store.ImportEmbeddedAssetAsync(
+                path,
+                input,
+                "protected.bin",
+                "application/octet-stream");
+        }
+
+        var analysis = await store.AnalyzeCompactionAsync(
+            path,
+            protectedAssetIds: [asset.Id]);
+        var result = await store.CompactAsync(
+            path,
+            protectedAssetIds: [asset.Id]);
+        await store.ExportEmbeddedAssetAsync(path, asset.Id, exported);
+
+        Assert.Equal(0, analysis.UnreferencedAssetCount);
+        Assert.Equal(0, result.RemovedAssetCount);
+        Assert.Equal(bytes, await File.ReadAllBytesAsync(exported));
+
+        var unprotectedResult = await store.CompactAsync(path);
+
+        Assert.Equal(1, unprotectedResult.RemovedAssetCount);
+        await Assert.ThrowsAsync<KeyNotFoundException>(
+            () => store.ExportEmbeddedAssetAsync(path, asset.Id, exported));
+    }
+
+    [Fact]
     public async Task ReferencedEmbeddedAsset_DoesNotLeaveBlobSizedFreePages()
     {
         var path = Path.Combine(_directory, "embedded-space.omniref");
