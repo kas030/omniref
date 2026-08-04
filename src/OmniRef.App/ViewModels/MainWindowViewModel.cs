@@ -10,6 +10,12 @@ using OmniRef.Infrastructure.Windows.Settings;
 
 namespace OmniRef.App.ViewModels;
 
+public enum SidebarPage
+{
+    Search,
+    Properties
+}
+
 public sealed class MainWindowViewModel : ObservableObject, IDisposable
 {
     private readonly IWorkspaceStore _store;
@@ -19,6 +25,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private readonly AppSettingsStore _settingsStore;
     private WorkspaceViewModel? _selectedWorkspace;
     private bool _sidebarVisible = true;
+    private SidebarPage _selectedSidebarPage;
     private bool _disposed;
 
     public MainWindowViewModel(
@@ -63,6 +70,43 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     {
         get => _sidebarVisible;
         set => SetProperty(ref _sidebarVisible, value);
+    }
+
+    public SidebarPage SelectedSidebarPage
+    {
+        get => _selectedSidebarPage;
+        set
+        {
+            if (SetProperty(ref _selectedSidebarPage, value))
+            {
+                OnPropertyChanged(nameof(IsSearchSidebarPageSelected));
+                OnPropertyChanged(nameof(IsPropertiesSidebarPageSelected));
+            }
+        }
+    }
+
+    public bool IsSearchSidebarPageSelected
+    {
+        get => SelectedSidebarPage == SidebarPage.Search;
+        set
+        {
+            if (value)
+            {
+                SelectedSidebarPage = SidebarPage.Search;
+            }
+        }
+    }
+
+    public bool IsPropertiesSidebarPageSelected
+    {
+        get => SelectedSidebarPage == SidebarPage.Properties;
+        set
+        {
+            if (value)
+            {
+                SelectedSidebarPage = SidebarPage.Properties;
+            }
+        }
     }
 
     public async Task<WorkspaceViewModel> CreateNewAsync(

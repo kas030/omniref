@@ -40,6 +40,19 @@ public sealed class MainWindowViewModelTests : IDisposable
     }
 
     [Fact]
+    public void SidebarNavigation_SelectsOnePageAtATime()
+    {
+        Assert.True(_viewModel.IsSearchSidebarPageSelected);
+        Assert.False(_viewModel.IsPropertiesSidebarPageSelected);
+
+        _viewModel.IsPropertiesSidebarPageSelected = true;
+
+        Assert.Equal(SidebarPage.Properties, _viewModel.SelectedSidebarPage);
+        Assert.False(_viewModel.IsSearchSidebarPageSelected);
+        Assert.True(_viewModel.IsPropertiesSidebarPageSelected);
+    }
+
+    [Fact]
     public async Task CloseSelectedWorkspace_SelectsTabToTheRightBeforeSelectorProcessesRemoval()
     {
         var first = await _viewModel.CreateNewAsync(includeWelcomeContent: false);
