@@ -1928,6 +1928,42 @@ public partial class MainWindow : Window
         }
     }
 
+    private void UnembedAndRelink_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        if (IsCanvasLocked)
+        {
+            return;
+        }
+
+        var workspace = _viewModel.SelectedWorkspace;
+        var source = workspace?.SelectedItem is { } item ? SourceOf(item.Model.Content) : null;
+        if (workspace is null || source?.Mode != AssetMode.EmbeddedCopy)
+        {
+            return;
+        }
+
+        var dialog = new OpenFileDialog
+        {
+            Title = _viewModel.Localization["UnembedDialogTitle"],
+            FileName = source.OriginalFileName,
+            Filter = "All files (*.*)|*.*",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+        var originalDirectory = source.AbsolutePath is null
+            ? null
+            : System.IO.Path.GetDirectoryName(source.AbsolutePath);
+        if (originalDirectory is not null && Directory.Exists(originalDirectory))
+        {
+            dialog.InitialDirectory = originalDirectory;
+        }
+
+        if (dialog.ShowDialog(this) == true)
+        {
+            workspace.UnembedAndRelinkSelected(dialog.FileName);
+        }
+    }
+
     private void Relink_Click(object sender, RoutedEventArgs eventArgs)
     {
         if (IsCanvasLocked)

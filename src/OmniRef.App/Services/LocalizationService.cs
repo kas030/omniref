@@ -74,6 +74,7 @@ public sealed class LocalizationService : INotifyPropertyChanged
             ["TextAlignRight"] = "Align text right",
             ["Embed"] = "Embed copy",
             ["Export"] = "Export",
+            ["UnembedAndRelink"] = "Relink as external",
             ["Relink"] = "Relink",
             ["Reveal"] = "Show in Explorer",
             ["ExternalReference"] = "External reference",
@@ -152,6 +153,7 @@ public sealed class LocalizationService : INotifyPropertyChanged
             ["FilesDialogTitle"] = "Add files",
             ["FolderDialogTitle"] = "Add folder",
             ["ExportDialogTitle"] = "Export embedded file",
+            ["UnembedDialogTitle"] = "Choose external source",
             ["RelinkDialogTitle"] = "Relink source"
         };
 
@@ -223,6 +225,7 @@ public sealed class LocalizationService : INotifyPropertyChanged
             ["TextAlignRight"] = "文字右对齐",
             ["Embed"] = "内嵌副本",
             ["Export"] = "导出",
+            ["UnembedAndRelink"] = "取消内嵌并重新链接",
             ["Relink"] = "重新定位",
             ["Reveal"] = "在资源管理器中显示",
             ["ExternalReference"] = "外部引用",
@@ -301,6 +304,7 @@ public sealed class LocalizationService : INotifyPropertyChanged
             ["FilesDialogTitle"] = "添加文件",
             ["FolderDialogTitle"] = "添加文件夹",
             ["ExportDialogTitle"] = "导出内嵌文件",
+            ["UnembedDialogTitle"] = "选择外部源文件",
             ["RelinkDialogTitle"] = "重新定位源文件"
         };
 

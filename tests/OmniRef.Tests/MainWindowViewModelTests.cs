@@ -324,6 +324,63 @@ public sealed class MainWindowViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task UnembedAndRelink_UsesSelectedFileAndSupportsUndoRedo()
+    {
+        var embeddedAssetId = Guid.NewGuid();
+        _store.RestoredDocument = new WorkspaceDocument
+        {
+            Items =
+            [
+                new BoardItem
+                {
+                    Kind = ItemKind.File,
+                    Title = "Embedded reference",
+                    Content = new FileContent(new SourceDescriptor(
+                        @"C:\old\reference.bin",
+                        null,
+                        AssetMode.EmbeddedCopy,
+                        embeddedAssetId,
+                        "reference.bin",
+                        128,
+                        null), ".bin")
+                }
+            ]
+        };
+        var workspacePath = Path.Combine(_directory, "References.omniref");
+        var sourcePath = Path.Combine(_directory, "linked.bin");
+        Directory.CreateDirectory(_directory);
+        await File.WriteAllBytesAsync(sourcePath, new byte[2048]);
+        var workspace = await _viewModel.OpenAsync(workspacePath);
+        Assert.NotNull(workspace);
+        var item = Assert.Single(workspace.Items);
+        workspace.SelectOnly(item);
+
+        var relinked = workspace.UnembedAndRelinkSelected(sourcePath);
+
+        Assert.True(relinked);
+        var external = Assert.IsType<FileContent>(item.Model.Content).Source;
+        Assert.Equal(AssetMode.ExternalReference, external.Mode);
+        Assert.Null(external.EmbeddedAssetId);
+        Assert.Equal(Path.GetFullPath(sourcePath), external.AbsolutePath);
+        Assert.Equal("linked.bin", external.RelativePath);
+        Assert.Equal("linked.bin", external.OriginalFileName);
+        Assert.Equal(2048, external.Size);
+        Assert.True(workspace.CanUndo);
+
+        workspace.Undo();
+
+        var restored = Assert.IsType<FileContent>(item.Model.Content).Source;
+        Assert.Equal(AssetMode.EmbeddedCopy, restored.Mode);
+        Assert.Equal(embeddedAssetId, restored.EmbeddedAssetId);
+
+        workspace.Redo();
+
+        var redone = Assert.IsType<FileContent>(item.Model.Content).Source;
+        Assert.Equal(AssetMode.ExternalReference, redone.Mode);
+        Assert.Null(redone.EmbeddedAssetId);
+    }
+
+    [Fact]
     public async Task MissingBackingFile_StopsAutomaticSaveAndKeepsWorkspaceOpen()
     {
         var workspace = await _viewModel.CreateNewAsync(includeWelcomeContent: false);

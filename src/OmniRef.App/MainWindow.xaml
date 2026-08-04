@@ -1092,7 +1092,17 @@
                                                         <StackPanel Orientation="Horizontal">
                                                             <icons:FluentIcon Width="17" Height="17" Margin="0,0,8,0" FontSize="17" Icon="SaveEdit" />
                                                             <TextBlock VerticalAlignment="Center"
-                                                                       Text="{Binding DataContext.Localization[Export], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                                        Text="{Binding DataContext.Localization[Export], RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                        </StackPanel>
+                                                    </Button>
+                                                    <Button Style="{StaticResource PropertyActionButton}"
+                                                            Visibility="{Binding IsEmbedded, Converter={StaticResource BoolToVisibility}}"
+                                                            IsEnabled="{Binding DataContext.SelectedWorkspace.IsReadOnly, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBool}}"
+                                                            Click="UnembedAndRelink_Click">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <icons:FluentIcon Width="17" Height="17" Margin="0,0,8,0" FontSize="17" Icon="FolderOpen" />
+                                                            <TextBlock VerticalAlignment="Center"
+                                                                       Text="{Binding DataContext.Localization[UnembedAndRelink], RelativeSource={RelativeSource AncestorType=Window}}" />
                                                         </StackPanel>
                                                     </Button>
                                                     <Button Style="{StaticResource PropertyActionButton}"

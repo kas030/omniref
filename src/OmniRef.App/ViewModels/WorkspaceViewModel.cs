@@ -1177,6 +1177,48 @@ public sealed class WorkspaceViewModel : ObservableObject, IDisposable
         return true;
     }
 
+    public bool UnembedAndRelinkSelected(string sourcePath)
+    {
+        EnsureWritable();
+        var item = SelectedItem;
+        var source = item is null ? null : SourceOf(item.Model.Content);
+        if (item is null ||
+            source?.Mode != AssetMode.EmbeddedCopy ||
+            item.Kind is not (ItemKind.Image or ItemKind.File))
+        {
+            return false;
+        }
+
+        var fullPath = System.IO.Path.GetFullPath(sourcePath);
+        if (!File.Exists(fullPath))
+        {
+            return false;
+        }
+
+        var info = new FileInfo(fullPath);
+        var nextSource = source with
+        {
+            AbsolutePath = fullPath,
+            RelativePath = PathResolver.CreateRelativePath(_path, fullPath),
+            Mode = AssetMode.ExternalReference,
+            EmbeddedAssetId = null,
+            OriginalFileName = info.Name,
+            Size = info.Length,
+            ModifiedUtc = info.LastWriteTimeUtc
+        };
+        var oldContent = item.Model.Content;
+        var nextContent = ReplaceSource(oldContent, nextSource);
+        _history.Execute(
+            new DelegateUndoableCommand(
+                "Relink embedded asset",
+                () => item.ReplaceContent(nextContent),
+                () => item.ReplaceContent(oldContent)));
+        item.IsMissing = false;
+        MarkDirty();
+        RaiseHistoryState();
+        return true;
+    }
+
     public void RelinkSelected(string sourcePath)
     {
         EnsureWritable();
