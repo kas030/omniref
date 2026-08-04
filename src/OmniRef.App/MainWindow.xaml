@@ -326,11 +326,10 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0"
-                                           Text="{Binding DisplayTitle}"
-                                           VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"
-                                           Margin="8,0,5,0" />
+                                <controls:OverflowFadingTextBlock Grid.Column="0"
+                                                                  Text="{Binding DisplayTitle}"
+                                                                  VerticalAlignment="Center"
+                                                                  Margin="8,0,5,0" />
                                 <Button Grid.Column="1"
                                         dd:DragDrop.DragSourceIgnore="True"
                                         Style="{StaticResource ToolbarButton}"

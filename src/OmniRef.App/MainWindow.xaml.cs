@@ -45,7 +45,7 @@ public partial class MainWindow : Window
     private const double CanvasOnlyMinimumWidth = 240;
     private const double CanvasOnlyMinimumHeight = 180;
     private const double WorkspaceTabPreferredWidth = 180;
-    private const double WorkspaceTabMinimumWidth = 104;
+    private const double WorkspaceTabMinimumWidth = 80;
     private const double WorkspaceTabHorizontalMargin = 4;
     private const double WorkspaceTabAutoScrollEdgeWidth = 48;
     private const double WorkspaceTabAutoScrollMinimumSpeed = 180;
