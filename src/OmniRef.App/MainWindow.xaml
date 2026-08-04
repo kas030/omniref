@@ -904,7 +904,7 @@
                                 Padding="7"
                                 Style="{StaticResource ToolbarButton}"
                                 Click="SearchClear_Click"
-                                Visibility="{Binding SelectedWorkspace.SearchQuery, Converter={StaticResource NonEmptyStringToVisibility}}"
+                                Visibility="{Binding SelectedWorkspace.SearchQuery, Converter={StaticResource NonEmptyStringToVisibility}, FallbackValue=Collapsed}"
                                 ToolTip="{Binding Localization[ClearSearch]}"
                                 AutomationProperties.Name="{Binding Localization[ClearSearch]}">
                             <icons:FluentIcon Style="{StaticResource ToolbarIcon}"
