@@ -1523,7 +1523,7 @@ public sealed class InfiniteCanvas : Canvas
         // Keep the persisted card bounds large enough for one world-space line
         // of text plus the fixed world-space top and bottom padding.
         var lineHeight = GetTextWorldFontSize(text) * TextLineHeightMultiplier;
-        return Math.Max(60, lineHeight + (CardVerticalPadding * 2));
+        return Math.Max(48, lineHeight + (CardVerticalPadding * 2));
     }
 
     private static void ArrangeTextEditor(TextBox editor, Rect rect)
