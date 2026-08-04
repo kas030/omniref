@@ -667,7 +667,8 @@ public sealed class InfiniteCanvas : Canvas
             GetTextWorldFontSize(text),
             foreground,
             FontWeights.Normal,
-            GetTextAlignment(text));
+            GetTextAlignment(text),
+            trimming: TextTrimming.None);
         if (isOverflowing)
         {
             var background = GetTextBackground(text, item);
@@ -860,7 +861,8 @@ public sealed class InfiniteCanvas : Canvas
         FontWeight fontWeight,
         TextAlignment alignment,
         int maxLines = 0,
-        bool verticalCenter = false)
+        bool verticalCenter = false,
+        TextTrimming trimming = TextTrimming.CharacterEllipsis)
     {
         if (rect.Width <= 0 || rect.Height <= 0 || string.IsNullOrEmpty(text))
         {
@@ -877,7 +879,7 @@ public sealed class InfiniteCanvas : Canvas
         {
             MaxTextWidth = rect.Width,
             TextAlignment = alignment,
-            Trimming = TextTrimming.CharacterEllipsis
+            Trimming = trimming
         };
         var availableHeight = maxLines > 0
             ? Math.Min(rect.Height, fontSize * TextLineHeightMultiplier * maxLines)
